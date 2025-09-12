@@ -3,44 +3,33 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Água Segura — mapa (classes + filtro Microbacias)</title>
+  <title>Água Segura — Pré-diagnóstico das Microacias Selecionadas</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
     :root { --topbar-h: 48px; }
     html,body { height:100%; margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
     #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
-    .topbar {
-      position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
-      display:flex; align-items:center; gap:.5rem;
-      background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
-    }
+    .topbar { position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
+      display:flex; align-items:center; gap:.5rem; background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000; }
     .btn{ border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer }
     .btn:hover{ background:#f9fafb }
     .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
 
-    .panel {
-      background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
-      box-shadow: 0 6px 18px rgba(0,0,0,.08); width: 320px; max-height: 70vh; overflow:auto;
-      font-size: 13px;
-    }
+    .panel { background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
+      box-shadow: 0 6px 18px rgba(0,0,0,.08); width: 320px; max-height: 70vh; overflow:auto; font-size: 13px; }
     .panel h3 { margin:.25rem 0 .5rem; font-size:14px; }
     .panel label { color:#6b7280; font-size:12px; display:block; margin:.35rem 0 .25rem; }
-    .panel input[type="search"], .panel select {
-      width:100%; padding:.45rem .5rem; border:1px solid #d1d5db; border-radius:.5rem;
-    }
+    .panel input[type="search"] { width:100%; padding:.45rem .5rem; border:1px solid #d1d5db; border-radius:.5rem; }
     .row { display:flex; gap:.5rem; margin:.4rem 0; }
     .btn-sm { padding:.3rem .5rem; border-radius:.5rem; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
     .btn-sm.primary { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
-
     .list { border:1px solid #e5e7eb; border-radius:.5rem; max-height:28vh; overflow:auto; padding:.25rem; background:#fff; }
     .item { display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:.35rem; }
     .item:hover { background:#f3f4f6; }
 
-    .legend {
-      background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; padding:.5rem .6rem;
-      font-size:12px; box-shadow: 0 6px 18px rgba(0,0,0,.08);
-    }
+    .legend { background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; padding:.5rem .6rem;
+      font-size:12px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
     .leg-row { display:flex; align-items:center; gap:.5rem; margin:.15rem 0; }
     .sw { width:16px; height:12px; border:1px solid #9ca3af; border-radius:3px; }
   </style>
@@ -48,7 +37,7 @@
 <body>
   <div class="topbar">
     <button id="fitAll" class="btn">Ajustar visão</button>
-    <div class="version">v3 — classes + filtro Microbacias (Cod_man)</div>
+    <div class="version">v4 — classes reais + filtro Microbacias (Cod_man)</div>
   </div>
   <div id="map"></div>
 
@@ -57,17 +46,9 @@
 
   <script>
   // ====== CONFIG ======
-  const BASE = "./data/";  // arquivos servidos em aguasegura/docs/data/
+  const BASE = "./data/"; // arquivos em aguasegura/docs/data/
 
-  // ====== CAMPOS (por camada) — ajuste se necessário ======
-  const FIELDS = {
-    declividade: ['classe','Classe','DECLIVID','DECLIV','SLOPE_CL','SLOPE'],  // %, texto ou num.
-    solos:       ['classe','Classe','SOLO','SOIL','TIPO','CLASSE_SO'],
-    altimetria:  ['alt','ALT','ALTITUDE','ALTIMETR','COTA'],                  // numérico
-    uso_solo:    ['classe','Classe','USO','USO_DO_SO','CATEG','CLASSE_USO'],
-  };
-
-  // ====== LAYERS (nomes exatos dos arquivos .geojson.gz) ======
+  // ====== LAYERS (nomes exatamente como na pasta) ======
   const LAYERS = [
     { name:'Declividade',  key:'declividade',  type:'poly',
       file:['declividade__declividade_otto.geojson.gz'] },
@@ -100,45 +81,80 @@
         'construcoes__construcoes_otto__part6.geojson.gz'
       ]},
 
-    // << renomeada para Microbacias (antes "otto_selec_lista4")
-    { name:'Microbacias', key:'microbacias', type:'poly',
+    // Microbacias (antes ottos_selec_lista4)
+    { name:'Microbacias',  key:'microbacias',  type:'poly',
       file:['otto_selec__ottos_selec_lista4.geojson.gz'] },
 
     { name:'CAF',          key:'caf',          type:'poly',
       file:['caf__caf_otto.geojson.gz'] }
   ];
 
-  // ====== PALETAS / SIMBOLOGIA ======
-  // Declividade (% ou texto)
-  const slopeBreaks = [0, 3, 8, 20, 45, 1000];
-  const slopeColors = ['#edf8e9','#c7e9c0','#7fcdbb','#41b6c4','#1d91c0']; // claro→escuro
-  const slopeTextMap = {
-    '0-3': slopeColors[0], '0 – 3': slopeColors[0], 'plana': slopeColors[0],
-    '3-8': slopeColors[1], '3 – 8': slopeColors[1], 'suave': slopeColors[1],
-    '8-20': slopeColors[2], '8 – 20': slopeColors[2], 'moderada': slopeColors[2],
-    '20-45': slopeColors[3], '20 – 45': slopeColors[3], 'forte': slopeColors[3],
-    '>45': slopeColors[4], '45+': slopeColors[4], 'muito forte': slopeColors[4]
+  // ====== CAMPOS (conforme seus arquivos) ======
+  const CLASS_FIELDS = {
+    declividade: 'ClDec',
+    altimetria:  'ClAlt',
+    uso_solo:    'NIVEL_II',   // se ausente em algum feature, cai p/ NIVEL_I
+    solos:       'Cl_solos',
+    micro_cod:   'Cod_man'
   };
 
-  // Solos (classes textuais comuns)
-  const soilColors = {
-    'LATOSSOLO':'#d95f0e','ARGISSOLO':'#fdae6b','NEOSSOLO':'#fee6ce',
-    'NITOSSOLO':'#a6761d','CAMBISSOLO':'#e0c2a2','GLEISSOLO':'#74c476',
-    'CHERNOSSOLO':'#9e9ac8','PLANOSSOLO':'#bdbdbd','ESPODOSSOLO':'#9ecae1'
-  };
+  // ====== PALETAS / SIMBOLOGIA (valores reais) ======
+  // Declividade (000a003 … >100)
+  const slopeOrder  = ['000a003','003a008','008a015','015a025','025a045','045a100','>100'];
+  const slopeLabels = ['0–3%','3–8%','8–15%','15–25%','25–45%','45–100%','>100%'];
+  const slopeColors = ['#edf8e9','#c7e9c0','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#0c2c84'];
+  const slopeColorFor = v => slopeColors[Math.max(0, slopeOrder.indexOf(String(v)))];
 
-  // Altimetria (numérica, m) — quebras fixas
-  const altBreaks = [0, 400, 800, 1200, 1600, 10000];
-  const altColors = ['#ffffcc','#c2e699','#78c679','#31a354','#006837'];
+  // Altimetria (“x a y m”) → gradiente baixo→alto
+  const altRamp = ['#ffffcc','#c2e699','#78c679','#31a354','#006837','#00441b']; // 6 tons
+  function altColorFor(v) {
+    if (!v) return altRamp[0];
+    const m = String(v).match(/(\d+).+?(\d+)/); // pega os dois números
+    const mid = m ? (parseFloat(m[1])+parseFloat(m[2]))/2 : NaN;
+    if (isNaN(mid)) return altRamp[0];
+    // quebras aproximadas: 0–400–800–1200–1600–2000+
+    const brks = [0,400,800,1200,1600,2000,1e9];
+    for (let i=0;i<brks.length-1;i++) if (mid>=brks[i] && mid<brks[i+1]) return altRamp[i];
+    return altRamp[altRamp.length-1];
+  }
 
-  // Uso do solo
+  // Uso do Solo (NIVEL_II — 12 classes)
   const usoColors = {
-    'AGRICULTURA':'#e6ab02','AGRICOLA':'#e6ab02','LAVOURA':'#e6ab02','CULTIVO':'#e6ab02',
-    'FLORESTA':'#1b9e77','MATA':'#1b9e77','VEGETAÇÃO':'#1b9e77','VEGETACAO':'#1b9e77',
-    'PASTAGEM':'#a6d854','PASTO':'#a6d854',
-    'URBANO':'#7570b3','URBANA':'#7570b3','CONSTRUÍDA':'#7570b3','CONSTRUIDA':'#7570b3',
-    'ÁGUA':'#67a9cf','AGUA':'#67a9cf','CORPOS D\'ÁGUA':'#67a9cf',
-    'OUTROS':'#bdbdbd','OUTRO':'#bdbdbd'
+    'Agricultura Anual':'#e6ab02',
+    'Agricultura Perene':'#c98c00',
+    'Corpos d’Água':'#67a9cf',
+    'Floresta Nativa':'#1b9e77',
+    'Mangue':'#0f766e',
+    'Pastagem/Campo':'#a6d854',
+    'Plantios Florestais':'#106b21',
+    'Restinga':'#66c2a5',
+    'Solo Exposto/Mineração':'#bdbdbd',
+    'Várzea':'#c7e9c0',
+    'Área Construída':'#7570b3',
+    'Área Urbanizada':'#6a51a3'
+  };
+  const usoFallbackColors = { // se tiver que cair para NIVEL_I
+    'Água':'#67a9cf',
+    'Áreas de Vegetação Natural':'#1b9e77',
+    'Áreas Antrópicas Agrícolas':'#e6ab02',
+    'Áreas Antrópicas Não Agrícolas':'#6a51a3',
+    'Áreas Antrópicas Agrícolas/Áreas de Vegetação Natural':'#8da0cb'
+  };
+
+  // Solos (12 classes)
+  const soilColors = {
+    'LATOSSOLOS':'#d95f0e',
+    'ARGISSOLOS':'#fdae6b',
+    'NEOSSOLOS LITÓLICOS':'#fee6ce',
+    'NEOSSOLOS REGOLÍTICOS':'#fdd0a2',
+    'NITOSSOLOS':'#a6761d',
+    'CAMBISSOLOS':'#e0c2a2',
+    'GLEISSOLOS':'#74c476',
+    'ESPODOSSOLOS':'#9ecae1',
+    'ORGANOSSOLOS':'#807dba',
+    'AFLORAMENTOS DE ROCHAS':'#bdbdbd',
+    'ÁREAS URBANAS':'#756bb1',
+    'ESPELHOS DAGUA':'#67a9cf'
   };
 
   // ====== MAPA ======
@@ -155,7 +171,7 @@
   const datasetByKey = {};   // key -> {def, features, layer}
   const addedLayers = [];
 
-  // ====== AJUDANTES ======
+  // ====== LOADER (.geojson e .gz; múltiplos arquivos) ======
   async function fetchMaybeGz(url) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
@@ -171,110 +187,6 @@
     gj?.type === "FeatureCollection" ? (gj.features||[]) :
     (gj?.type === "Feature" ? [gj] : []);
 
-  function findField(props, candidates){
-    const keys = Object.keys(props||{});
-    for (const c of candidates){
-      if (keys.includes(c)) return c;
-      const k = keys.find(k => k.toLowerCase() === c.toLowerCase());
-      if (k) return k;
-    }
-    return null;
-  }
-
-  function colorForDeclividade(p){
-    // tente texto
-    const f = findField(p, FIELDS.declividade);
-    if (!f) return '#7fcdbb';
-    const v = p[f];
-    if (typeof v === 'string'){
-      const t = v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-      const hit = Object.keys(slopeTextMap).find(k => t.includes(k.replace('–','-')));
-      return hit ? slopeTextMap[hit] : '#7fcdbb';
-    }
-    const num = Number(v);
-    if (!isNaN(num)){
-      for (let i=0;i<slopeBreaks.length-1;i++){
-        if (num >= slopeBreaks[i] && num < slopeBreaks[i+1]) return slopeColors[i];
-      }
-    }
-    return '#7fcdbb';
-  }
-
-  function colorForAltimetria(p){
-    const f = findField(p, FIELDS.altimetria);
-    const num = Number(p[f]);
-    if (isNaN(num)) return '#b2abd2';
-    for (let i=0;i<altBreaks.length-1;i++){
-      if (num >= altBreaks[i] && num < altBreaks[i+1]) return altColors[i];
-    }
-    return altColors[altColors.length-1];
-  }
-
-  function colorForSolos(p){
-    const f = findField(p, FIELDS.solos);
-    if (!f) return '#dfc27d';
-    const t = String(p[f] ?? '').toUpperCase();
-    const hit = Object.keys(soilColors).find(k => t.includes(k));
-    return hit ? soilColors[hit] : '#dfc27d';
-  }
-
-  function colorForUso(p){
-    const f = findField(p, FIELDS.uso_solo);
-    if (!f) return '#31a354';
-    const t = String(p[f] ?? '').toUpperCase();
-    const hit = Object.keys(usoColors).find(k => t.includes(k));
-    return hit ? usoColors[hit] : '#31a354';
-  }
-
-  function styleFn(key){
-    // retorna uma função de estilo por camada (classificada quando aplicável)
-    if (key === 'declividade') return (f)=>({ color:'#555', weight:0.5, fillColor: colorForDeclividade(f.properties), fillOpacity:0.65 });
-    if (key === 'altimetria')  return (f)=>({ color:'#333', weight:0.4, fillColor: colorForAltimetria(f.properties),  fillOpacity:0.60 });
-    if (key === 'solos')       return (f)=>({ color:'#555', weight:0.4, fillColor: colorForSolos(f.properties),       fillOpacity:0.65 });
-    if (key === 'uso_solo')    return (f)=>({ color:'#444', weight:0.4, fillColor: colorForUso(f.properties),          fillOpacity:0.55 });
-    // padrões
-    const defaults = {
-      estradas:   { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0 },
-      hidrografia:{ color:'#2b8cbe', weight:2, fillOpacity:0.2 },
-      nascentes:  { color:'#1c9099', weight:2, fillOpacity:0.8 },
-      construcoes:{ color:'#252525', weight:1, fillOpacity:0.9 },
-      caf:        { color:'#006837', weight:1, fillOpacity:0.35 },
-      microbacias:{ color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25 }
-    };
-    return ()=> (defaults[key] || { color:'#555', weight:1, fillOpacity:0.25 });
-  }
-
-  function addLegend(id, title, items){
-    const ctrl = L.control({position:'bottomleft'});
-    ctrl.onAdd = function(){
-      const div = L.DomUtil.create('div','legend');
-      div.id = id;
-      div.innerHTML = `<div><b>${title}</b></div>` + items.map(it=>(
-        `<div class="leg-row"><span class="sw" style="background:${it[1]}"></span>${it[0]}</div>`
-      )).join('');
-      return div;
-    };
-    ctrl.addTo(map);
-    return ctrl;
-  }
-
-  // Legendas (fixas) — ajuste textos conforme seu dado
-  const legDecliv = addLegend('leg-decliv','Declividade (%)',[
-    ['0–3', slopeColors[0]], ['3–8', slopeColors[1]], ['8–20', slopeColors[2]],
-    ['20–45', slopeColors[3]], ['>45', slopeColors[4]]
-  ]);
-  const legAlt = addLegend('leg-alt','Altimetria (m)',[
-    ['0–400', altColors[0]], ['400–800', altColors[1]], ['800–1200', altColors[2]],
-    ['1200–1600', altColors[3]], ['>1600', altColors[4]]
-  ]);
-  const legUso = addLegend('leg-uso','Uso do Solo',[
-    ['Agricultura', usoColors.AGRICULTURA], ['Floresta', usoColors.FLORESTA],
-    ['Pastagem', usoColors.PASTAGEM], ['Urbano', usoColors.URBANO], ['Água', usoColors['ÁGUA']],
-    ['Outros', usoColors.OUTROS]
-  ]);
-  const legSolos = addLegend('leg-solos','Solos (classes)', Object.entries(soilColors).map(([k,v])=>[k,v]));
-
-  // ====== LOAD LAYERS ======
   async function loadOne(def) {
     const files = Array.isArray(def.file) ? def.file : [def.file];
     const features = [];
@@ -304,7 +216,65 @@
   }
   async function loadAll() { for (const def of LAYERS) await loadOne(def); }
 
-  // Ajustar visão para visíveis
+  // ====== ESTILOS POR CAMADA (usando as paletas acima) ======
+  function styleFn(key){
+    if (key === 'declividade') {
+      return f => ({ color:'#444', weight:0.4, fillColor: slopeColorFor(f.properties?.[CLASS_FIELDS.declividade]), fillOpacity:0.65 });
+    }
+    if (key === 'altimetria')  {
+      return f => ({ color:'#333', weight:0.4, fillColor: altColorFor(f.properties?.[CLASS_FIELDS.altimetria]), fillOpacity:0.60 });
+    }
+    if (key === 'solos') {
+      return f => {
+        const v = String(f.properties?.[CLASS_FIELDS.solos] || '');
+        const color = soilColors[v] || '#dfc27d';
+        return { color:'#555', weight:0.4, fillColor: color, fillOpacity:0.65 };
+      };
+    }
+    if (key === 'uso_solo') {
+      return f => {
+        const p = f.properties||{};
+        const field = (CLASS_FIELDS.uso_solo in p) ? CLASS_FIELDS.uso_solo : 'NIVEL_I';
+        const v = String(p[field] || '');
+        const color = (field==='NIVEL_II' ? usoColors[v] : usoFallbackColors[v]) || '#31a354';
+        return { color:'#444', weight:0.3, fillColor: color, fillOpacity:0.55 };
+      };
+    }
+    // padrões
+    const defaults = {
+      estradas:   { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0 },
+      hidrografia:{ color:'#2b8cbe', weight:2, fillOpacity:0.2 },
+      nascentes:  { color:'#1c9099', weight:2, fillOpacity:0.8 },
+      construcoes:{ color:'#252525', weight:1, fillOpacity:0.9 },
+      caf:        { color:'#006837', weight:1, fillOpacity:0.35 },
+      microbacias:{ color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25 }
+    };
+    return ()=> (defaults[key] || { color:'#555', weight:1, fillOpacity:0.25 });
+  }
+
+  // ====== LEGENDAS ======
+  function addLegend(id, title, items){
+    const ctrl = L.control({position:'bottomleft'});
+    ctrl.onAdd = function(){
+      const div = L.DomUtil.create('div','legend');
+      div.id = id;
+      div.innerHTML = `<div><b>${title}</b></div>` + items.map(([label, color]) =>
+        `<div class="leg-row"><span class="sw" style="background:${color}"></span>${label}</div>`
+      ).join('');
+      return div;
+    };
+    return ctrl.addTo(map);
+  }
+  addLegend('leg-decliv','Declividade (%)', slopeOrder.map((k,i)=>[slopeLabels[i], slopeColors[i]]));
+  addLegend('leg-alt','Altimetria (m)', [
+    ['0–400', '#ffffcc'], ['400–800', '#c2e699'],
+    ['800–1200', '#78c679'], ['1200–1600', '#31a354'],
+    ['>1600', '#006837']
+  ]);
+  addLegend('leg-uso','Uso do Solo (Nível II)', Object.entries(usoColors));
+  addLegend('leg-solos','Solos (classes)', Object.entries(soilColors));
+
+  // ====== FIT visíveis ======
   document.getElementById('fitAll').onclick = () => {
     const visibles = addedLayers.filter(l => map.hasLayer(l));
     if(!visibles.length) return;
@@ -317,8 +287,8 @@
     onAdd: function() {
       const div = L.DomUtil.create('div','panel');
       div.innerHTML = `
-        <h3>Filtro — Microbacias</h3>
-        <label>Cod_man</label>
+        <h3>Microbacias</h3>
+        <label>Filtrar por <b>Cod_man</b></label>
         <input id="mf-search" type="search" placeholder="Pesquisar código..."/>
         <div class="row">
           <button id="mf-all" class="btn-sm">Marcar todos</button>
@@ -339,13 +309,15 @@
       const ds = ()=> datasetByKey['microbacias'];
       const active = new Set();
       let allCodes = [];
+      let codField = 'Cod_man';
 
       function buildList(){
         list.innerHTML = '';
         const d = ds(); if (!d) return;
-        // detectar campo Cod_man (ou similar)
+
+        // detectar campo Cod_man (variações)
         const sample = d.features[0]?.properties || {};
-        const codField = ['Cod_man','COD_MAN','cod_man','codman','cod','codigo']
+        codField = ['Cod_man','COD_MAN','cod_man','codman','cod','codigo']
           .map(n=>Object.keys(sample).find(k=>k.toLowerCase()===n.toLowerCase()))
           .find(Boolean) || 'Cod_man';
 
@@ -367,8 +339,6 @@
           const span = document.createElement('span'); span.textContent = val;
           row.append(cb, span); list.appendChild(row); active.add(val);
         }
-
-        // guarda campo para apply
         list.dataset.codfield = codField;
       }
 
@@ -383,7 +353,7 @@
           style: styleFn('microbacias'),
           onEachFeature: (f,l) => {
             const p = f?.properties || {};
-            const html = `<div><b>Cod_man</b>: ${String(p[field])}</div>` +
+            const html = `<div><b>${field}</b>: ${String(p[field])}</div>` +
                          Object.keys(p).filter(k=>k!==field).slice(0,15).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
             if (html) l.bindPopup(html);
           }
