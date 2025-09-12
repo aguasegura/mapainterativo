@@ -52,6 +52,9 @@
   const LAYERS = [
     { name:'Declividade',  key:'declividade',  type:'poly',
       file:['declividade__declividade_otto.geojson.gz'] },
+    
+    { name:'CAR',  key:'cod_imovel',  type:'poly',
+      file:['car__car_otto.geojson'] },
 
     { name:'Altimetria',   key:'altimetria',   type:'poly',
       file:['altimetria__altimetria_otto.geojson.gz'] },
@@ -92,6 +95,7 @@
   // ====== CAMPOS (conforme seus arquivos) ======
   const CLASS_FIELDS = {
     declividade: 'ClDec',
+    car: 'cod_imovel',
     altimetria:  'ClAlt',
     uso_solo:    'NIVEL_II',   // se ausente em algum feature, cai p/ NIVEL_I
     solos:       'Cl_solos',
@@ -387,3 +391,4 @@
   </script>
 </body>
 </html>
+
