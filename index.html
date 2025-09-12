@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Água Segura — Mapa (filtros por camada/coluna)</title>
 
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
   <style>
     :root { --topbar-h: 44px; }
     html,body { height:100%; margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
@@ -22,8 +20,6 @@
     .btn:hover{ background:#f9fafb }
     .leaflet-control-container { z-index: 500; }
     .leaflet-top.leaflet-right { margin-top: 10px; }
-
-    /* UI de Filtro */
     .filter-box {
       background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
       box-shadow: 0 6px 18px rgba(0,0,0,.08); width: 320px; max-height: 70vh; overflow:auto;
@@ -47,20 +43,18 @@
 <body>
   <div class="topbar">
     <button id="fitAll" class="btn">Ajustar visão</button>
-    <div class="version">v2.1 — filtros por camada/coluna + zoom no filtro</div>
+    <div class="version">v2.2 — correção “ottos” + filtro com zoom</div>
   </div>
   <div id="map"></div>
 
-  <!-- Leaflet + pako -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
 
   <script>
   // ====== CONFIG ======
-  // Dados servidos em aguasegura/docs/data/
-  const BASE = "./data/";
+  const BASE = "./data/";  // arquivos servidos em aguasegura/docs/data/
 
-  // Estilos por camada
+  // estilos por camada
   const styles = {
     declividade:        { color:'#8c510a', weight:1, fillColor:'#d8b365', fillOpacity:0.40 },
     altimetria:         { color:'#542788', weight:1, fillColor:'#b2abd2', fillOpacity:0.35 },
@@ -75,29 +69,22 @@
     otto_selec_lista4:  { color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25 }
   };
 
-  // Lista de camadas (bate com os nomes da pasta ./data/)
+  // lista de camadas (corrigido: “ottos”)
   const LAYERS = [
     { name:'Declividade',  key:'declividade',  type:'poly',
       file:['declividade__declividade_otto.geojson.gz'] },
-
     { name:'Altimetria',   key:'altimetria',   type:'poly',
       file:['altimetria__altimetria_otto.geojson.gz'] },
-
     { name:'Uso do Solo',  key:'uso_solo',     type:'poly',
       file:['uso_solo__usodosolo_otto.geojson.gz'] },
-
     { name:'Estradas',     key:'estradas',     type:'line',
       file:['estradas__estradas_otto.geojson.gz'] },
-
     { name:'Hidrografia',  key:'hidrografia',  type:'line',
       file:['hidrografia__hidrografia_otto.geojson.gz'] },
-
     { name:'Nascentes',    key:'nascentes',    type:'point',
       file:['nascentes__nascentes_otto.geojson.gz'] },
-
     { name:'Solos',        key:'solos',        type:'poly',
       file:['solos__solos_otto.geojson.gz'] },
-
     { name:'Construções',  key:'construcoes',  type:'point',
       file:[
         'construcoes__construcoes_otto__part1.geojson.gz',
@@ -107,10 +94,8 @@
         'construcoes__construcoes_otto__part5.geojson.gz',
         'construcoes__construcoes_otto__part6.geojson.gz'
       ]},
-
     { name:'Seleção (otto_selec_lista4)', key:'otto_selec_lista4', type:'poly',
-      file:['otto_selec__otto_selec_lista4.geojson.gz'] },
-
+      file:['otto_selec__ottos_selec_lista4.geojson.gz'] },   // << aqui!
     { name:'CAF',          key:'caf',          type:'poly',
       file:['caf__caf_otto.geojson.gz'] }
   ];
@@ -135,7 +120,7 @@
   let currentProp = null;
   const activeValues = new Set();
 
-  // ====== LOADER (.geojson e .geojson.gz; pode ser multi-arquivo) ======
+  // ====== LOADER único (.geojson e .gz; suporta multi-arquivo) ======
   async function fetchMaybeGz(url) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
@@ -188,11 +173,9 @@
     datasetByKey[def.key] = { def, features, layer };
   }
 
-  async function loadAll() {
-    for (const def of LAYERS) await loadOne(def);
-  }
+  async function loadAll() { for (const def of LAYERS) await loadOne(def); }
 
-  // Botão ajustar visão para todas visíveis
+  // ====== FIT visíveis
   document.getElementById('fitAll').onclick = () => {
     const visibles = addedLayers.filter(l => map.hasLayer(l));
     if(!visibles.length) return;
@@ -200,7 +183,7 @@
     map.fitBounds(group.getBounds().pad(0.08));
   };
 
-  // ====== CONTROLE DE FILTRO (camada + coluna texto + distinct) ======
+  // ====== CONTROLE DE FILTRO (camada + coluna texto + distinct + zoom) ======
   const FilterControl = L.Control.extend({
     onAdd: function() {
       const div = L.DomUtil.create('div','filter-box');
@@ -237,10 +220,10 @@
           opt.value = key; opt.textContent = datasetByKey[key].def.name;
           selLayer.appendChild(opt);
         });
-        // pré-seleciona a camada de seleção se existir
+        // prioriza a camada de seleção se existir
         currentKey = datasetByKey['otto_selec_lista4'] ? 'otto_selec_lista4'
-                    : (currentKey && datasetByKey[currentKey] ? currentKey
-                      : Object.keys(datasetByKey)[0]);
+                  : (currentKey && datasetByKey[currentKey] ? currentKey
+                    : Object.keys(datasetByKey)[0]);
         selLayer.value = currentKey;
       }
 
@@ -265,7 +248,7 @@
           currentProp = null;
         } else {
           props.forEach(p => selProp.append(new Option(p,p)));
-          // Tenta escolher automaticamente "Manancial" se existir
+          // tenta escolher "Manancial" se existir
           currentProp = props.includes('Manancial') ? 'Manancial'
                      : (props.includes(currentProp) ? currentProp : props[0]);
           selProp.value = currentProp || '';
@@ -327,7 +310,7 @@
         ds.layer = layer;
         layerControl.addOverlay(layer, datasetByKey[currentKey].def.name + " (filtrado)");
 
-        // >>> ZOOM automático para o resultado filtrado
+        // ZOOM automático ao resultado filtrado
         try {
           const b = layer.getBounds();
           if (b && b.isValid()) map.fitBounds(b.pad(0.10));
@@ -336,19 +319,17 @@
 
       selLayer.addEventListener('change', ()=>{ currentKey = selLayer.value; refreshPropOptions(); rebuildDistinctList(); });
       selProp.addEventListener('change',  ()=>{ currentProp = selProp.value || null; rebuildDistinctList(); });
-      search.addEventListener('input', rebuildDistinctList);
-      btnAll.addEventListener('click',   ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; activeValues.add(cb.value); }); });
-      btnNone.addEventListener('click',  ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; activeValues.delete(cb.value); }); });
-      btnApply.addEventListener('click', applyFilter);
+      search.addEventListener('input',    rebuildDistinctList);
+      btnAll.addEventListener('click',    ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; activeValues.add(cb.value); }); });
+      btnNone.addEventListener('click',   ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; activeValues.delete(cb.value); }); });
+      btnApply.addEventListener('click',  applyFilter);
 
-      // Primeira renderização após dados carregados
-      setTimeout(()=>{ refreshLayerOptions(); refreshPropOptions(); rebuildDistinctList(); }, 80);
+      setTimeout(()=>{ refreshLayerOptions(); refreshPropOptions(); rebuildDistinctList(); }, 60);
       return div;
     }
   });
   map.addControl(new FilterControl({ position: 'topright' }));
 
-  // Boot
   (async function(){
     await loadAll();
     map.attributionControl.setPrefix(false);
