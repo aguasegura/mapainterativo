@@ -3,58 +3,79 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Água Segura — Pré-diagnóstico das Microacias Selecionadas</title>
+  <title>Água Segura — classes + filtro Microbacias + métricas</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
-    :root { --topbar-h: 48px; }
+    :root { --topbar-h: 50px; }
     html,body { height:100%; margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
     #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
-    .topbar { position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
-      display:flex; align-items:center; gap:.5rem; background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000; }
-    .btn{ border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer }
+
+    .topbar {
+      position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
+      display:flex; align-items:center; gap:.6rem;
+      background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
+    }
+    .btn{ border:1px solid #d1d5db; background:#fff; padding:.4rem .65rem; border-radius:8px; font-weight:600; cursor:pointer }
     .btn:hover{ background:#f9fafb }
     .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
 
-    .panel { background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
-      box-shadow: 0 6px 18px rgba(0,0,0,.08); width: 320px; max-height: 70vh; overflow:auto; font-size: 13px; }
-    .panel h3 { margin:.25rem 0 .5rem; font-size:14px; }
+    .panel, .legend, .metrics {
+      background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
+      box-shadow: 0 6px 18px rgba(0,0,0,.08); font-size: 13px;
+    }
+    .panel { width: 320px; max-height: 70vh; overflow:auto; }
+    .panel h3 { margin:.2rem 0 .5rem; font-size:14px; }
     .panel label { color:#6b7280; font-size:12px; display:block; margin:.35rem 0 .25rem; }
     .panel input[type="search"] { width:100%; padding:.45rem .5rem; border:1px solid #d1d5db; border-radius:.5rem; }
     .row { display:flex; gap:.5rem; margin:.4rem 0; }
     .btn-sm { padding:.3rem .5rem; border-radius:.5rem; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
     .btn-sm.primary { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+
     .list { border:1px solid #e5e7eb; border-radius:.5rem; max-height:28vh; overflow:auto; padding:.25rem; background:#fff; }
     .item { display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:.35rem; }
     .item:hover { background:#f3f4f6; }
+    .muted { color:#6b7280; font-size:12px; }
 
-    .legend { background:#fff; border:1px solid #e5e7eb; border-radius:.75rem; padding:.5rem .6rem;
-      font-size:12px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+    .legend { font-size:12px; }
     .leg-row { display:flex; align-items:center; gap:.5rem; margin:.15rem 0; }
     .sw { width:16px; height:12px; border:1px solid #9ca3af; border-radius:3px; }
+
+    .metrics { min-width: 270px; }
+    .metrics h3 { margin:.2rem 0 .4rem; font-size:14px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:.25rem .35rem; border-bottom:1px solid #eceff1; text-align:right; }
+    th:first-child, td:first-child { text-align:left; }
+    tfoot td { font-weight:700; }
+    .small { font-size:12px; }
+    .slider-row { display:flex; align-items:center; gap:.6rem; }
+    .slider-row input[type="range"]{ width:140px; }
   </style>
 </head>
 <body>
   <div class="topbar">
     <button id="fitAll" class="btn">Ajustar visão</button>
-    <div class="version">v4 — classes reais + filtro Microbacias (Cod_man)</div>
+    <div class="slider-row">
+      <span class="muted">Opacidade</span>
+      <input id="opacity" type="range" min="20" max="100" value="70"/>
+      <span id="opacityVal" class="muted">70%</span>
+    </div>
+    <div class="version">v5 — métricas + filtro Microbacias (Região_Município_Manancial)</div>
   </div>
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
   <script>
   // ====== CONFIG ======
   const BASE = "./data/"; // arquivos em aguasegura/docs/data/
 
-  // ====== LAYERS (nomes exatamente como na pasta) ======
+  // ====== LAYERS ======
   const LAYERS = [
     { name:'Declividade',  key:'declividade',  type:'poly',
       file:['declividade__declividade_otto.geojson.gz'] },
-    
-    { name:'CAR',  key:'cod_imovel',  type:'poly',
-      file:['car__car_otto.geojson'] },
 
     { name:'Altimetria',   key:'altimetria',   type:'poly',
       file:['altimetria__altimetria_otto.geojson.gz'] },
@@ -84,7 +105,6 @@
         'construcoes__construcoes_otto__part6.geojson.gz'
       ]},
 
-    // Microbacias (antes ottos_selec_lista4)
     { name:'Microbacias',  key:'microbacias',  type:'poly',
       file:['otto_selec__ottos_selec_lista4.geojson.gz'] },
 
@@ -92,52 +112,46 @@
       file:['caf__caf_otto.geojson.gz'] }
   ];
 
-  // ====== CAMPOS (conforme seus arquivos) ======
+  // ====== CAMPOS (conforme os seus dados) ======
   const CLASS_FIELDS = {
-    declividade: 'ClDec',
-    car: 'cod_imovel',
-    altimetria:  'ClAlt',
-    uso_solo:    'NIVEL_II',   // se ausente em algum feature, cai p/ NIVEL_I
-    solos:       'Cl_solos',
-    micro_cod:   'Cod_man'
+    declividade: 'ClDec',     // 000a003 … >100
+    altimetria:  'ClAlt',     // "x a y m"
+    uso_solo:    'NIVEL_II',  // fallback para NIVEL_I
+    solos:       'Cl_solos'
   };
+  const MICRO_FIELD_CANDIDATES = [
+    'Região_Município_Manancial','REGIÃO_MUNICÍPIO_MANANCIAL',
+    'Regiao_Municipio_Manancial','REGIAO_MUNICIPIO_MANANCIAL'
+  ];
 
-  // ====== PALETAS / SIMBOLOGIA (valores reais) ======
-  // Declividade (000a003 … >100)
+  // ====== PALETAS ======
+  // Declividade
   const slopeOrder  = ['000a003','003a008','008a015','015a025','025a045','045a100','>100'];
   const slopeLabels = ['0–3%','3–8%','8–15%','15–25%','25–45%','45–100%','>100%'];
   const slopeColors = ['#edf8e9','#c7e9c0','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#0c2c84'];
   const slopeColorFor = v => slopeColors[Math.max(0, slopeOrder.indexOf(String(v)))];
 
-  // Altimetria (“x a y m”) → gradiente baixo→alto
-  const altRamp = ['#ffffcc','#c2e699','#78c679','#31a354','#006837','#00441b']; // 6 tons
+  // Altimetria
+  const altRamp = ['#ffffcc','#c2e699','#78c679','#31a354','#006837','#00441b'];
   function altColorFor(v) {
     if (!v) return altRamp[0];
-    const m = String(v).match(/(\d+).+?(\d+)/); // pega os dois números
+    const m = String(v).match(/(\d+).+?(\d+)/);
     const mid = m ? (parseFloat(m[1])+parseFloat(m[2]))/2 : NaN;
     if (isNaN(mid)) return altRamp[0];
-    // quebras aproximadas: 0–400–800–1200–1600–2000+
     const brks = [0,400,800,1200,1600,2000,1e9];
     for (let i=0;i<brks.length-1;i++) if (mid>=brks[i] && mid<brks[i+1]) return altRamp[i];
     return altRamp[altRamp.length-1];
   }
 
-  // Uso do Solo (NIVEL_II — 12 classes)
+  // Uso do Solo (NIVEL_II)
   const usoColors = {
-    'Agricultura Anual':'#e6ab02',
-    'Agricultura Perene':'#c98c00',
-    'Corpos d’Água':'#67a9cf',
-    'Floresta Nativa':'#1b9e77',
-    'Mangue':'#0f766e',
-    'Pastagem/Campo':'#a6d854',
-    'Plantios Florestais':'#106b21',
-    'Restinga':'#66c2a5',
-    'Solo Exposto/Mineração':'#bdbdbd',
-    'Várzea':'#c7e9c0',
-    'Área Construída':'#7570b3',
-    'Área Urbanizada':'#6a51a3'
+    'Agricultura Anual':'#e6ab02','Agricultura Perene':'#c98c00',
+    'Corpos d’Água':'#67a9cf','Floresta Nativa':'#1b9e77','Mangue':'#0f766e',
+    'Pastagem/Campo':'#a6d854','Plantios Florestais':'#106b21','Restinga':'#66c2a5',
+    'Solo Exposto/Mineração':'#bdbdbd','Várzea':'#c7e9c0',
+    'Área Construída':'#7570b3','Área Urbanizada':'#6a51a3'
   };
-  const usoFallbackColors = { // se tiver que cair para NIVEL_I
+  const usoFallbackColors = { // NIVEL_I
     'Água':'#67a9cf',
     'Áreas de Vegetação Natural':'#1b9e77',
     'Áreas Antrópicas Agrícolas':'#e6ab02',
@@ -145,37 +159,35 @@
     'Áreas Antrópicas Agrícolas/Áreas de Vegetação Natural':'#8da0cb'
   };
 
-  // Solos (12 classes)
+  // Solos
   const soilColors = {
-    'LATOSSOLOS':'#d95f0e',
-    'ARGISSOLOS':'#fdae6b',
-    'NEOSSOLOS LITÓLICOS':'#fee6ce',
-    'NEOSSOLOS REGOLÍTICOS':'#fdd0a2',
-    'NITOSSOLOS':'#a6761d',
-    'CAMBISSOLOS':'#e0c2a2',
-    'GLEISSOLOS':'#74c476',
-    'ESPODOSSOLOS':'#9ecae1',
-    'ORGANOSSOLOS':'#807dba',
-    'AFLORAMENTOS DE ROCHAS':'#bdbdbd',
-    'ÁREAS URBANAS':'#756bb1',
-    'ESPELHOS DAGUA':'#67a9cf'
+    'LATOSSOLOS':'#d95f0e','ARGISSOLOS':'#fdae6b',
+    'NEOSSOLOS LITÓLICOS':'#fee6ce','NEOSSOLOS REGOLÍTICOS':'#fdd0a2',
+    'NITOSSOLOS':'#a6761d','CAMBISSOLOS':'#e0c2a2','GLEISSOLOS':'#74c476',
+    'ESPODOSSOLOS':'#9ecae1','ORGANOSSOLOS':'#807dba',
+    'AFLORAMENTOS DE ROCHAS':'#bdbdbd','ÁREAS URBANAS':'#756bb1','ESPELHOS DAGUA':'#67a9cf'
   };
 
   // ====== MAPA ======
-  const baseStreets = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap • © CARTO', maxZoom: 20
-  });
-  const baseEsri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Imagery: Esri/Maxar', maxZoom: 19
-  });
-  const map = L.map('map', { center: [-24.5,-51.5], zoom: 7, preferCanvas: true, layers:[baseStreets] });
-  const layerControl = L.control.layers({ 'Streets': baseStreets, 'Satélite (Esri)': baseEsri }, {}, { collapsed:false }).addTo(map);
+  // bases
+  const baseOSM    = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap' });
+  const baseCARTO  = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{ attribution:'© OSM • © CARTO' });
+  const baseESRI   = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{ attribution:'Imagery: Esri/Maxar' });
+  const baseESRISt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{ attribution:'Esri Streets' });
+  const baseTerrain= L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',{ attribution:'Stamen Terrain' });
+
+  const map = L.map('map', { center: [-24.5,-51.5], zoom: 7, preferCanvas: true, layers:[baseCARTO] });
+  const layerControl = L.control.layers(
+    { 'CARTO Light':baseCARTO, 'OSM Padrão':baseOSM, 'Esri Imagery':baseESRI, 'Esri Streets':baseESRISt, 'Stamen Terrain':baseTerrain },
+    {}, { collapsed:false }
+  ).addTo(map);
 
   // ====== ESTADO ======
   const datasetByKey = {};   // key -> {def, features, layer}
   const addedLayers = [];
+  let opacity = 0.7;         // 0–1
 
-  // ====== LOADER (.geojson e .gz; múltiplos arquivos) ======
+  // ====== HELPERS ======
   async function fetchMaybeGz(url) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
@@ -191,6 +203,80 @@
     gj?.type === "FeatureCollection" ? (gj.features||[]) :
     (gj?.type === "Feature" ? [gj] : []);
 
+  // estilo dinâmico por camada
+  function styleFn(key){
+    if (key === 'declividade') {
+      return f => {
+        const fill = slopeColorFor(f.properties?.[CLASS_FIELDS.declividade]);
+        return { color:'#444', weight:0.4, fillColor: fill, fillOpacity: 0.65*opacity, opacity:opacity };
+      };
+    }
+    if (key === 'altimetria')  {
+      return f => {
+        const fill = altColorFor(f.properties?.[CLASS_FIELDS.altimetria]);
+        return { color:'#333', weight:0.4, fillColor: fill, fillOpacity: 0.60*opacity, opacity:opacity };
+      };
+    }
+    if (key === 'solos') {
+      return f => {
+        const v = String(f.properties?.[CLASS_FIELDS.solos] || '');
+        const fill = soilColors[v] || '#dfc27d';
+        return { color:'#555', weight:0.4, fillColor: fill, fillOpacity: 0.65*opacity, opacity:opacity };
+      };
+    }
+    if (key === 'uso_solo') {
+      return f => {
+        const p = f.properties||{};
+        const field = (CLASS_FIELDS.uso_solo in p) ? CLASS_FIELDS.uso_solo : 'NIVEL_I';
+        const v = String(p[field] || '');
+        const fill = (field==='NIVEL_II' ? usoColors[v] : usoFallbackColors[v]) || '#31a354';
+        return { color:'#444', weight:0.3, fillColor: fill, fillOpacity: 0.55*opacity, opacity:opacity };
+      };
+    }
+    const defaults = {
+      estradas:   { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0, opacity:opacity },
+      hidrografia:{ color:'#2b8cbe', weight:2, fillOpacity:0.2*opacity, opacity:opacity },
+      nascentes:  { color:'#1c9099', weight:2, fillOpacity:0.8, opacity:opacity },
+      construcoes:{ color:'#252525', weight:1, fillOpacity:0.9, opacity:opacity },
+      caf:        { color:'#006837', weight:1, fillOpacity:0.35*opacity, opacity:opacity },
+      microbacias:{ color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25*opacity, opacity:opacity }
+    };
+    return ()=> defaults[key] || { color:'#555', weight:1, fillOpacity:0.25*opacity, opacity:opacity };
+  }
+
+  // métricas (área/linha/ponto) com Turf
+  function metricsFor(features, type){
+    let areaM2=0, lenKm=0, count=0;
+    for (const f of features){
+      const g = f.geometry;
+      if (!g) continue;
+      if (type==='poly' && (g.type==='Polygon' || g.type==='MultiPolygon')){
+        areaM2 += turf.area(f);
+        count++;
+      } else if (type==='line' && (g.type==='LineString' || g.type==='MultiLineString')){
+        lenKm += turf.length(f, {units:'kilometers'});
+        count++;
+      } else if (type==='point' && (g.type==='Point' || g.type==='MultiPoint')){
+        // Para MultiPoint, conta nº de coords
+        if (g.type==='MultiPoint') count += (g.coordinates?.length||0);
+        else count++;
+      }
+    }
+    return {
+      areaHa: areaM2/10000,
+      lenKm,
+      count
+    };
+  }
+
+  // formatação
+  const fmt = {
+    ha: v => (v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2)).replace('.',','),
+    km: v => (v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2)).replace('.',','),
+    int: v => Math.round(v).toLocaleString('pt-BR')
+  };
+
+  // ====== CARREGAMENTO ======
   async function loadOne(def) {
     const files = Array.isArray(def.file) ? def.file : [def.file];
     const features = [];
@@ -202,9 +288,7 @@
     const layer = L.geoJSON(features, {
       style: styleFn(def.key),
       pointToLayer: (feat, latlng) => {
-        if (def.type === 'point') {
-          return L.circleMarker(latlng, { radius: 4, color:'#333', weight:1, fillOpacity:0.8 });
-        }
+        if (def.type === 'point') return L.circleMarker(latlng, { radius: 4, color:'#333', weight:1, fillOpacity:0.8 });
         return L.marker(latlng);
       },
       onEachFeature: (f,l) => {
@@ -220,44 +304,7 @@
   }
   async function loadAll() { for (const def of LAYERS) await loadOne(def); }
 
-  // ====== ESTILOS POR CAMADA (usando as paletas acima) ======
-  function styleFn(key){
-    if (key === 'declividade') {
-      return f => ({ color:'#444', weight:0.4, fillColor: slopeColorFor(f.properties?.[CLASS_FIELDS.declividade]), fillOpacity:0.65 });
-    }
-    if (key === 'altimetria')  {
-      return f => ({ color:'#333', weight:0.4, fillColor: altColorFor(f.properties?.[CLASS_FIELDS.altimetria]), fillOpacity:0.60 });
-    }
-    if (key === 'solos') {
-      return f => {
-        const v = String(f.properties?.[CLASS_FIELDS.solos] || '');
-        const color = soilColors[v] || '#dfc27d';
-        return { color:'#555', weight:0.4, fillColor: color, fillOpacity:0.65 };
-      };
-    }
-    if (key === 'uso_solo') {
-      return f => {
-        const p = f.properties||{};
-        const field = (CLASS_FIELDS.uso_solo in p) ? CLASS_FIELDS.uso_solo : 'NIVEL_I';
-        const v = String(p[field] || '');
-        const color = (field==='NIVEL_II' ? usoColors[v] : usoFallbackColors[v]) || '#31a354';
-        return { color:'#444', weight:0.3, fillColor: color, fillOpacity:0.55 };
-      };
-    }
-    // padrões
-    const defaults = {
-      estradas:   { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0 },
-      hidrografia:{ color:'#2b8cbe', weight:2, fillOpacity:0.2 },
-      nascentes:  { color:'#1c9099', weight:2, fillOpacity:0.8 },
-      car:        { color:'#efe70b', weight:2, fillOpacity:0.05 },
-      construcoes:{ color:'#252525', weight:1, fillOpacity:0.9 },
-      caf:        { color:'#006837', weight:1, fillOpacity:0.35 },
-      microbacias:{ color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25 }
-    };
-    return ()=> (defaults[key] || { color:'#555', weight:1, fillOpacity:0.25 });
-  }
-
-  // ====== LEGENDAS ======
+  // ====== LEGENDAS (fixas) ======
   function addLegend(id, title, items){
     const ctrl = L.control({position:'bottomleft'});
     ctrl.onAdd = function(){
@@ -279,28 +326,69 @@
   addLegend('leg-uso','Uso do Solo (Nível II)', Object.entries(usoColors));
   addLegend('leg-solos','Solos (classes)', Object.entries(soilColors));
 
-  // ====== FIT visíveis ======
-  document.getElementById('fitAll').onclick = () => {
-    const visibles = addedLayers.filter(l => map.hasLayer(l));
-    if(!visibles.length) return;
-    const group = L.featureGroup(visibles);
-    map.fitBounds(group.getBounds().pad(0.08));
-  };
+  // ====== MÉTRICAS (painel com tabela dinâmica) ======
+  const MetricsControl = L.Control.extend({
+    onAdd: function(){
+      const div = L.DomUtil.create('div','metrics');
+      div.innerHTML = `
+        <h3>Métricas</h3>
+        <div id="microSummary" class="small muted" style="margin-bottom:.4rem;">
+          Sem filtro de Microbacias — exibindo totais gerais.
+        </div>
+        <table>
+          <thead><tr><th>Camada</th><th>Área (ha)</th><th>Extensão (km)</th><th>Qtd</th></tr></thead>
+          <tbody id="mtbody"></tbody>
+        </table>
+      `;
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    }
+  });
+  const metricsCtrl = new MetricsControl({ position:'bottomright' }).addTo(map);
 
-  // ====== FILTRO EXCLUSIVO — MICROBACIAS por Cod_man ======
+  function refreshMetrics(selectionLabel=null, selectedFeatures=null){
+    const tb = document.getElementById('mtbody');
+    const microDiv = document.getElementById('microSummary');
+    tb.innerHTML = '';
+
+    // 1) Tabela por camada (totais globais)
+    for (const key of Object.keys(datasetByKey)){
+      const {def, features} = datasetByKey[key];
+      const m = metricsFor(features, def.type);
+      const row = document.createElement('tr');
+      const area = def.type==='poly' ? fmt.ha(m.areaHa) : '-';
+      const len  = def.type==='line' ? fmt.km(m.lenKm) : '-';
+      const cnt  = def.type==='point'? fmt.int(m.count) : '-';
+      row.innerHTML = `<td>${def.name}</td><td>${area}</td><td>${len}</td><td>${cnt}</td>`;
+      tb.appendChild(row);
+    }
+
+    // 2) Resumo Microbacias (se houver seleção)
+    if (selectionLabel && Array.isArray(selectedFeatures)){
+      const m = metricsFor(selectedFeatures, 'poly');
+      microDiv.innerHTML = `<b>Microbacias filtradas:</b> ${selectionLabel}<br/>
+        Área total selecionada: <b>${fmt.ha(m.areaHa)} ha</b>`;
+      microDiv.classList.remove('muted');
+    } else {
+      microDiv.textContent = 'Sem filtro de Microbacias — exibindo totais gerais.';
+      microDiv.classList.add('muted');
+    }
+  }
+
+  // ====== CONTROLE — MICROBACIAS por Região_Município_Manancial ======
   const MicroFilter = L.Control.extend({
     onAdd: function() {
       const div = L.DomUtil.create('div','panel');
       div.innerHTML = `
         <h3>Microbacias</h3>
-        <label>Filtrar por <b>Cod_man</b></label>
-        <input id="mf-search" type="search" placeholder="Pesquisar código..."/>
+        <label>Filtrar por <b>Região_Município_Manancial</b></label>
+        <input id="mf-search" type="search" placeholder="Pesquisar..."/>
         <div class="row">
           <button id="mf-all" class="btn-sm">Marcar todos</button>
           <button id="mf-none" class="btn-sm">Desmarcar</button>
           <button id="mf-apply" class="btn-sm primary">Aplicar</button>
         </div>
-        <div id="mf-list" class="list" aria-label="Códigos Cod_man"></div>
+        <div id="mf-list" class="list"></div>
       `;
       L.DomEvent.disableClickPropagation(div);
       L.DomEvent.disableScrollPropagation(div);
@@ -313,47 +401,55 @@
 
       const ds = ()=> datasetByKey['microbacias'];
       const active = new Set();
-      let allCodes = [];
-      let codField = 'Cod_man';
+      let allVals = [];
+      let labelField = 'Região_Município_Manancial';
+
+      function detectField(){
+        const d = ds(); if (!d) return;
+        const props = d.features[0]?.properties || {};
+        for (const cand of MICRO_FIELD_CANDIDATES){
+          const hit = Object.keys(props).find(k => k.toLowerCase() === cand.toLowerCase());
+          if (hit) { labelField = hit; return; }
+        }
+        // fallback: tenta algo parecido
+        const guess = Object.keys(props).find(k => k.toLowerCase().includes('municip') && k.toLowerCase().includes('mananc'));
+        if (guess) labelField = guess;
+      }
 
       function buildList(){
         list.innerHTML = '';
         const d = ds(); if (!d) return;
-
-        // detectar campo Cod_man (variações)
-        const sample = d.features[0]?.properties || {};
-        codField = ['Cod_man','COD_MAN','cod_man','codman','cod','codigo']
-          .map(n=>Object.keys(sample).find(k=>k.toLowerCase()===n.toLowerCase()))
-          .find(Boolean) || 'Cod_man';
+        detectField();
 
         const set = new Set();
         for (const f of d.features){
-          const v = (f.properties||{})[codField];
+          const v = (f.properties||{})[labelField];
           if (v !== undefined && v !== null && String(v)!=='') set.add(String(v));
         }
-        allCodes = Array.from(set).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+        allVals = Array.from(set).sort((a,b)=>a.localeCompare(b,'pt-BR'));
 
         const q = (search.value||'').toLowerCase().trim();
-        const filtered = q ? allCodes.filter(v => v.toLowerCase().includes(q)) : allCodes;
+        const filtered = q ? allVals.filter(v => v.toLowerCase().includes(q)) : allVals;
 
         for (const val of filtered){
-          const id = 'cod_' + btoa(val).replace(/=/g,'');
+          const id = 'mc_' + btoa(val).replace(/=/g,'');
           const row = document.createElement('label'); row.className='item'; row.htmlFor=id;
           const cb = Object.assign(document.createElement('input'), { type:'checkbox', id, value:val, checked:true });
           cb.addEventListener('change', e => (e.target.checked ? active.add(val) : active.delete(val)));
           const span = document.createElement('span'); span.textContent = val;
           row.append(cb, span); list.appendChild(row); active.add(val);
         }
-        list.dataset.codfield = codField;
+        list.dataset.labelfield = labelField;
       }
 
       function apply(){
         const d = ds(); if (!d) return;
         if (d.layer) { try{ map.removeLayer(d.layer) }catch{}; try{ layerControl.removeLayer(d.layer) }catch{}; d.layer = null; }
-        const field = list.dataset.codfield || 'Cod_man';
+        const field = list.dataset.labelfield || labelField;
         const feats = Array.from(active).length
           ? d.features.filter(f => String((f.properties||{})[field]) && active.has(String((f.properties||{})[field])))
           : [];
+
         const layer = L.geoJSON(feats, {
           style: styleFn('microbacias'),
           onEachFeature: (f,l) => {
@@ -370,6 +466,10 @@
           const b = layer.getBounds();
           if (b && b.isValid()) map.fitBounds(b.pad(0.12));
         } catch(e) {}
+
+        // atualiza métricas com base na seleção
+        const label = `${feats.length} seç. — ${field}`;
+        refreshMetrics(label, feats);
       }
 
       search.addEventListener('input', buildList);
@@ -377,20 +477,55 @@
       btnNone.addEventListener('click', ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; active.delete(cb.value); }); });
       btnApply.addEventListener('click', apply);
 
-      setTimeout(buildList, 400); // aguarda carregamento das camadas
+      setTimeout(buildList, 400);
       return div;
     }
   });
   map.addControl(new MicroFilter({ position: 'topright' }));
 
+  // ====== OPACIDADE GLOBAL ======
+  const opInput = document.getElementById('opacity');
+  const opVal   = document.getElementById('opacityVal');
+  opInput.addEventListener('input', ()=>{
+    const pct = Number(opInput.value);
+    opacity = Math.max(0.2, Math.min(1, pct/100));
+    opVal.textContent = `${pct}%`;
+    // reaplica estilo em todas as camadas vetoriais
+    for (const k of Object.keys(datasetByKey)){
+      const ds = datasetByKey[k];
+      if (ds.layer && ds.layer.setStyle){
+        ds.layer.setStyle(styleFn(k)({properties:{}})); // truque: pega objeto base
+        // Para reestilizar geometria por-feature, recria a layer:
+        const feats = ds.features;
+        map.removeLayer(ds.layer);
+        ds.layer = L.geoJSON(feats, {
+          style: styleFn(k),
+          pointToLayer: (feat, latlng) => {
+            if (ds.def.type === 'point') return L.circleMarker(latlng, { radius: 4, color:'#333', weight:1, fillOpacity:0.8 });
+            return L.marker(latlng);
+          }
+        }).addTo(map);
+      }
+    }
+  });
+
+  // ====== BOTÃO AJUSTAR VISÃO ======
+  document.getElementById('fitAll').onclick = () => {
+    const visibles = addedLayers.filter(l => map.hasLayer(l));
+    if(!visibles.length) return;
+    const group = L.featureGroup(visibles);
+    map.fitBounds(group.getBounds().pad(0.08));
+  };
+
   // ====== BOOT ======
   (async function(){
     await loadAll();
     map.attributionControl.setPrefix(false);
-    map.attributionControl.addAttribution('Água Segura • classes + filtro Microbacias');
+    map.attributionControl.addAttribution('Água Segura • classes + filtro Microbacias + métricas');
+
+    // primeiras métricas (totais gerais)
+    refreshMetrics(null, null);
   })();
   </script>
 </body>
 </html>
-
-
