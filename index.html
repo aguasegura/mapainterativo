@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Mapa – v1.1 (filtros por camada/coluna)</title>
+  <title>Água Segura — Mapa (camada/coluna + filtros)</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     :root { --topbar-h: 44px; }
-    html,body { height:100%; margin:0; }
+    html,body { height:100%; margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
     #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
     .topbar {
       position:fixed; left:0; right:0; top:0; height:var(--topbar-h);
@@ -20,16 +20,14 @@
     .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
     .btn{ border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer }
     .btn:hover{ background:#f9fafb }
-
-    /* Leaflet controls above map, below topbar */
     .leaflet-control-container { z-index: 500; }
     .leaflet-top.leaflet-right { margin-top: 10px; }
 
-    /* Filter control styling */
+    /* Filter UI */
     .filter-box {
       background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
       box-shadow: 0 6px 18px rgba(0,0,0,.08); width: 320px; max-height: 70vh; overflow:auto;
-      font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; font-size: 13px;
+      font-size: 13px;
     }
     .filter-box h3 { margin:.25rem 0 .5rem; font-size:14px; }
     .filter-box label { color:#6b7280; font-size:12px; display:block; margin-bottom:4px; }
@@ -44,206 +42,157 @@
     .item { display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:.35rem; }
     .item:hover { background:#f3f4f6; }
     .muted { color:#6b7280; font-size:12px; }
-    .small { font-size:12px; }
   </style>
 </head>
 <body>
   <div class="topbar">
     <button id="fitAll" class="btn">Ajustar visão</button>
-    <div class="version">v1.1 – filtros por camada/coluna</div>
+    <div class="version">v2 — filtros por camada/coluna</div>
   </div>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet + pako -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
 
   <script>
   // ====== CONFIG ======
-  // Ajuste para seu repositório (GitHub Pages) ou uso local:
-  const USER = "avnergomes";
-  const REPO = "aguasegura";                  // mude para "aguasegura" se quiser
-  const BASE = `./data/`;  // ou "./data/" se local
+  // Arquivos servidos em aguasegura/docs/data/
+  const BASE = "./data/";
 
-  // Base layers
+  // Estilos por camada (coerência cartográfica)
+  const styles = {
+    declividade:  { color:'#8c510a', weight:1, fillColor:'#d8b365', fillOpacity:0.40 },
+    altimetria:   { color:'#542788', weight:1, fillColor:'#b2abd2', fillOpacity:0.35 },
+    uso_solo:     { color:'#006d2c', weight:1, fillColor:'#31a354', fillOpacity:0.35 },
+    estradas:     { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0 },
+    hidrografia:  { color:'#2b8cbe', weight:2, fillColor:'#67a9cf', fillOpacity:0.25 },
+    nascentes:    { color:'#1c9099', weight:2, radius:5, fillColor:'#41b6c4', fillOpacity:0.80 },
+    solos:        { color:'#a6611a', weight:1, fillColor:'#dfc27d', fillOpacity:0.45 },
+    construcoes:  { color:'#252525', weight:1, radius:4, fillColor:'#636363', fillOpacity:0.90 },
+    imoveiscar:   { color:'#d73027', weight:1, fillColor:'#fc8d59', fillOpacity:0.35 },
+    caf:          { color:'#006837', weight:1, fillColor:'#31a354', fillOpacity:0.35 },
+    otto_selec_lista4: { color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25 }
+  };
+
+  // Lista de camadas conforme arquivos da pasta (inclui partes de construções)
+  const LAYERS = [
+    { name:'Declividade',  key:'declividade',  type:'poly',
+      file:['declividade__declividade_otto.geojson.gz'] },
+
+    { name:'Altimetria',   key:'altimetria',   type:'poly',
+      file:['altimetria__altimetria_otto.geojson.gz'] },
+
+    { name:'Uso do Solo',  key:'uso_solo',     type:'poly',
+      file:['uso_solo__usodosolo_otto.geojson.gz'] },
+
+    { name:'Estradas',     key:'estradas',     type:'line',
+      file:['estradas__estradas_otto.geojson.gz'] },
+
+    { name:'Hidrografia',  key:'hidrografia',  type:'line',
+      file:['hidrografia__hidrografia_otto.geojson.gz'] },
+
+    { name:'Nascentes',    key:'nascentes',    type:'point',
+      file:['nascentes__nascentes_otto.geojson.gz'] },
+
+    { name:'Solos',        key:'solos',        type:'poly',
+      file:['solos__solos_otto.geojson.gz'] },
+
+    { name:'Construções',  key:'construcoes',  type:'point',
+      file:[
+        'construcoes__construcoes_otto__part1.geojson.gz',
+        'construcoes__construcoes_otto__part2.geojson.gz',
+        'construcoes__construcoes_otto__part3.geojson.gz',
+        'construcoes__construcoes_otto__part4.geojson.gz',
+        'construcoes__construcoes_otto__part5.geojson.gz',
+        'construcoes__construcoes_otto__part6.geojson.gz'
+      ]},
+
+    { name:'Seleção (otto_selec_lista4)', key:'otto_selec_lista4', type:'poly',
+      file:['otto_selec__otto_selec_lista4.geojson.gz'] },
+
+    { name:'CAF',          key:'caf',          type:'poly',
+      file:['caf__caf_otto.geojson.gz'] }
+  ];
+
+  // ====== MAPA ======
   const baseStreets = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap • © CARTO', maxZoom: 20
   });
   const baseEsri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Imagery: Esri/Maxar', maxZoom: 19
   });
-
-  // Map init
   const map = L.map('map', { center: [-24.5,-51.5], zoom: 7, preferCanvas: true, layers:[baseStreets] });
-
-  // Layer control with base layers
   const layerControl = L.control.layers(
     { 'Streets': baseStreets, 'Satélite (Esri)': baseEsri },
     {}, { collapsed:false }
   ).addTo(map);
 
-// Styles per overlay key
-const styles = {
-  declividade:  { color:'#8c510a', weight:1, fillColor:'#d8b365', fillOpacity:0.4 },  // marrons claros
-  altimetria:   { color:'#542788', weight:1, fillColor:'#b2abd2', fillOpacity:0.35 }, // roxo/altitude
-  uso_solo:     { color:'#006d2c', weight:1, fillColor:'#31a354', fillOpacity:0.35 }, // verdes intensos
-  estradas:     { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0 },        // cinza tracejado
-  hidrografia:  { color:'#2b8cbe', weight:2, fillColor:'#67a9cf', fillOpacity:0.25 }, // azuis
-  nascentes:    { color:'#1c9099', weight:2, radius:5, fillColor:'#41b6c4', fillOpacity:0.8 }, // azul piscina
-  solos:        { color:'#a6611a', weight:1, fillColor:'#dfc27d', fillOpacity:0.45 }, // tons de terra
-  construcoes:  { color:'#252525', weight:1, radius:4, fillColor:'#636363', fillOpacity:0.9 }, // cinza escuro
-  imoveiscar:   { color:'#d73027', weight:1, fillColor:'#fc8d59', fillOpacity:0.35 }, // vermelho/laranja
-  caf:          { color:'#006837', weight:1, fillColor:'#31a354', fillOpacity:0.35 }  // verde escuro
-};
+  // ====== ESTADO ======
+  const addedLayers = [];
+  const datasetByKey = {}; // key -> {def, features, layer}
+  let currentKey = null;
+  let currentProp = null;
+  const activeValues = new Set();
 
+  // ====== LOADER (.geojson e .geojson.gz, multi-arquivo) ======
+  async function fetchMaybeGz(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    if (url.toLowerCase().endsWith(".gz")) {
+      const ab = await res.arrayBuffer();
+      const txt = window.pako.inflate(new Uint8Array(ab), { to: "string" });
+      return JSON.parse(txt);
+    }
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) return res.json();
+    return JSON.parse(await res.text());
+  }
+  const toFeatArr = (gj) =>
+    gj?.type === "FeatureCollection" ? (gj.features||[]) :
+    (gj?.type === "Feature" ? [gj] : []);
 
-  // Declare your layers list (adjust file names as needed)
- const LAYERS = [
-  { name:'Declividade',  key:'declividade',  type:'poly',
-    file:['declividade__declividade_otto.geojson.gz'] },
-
-  { name:'Altimetria',   key:'altimetria',   type:'poly',
-    file:['altimetria__altimetria_otto.geojson.gz'] },
-
-  { name:'Uso do Solo',  key:'uso_solo',     type:'poly',
-    file:['uso_solo__usodosolo_otto.geojson.gz'] },
-
-  { name:'Estradas',     key:'estradas',     type:'line',
-    file:['estradas__estradas_otto.geojson.gz'] },
-
-  { name:'Hidrografia',  key:'hidrografia',  type:'line',
-    file:['hidrografia__hidrografia_otto.geojson.gz'] },
-
-  { name:'Nascentes',    key:'nascentes',    type:'point',
-    file:['nascentes__nascentes_otto.geojson.gz'] },
-
-  { name:'Solos',        key:'solos',        type:'poly',
-    file:['solos__solos_otto.geojson.gz'] },
-
-  // múltiplos arquivos (particionado)
-  { name:'Construções',  key:'construcoes',  type:'point',
-    file:[
-      'construcoes__construcoes_otto__part1.geojson.gz',
-      'construcoes__construcoes_otto__part2.geojson.gz',
-      'construcoes__construcoes_otto__part3.geojson.gz',
-      'construcoes__construcoes_otto__part4.geojson.gz',
-      'construcoes__construcoes_otto__part5.geojson.gz',
-      'construcoes__construcoes_otto__part6.geojson.gz'
-    ]},
-
-  // lista de seleção (ajuste o type se for point/line)
-  { name:'Seleção (otto_selec_lista4)', key:'otto_selec_lista4', type:'poly',
-    file:['otto_selec__otto_selec_lista4.geojson.gz'] },
-
-  { name:'CAF',          key:'caf',          type:'poly',
-    file:['caf__caf_otto.geojson.gz'] }
-];
-
-
-  // Runtime state
-  const addedLayers = [];              // Leaflet overlay layers actually on map
-  const datasetByKey = {};             // key -> {def, features, layer}
-  let currentKey = null;               // which dataset user is filtering
-  let currentProp = null;              // which string column user picked
-  const activeValues = new Set();      // selected distinct values for currentProp
-
-  function addGeoJson(def, data){
+  async function loadOne(def) {
+    const files = Array.isArray(def.file) ? def.file : [def.file];
+    const features = [];
+    for (const f of files) {
+      const url = BASE + f;
+      try { features.push(...toFeatArr(await fetchMaybeGz(url))); }
+      catch(e){ console.warn("Falha ao carregar", url, e); }
+    }
     const st = styles[def.key] || { color:'#555', weight:2, fillOpacity:0.2 };
-    const layer = L.geoJSON(data, {
+    const layer = L.geoJSON(features, {
       style: st,
+      pointToLayer: (feat, latlng) => {
+        if (def.type === 'point') {
+          const s = styles[def.key] || {};
+          return L.circleMarker(latlng, {
+            radius: s.radius ?? 4,
+            color:  s.color  ?? '#333',
+            fillColor: s.fillColor ?? s.color ?? '#333',
+            fillOpacity: s.fillOpacity ?? 0.8,
+            weight: s.weight ?? 1
+          });
+        }
+        return L.marker(latlng);
+      },
       onEachFeature: (f,l) => {
         const p = f?.properties || {};
-        const html = Object.keys(p).slice(0,12).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
-        if(html) l.bindPopup(html);
+        const html = Object.keys(p).slice(0,20).map(k => `<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
+        if (html) l.bindPopup(html);
       }
-    });
-    layer.addTo(map);
+    }).addTo(map);
+
     layerControl.addOverlay(layer, def.name);
     addedLayers.push(layer);
-
-    // Keep original features for filtering
-    const feats = (data?.type === "FeatureCollection") ? data.features
-                : (data?.type === "Feature") ? [data] : [];
-    datasetByKey[def.key] = { def, features: feats, layer };
+    datasetByKey[def.key] = { def, features, layer };
   }
 
-  async function loadAll(){
-    for (const def of LAYERS){
-      const url = `${BASE}${def.file}?v=${Date.now()}`;
-      try{
-        const res = await fetch(url, { cache:'no-cache' });
-        if(!res.ok){
-          const txt = await res.text().catch(()=> '');
-          throw new Error(`HTTP ${res.status} ${res.statusText} ao buscar ${url}\n${txt.slice(0,160)}`);
-        }
-        const gj = await res.json();
-        addGeoJson(def, gj);
-      }catch(err){
-        console.error(`Falha ao carregar ${def.name}:`, err);
-        // Não alerta: deixa só no console para não interromper a UX.
-      }
-    }
+  async function loadAll() {
+    for (const def of LAYERS) await loadOne(def);
   }
-async function fetchMaybeGz(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  if (url.toLowerCase().endsWith(".gz")) {
-    const ab = await res.arrayBuffer();
-    const inflated = window.pako.inflate(new Uint8Array(ab), { to: "string" });
-    return JSON.parse(inflated);
-  }
-  const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) return res.json();
-  return JSON.parse(await res.text());
-}
 
-function toFeatureArray(gj) {
-  if (!gj) return [];
-  if (gj.type === "FeatureCollection" && Array.isArray(gj.features)) return gj.features;
-  if (gj.type === "Feature") return [gj];
-  return [];
-}
-
-async function loadOne(def) {
-  // def.file pode ser string OU array de strings
-  const files = Array.isArray(def.file) ? def.file : [def.file];
-  const all = [];
-  for (const f of files) {
-    const url = BASE + f;
-    try {
-      const gj = await fetchMaybeGz(url);
-      all.push(...toFeatureArray(gj));
-    } catch (e) {
-      console.warn("Falha ao carregar:", url, e);
-    }
-  }
-  // cria layer a partir da soma das features
-  const st = styles[def.key] || { color:'#555', weight:2, fillOpacity:0.2 };
-  const layer = L.geoJSON(all, {
-    style: st,
-    pointToLayer: (feat, latlng) => {
-      // se quiser círculos para pontos
-      const s = styles[def.key] || {};
-      if (def.type === 'point') return L.circleMarker(latlng, { radius: s.radius || 4, color: s.color || '#333', fillColor: s.fillColor || s.color || '#333', fillOpacity: s.fillOpacity ?? 0.8, weight: s.weight ?? 1 });
-      return L.marker(latlng);
-    },
-    onEachFeature: (f,l) => {
-      const p = f?.properties || {};
-      const html = Object.keys(p).slice(0, 20).map(k => `<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
-      if (html) l.bindPopup(html);
-    }
-  }).addTo(map);
-
-  layerControl.addOverlay(layer, def.name);
-  datasetByKey[def.key] = { def, features: all, layer };
-  addedLayers.push(layer);
-}
-
-async function loadAll() {
-  for (const def of LAYERS) await loadOne(def);
-}
-
-  // Fit visible overlays
+  // Fit visíveis
   document.getElementById('fitAll').onclick = () => {
     const visibles = addedLayers.filter(l => map.hasLayer(l));
     if(!visibles.length) return;
@@ -251,11 +200,10 @@ async function loadAll() {
     map.fitBounds(group.getBounds().pad(0.08));
   };
 
-  // ---------- FILTER CONTROL (camada + coluna + distinct + aplicar) ----------
+  // ====== CONTROLE DE FILTRO (camada + coluna texto + distinct) ======
   const FilterControl = L.Control.extend({
     onAdd: function() {
       const div = L.DomUtil.create('div','filter-box');
-
       div.innerHTML = `
         <h3>Filtros</h3>
         <label>Camada</label>
@@ -269,16 +217,11 @@ async function loadAll() {
           <button id="fc-apply" class="btn-sm primary">Aplicar</button>
         </div>
         <div id="fc-list" class="list"></div>
-        <div class="muted" style="margin-top:.4rem;">
-          Dica: apenas colunas cuja amostra indicar valores de <b>texto</b> aparecem aqui.
-        </div>
+        <div class="muted" style="margin-top:.4rem;">Apenas colunas com valores de texto aparecem.</div>
       `;
-
-      // Stop map interactions when using UI
       L.DomEvent.disableClickPropagation(div);
       L.DomEvent.disableScrollPropagation(div);
 
-      // Wire events
       const selLayer = div.querySelector('#fc-layer');
       const selProp  = div.querySelector('#fc-prop');
       const search   = div.querySelector('#fc-search');
@@ -288,173 +231,117 @@ async function loadAll() {
       const list     = div.querySelector('#fc-list');
 
       function refreshLayerOptions(){
-        // populate with datasets actually loaded
         selLayer.innerHTML = '';
         Object.keys(datasetByKey).forEach(key => {
           const opt = document.createElement('option');
-          opt.value = key;
-          opt.textContent = datasetByKey[key].def.name;
+          opt.value = key; opt.textContent = datasetByKey[key].def.name;
           selLayer.appendChild(opt);
         });
-        // choose first by default
         currentKey = currentKey && datasetByKey[currentKey] ? currentKey : Object.keys(datasetByKey)[0];
         selLayer.value = currentKey;
       }
 
-      function distinctTextPropsFor(key){
+      function textPropsFor(key){
         const ds = datasetByKey[key]; if(!ds) return [];
-        const feats = ds.features || [];
-        // sample first features to guess which props are strings
-        const counts = {}; // prop -> number of string hits
-        const sample = feats.slice(0, 200);
+        const sample = (ds.features||[]).slice(0,200);
+        const hits = {};
         for (const f of sample){
           const p = f.properties || {};
-          for (const [k,v] of Object.entries(p)){
-            if (typeof v === 'string' && v !== '') {
-              counts[k] = (counts[k]||0) + 1;
-            }
+          for (const [k,v] of Object.entries(p)) {
+            if (typeof v === 'string' && v !== '') hits[k] = (hits[k]||0) + 1;
           }
         }
-        return Object.keys(counts).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+        return Object.keys(hits).sort((a,b)=>a.localeCompare(b,'pt-BR'));
       }
 
       function refreshPropOptions(){
         selProp.innerHTML = '';
-        const props = distinctTextPropsFor(currentKey);
-        if (props.length === 0){
-          const opt = document.createElement('option');
-          opt.value = ''; opt.textContent = '(sem colunas de texto detectadas)';
-          selProp.appendChild(opt);
+        const props = textPropsFor(currentKey);
+        if (!props.length){
+          selProp.innerHTML = `<option value="">(sem colunas de texto)</option>`;
           currentProp = null;
         } else {
-          props.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p; opt.textContent = p;
-            selProp.appendChild(opt);
-          });
-          currentProp = currentProp && props.includes(currentProp) ? currentProp : props[0];
+          props.forEach(p => selProp.append(new Option(p,p)));
+          currentProp = props.includes(currentProp) ? currentProp : props[0];
           selProp.value = currentProp || '';
         }
       }
 
       function rebuildDistinctList(){
-        list.innerHTML = '';
-        activeValues.clear();
+        list.innerHTML = ''; activeValues.clear();
         const ds = datasetByKey[currentKey]; if(!ds || !currentProp) return;
-
-        // Build distinct for selected text column
         const setVals = new Set();
-        for (const f of ds.features){
-          const p = f.properties || {};
-          const v = p[currentProp];
+        for (const f of ds.features) {
+          const v = (f.properties||{})[currentProp];
           if (typeof v === 'string' && v !== '') setVals.add(v);
         }
         const values = Array.from(setVals).sort((a,b)=>a.localeCompare(b,'pt-BR'));
-
-        const q = (search.value || '').toLowerCase().trim();
+        const q = (search.value||'').toLowerCase().trim();
         const filtered = q ? values.filter(v => v.toLowerCase().includes(q)) : values;
 
         for (const val of filtered){
           const id = 'v_' + btoa(val).replace(/=/g,'');
-          const row = document.createElement('label'); row.className = 'item'; row.htmlFor = id;
-          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = id; cb.value = val; cb.checked = true;
-          cb.addEventListener('change', (e)=>{
-            if (e.target.checked) activeValues.add(val); else activeValues.delete(val);
-          });
+          const row = document.createElement('label'); row.className='item'; row.htmlFor=id;
+          const cb = Object.assign(document.createElement('input'), { type:'checkbox', id, value:val, checked:true });
+          cb.addEventListener('change', e => (e.target.checked ? activeValues.add(val) : activeValues.delete(val)));
           const span = document.createElement('span'); span.textContent = val;
-          row.appendChild(cb); row.appendChild(span);
-          list.appendChild(row);
-          activeValues.add(val);
+          row.append(cb, span); list.appendChild(row); activeValues.add(val);
         }
-
-        // small hint
-        if (values.length === 0){
-          const info = document.createElement('div');
-          info.className = 'muted';
-          info.textContent = 'Sem valores distintos (texto) encontrados nesta coluna.';
-          list.appendChild(info);
-        }
+        if (!values.length) list.innerHTML = '<div class="muted">Sem valores distintos nesta coluna.</div>';
       }
 
       function applyFilter(){
         const ds = datasetByKey[currentKey]; if(!ds) return;
-        // Remove old layer (only the one for this dataset)
-        if (ds.layer) {
-          try { map.removeLayer(ds.layer); } catch {}
-          try { layerControl.removeLayer(ds.layer); } catch {}
-          ds.layer = null;
-        }
-        // Filter features by currentProp in activeValues
+        if (ds.layer) { try{ map.removeLayer(ds.layer) }catch{}; try{ layerControl.removeLayer(ds.layer) }catch{}; ds.layer = null; }
         const st = styles[currentKey] || { color:'#555', weight:2, fillOpacity:0.2 };
-        const feats = (!currentProp || activeValues.size===0)
-          ? [] // nothing selected
-          : ds.features.filter(f => {
-              const p = f.properties || {};
-              const v = p[currentProp];
-              return typeof v === 'string' && activeValues.has(v);
-            });
-
+        const feats = (!currentProp || !activeValues.size)
+          ? []
+          : ds.features.filter(f => typeof (f.properties||{})[currentProp] === 'string'
+                                 && activeValues.has((f.properties||{})[currentProp]));
         const layer = L.geoJSON(feats, {
           style: st,
+          pointToLayer: (feat, latlng) => {
+            const s = styles[currentKey] || {};
+            if (datasetByKey[currentKey].def.type === 'point') {
+              return L.circleMarker(latlng, {
+                radius: s.radius ?? 4,
+                color:  s.color  ?? '#333',
+                fillColor: s.fillColor ?? s.color ?? '#333',
+                fillOpacity: s.fillOpacity ?? 0.8,
+                weight: s.weight ?? 1
+              });
+            }
+            return L.marker(latlng);
+          },
           onEachFeature: (f,l) => {
             const p = f?.properties || {};
-            const html = Object.keys(p).slice(0,12).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
-            if(html) l.bindPopup(html);
+            const html = Object.keys(p).slice(0,20).map(k => `<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
+            if (html) l.bindPopup(html);
           }
         }).addTo(map);
         ds.layer = layer;
         layerControl.addOverlay(layer, datasetByKey[currentKey].def.name + " (filtrado)");
       }
 
-      // Events
-      selLayer.addEventListener('change', ()=>{
-        currentKey = selLayer.value;
-        refreshPropOptions();
-        rebuildDistinctList();
-      });
-
-      selProp.addEventListener('change', ()=>{
-        currentProp = selProp.value || null;
-        rebuildDistinctList();
-      });
-
+      selLayer.addEventListener('change', ()=>{ currentKey = selLayer.value; refreshPropOptions(); rebuildDistinctList(); });
+      selProp.addEventListener('change', ()=>{ currentProp = selProp.value || null; rebuildDistinctList(); });
       search.addEventListener('input', rebuildDistinctList);
-      btnAll.addEventListener('click', ()=>{
-        // mark all visible list items
-        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          cb.checked = true; activeValues.add(cb.value);
-        });
-      });
-      btnNone.addEventListener('click', ()=>{
-        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-          cb.checked = false; activeValues.delete(cb.value);
-        });
-      });
+      btnAll.addEventListener('click', ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; activeValues.add(cb.value); }); });
+      btnNone.addEventListener('click', ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; activeValues.delete(cb.value); }); });
       btnApply.addEventListener('click', applyFilter);
 
-      // First paint after data is loaded
-      setTimeout(() => {
-        refreshLayerOptions();
-        refreshPropOptions();
-        rebuildDistinctList();
-      }, 50);
-
+      setTimeout(()=>{ refreshLayerOptions(); refreshPropOptions(); rebuildDistinctList(); }, 60);
       return div;
-    },
-    onRemove: function(){ /* noop */ }
+    }
   });
-
-  // Add control to map (top-right)
   map.addControl(new FilterControl({ position: 'topright' }));
 
   // Boot
   (async function(){
     await loadAll();
-    // attribution/footer
     map.attributionControl.setPrefix(false);
-    map.attributionControl.addAttribution('v1.1 filtros • inspirado no índice original');
+    map.attributionControl.addAttribution('Água Segura • filtros por camada/coluna');
   })();
   </script>
 </body>
 </html>
-
