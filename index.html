@@ -1,71 +1,58 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Água Segura — Pré-diagnóstico das Microbacias Selecionadas</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Água Segura — classes + filtros + métricas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root { --topbar-h: 50px; }
+  html,body { height:100%; margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+  #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    :root { --topbar-h: 50px; }
-    html,body { height:100%; margin:0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
-    #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
+  .topbar { position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
+    display:flex; align-items:center; gap:.6rem; background:#fff; border-bottom:1px solid #e5e7eb;
+    padding:0 .75rem; z-index:1000; }
+  .btn{ border:1px solid #d1d5db; background:#fff; padding:.4rem .65rem; border-radius:8px; font-weight:600; cursor:pointer }
+  .btn:hover{ background:#f9fafb }
+  .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
+  .slider-row { display:flex; align-items:center; gap:.6rem; }
+  .slider-row input[type="range"]{ width:140px; }
+  .muted { color:#6b7280; font-size:12px; }
 
-    .topbar {
-      position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
-      display:flex; align-items:center; gap:.6rem;
-      background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
-    }
-    .btn{ border:1px solid #d1d5db; background:#fff; padding:.4rem .65rem; border-radius:8px; font-weight:600; cursor:pointer }
-    .btn:hover{ background:#f9fafb }
-    .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
+  .panel,.legend,.metrics{ background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
+    box-shadow:0 6px 18px rgba(0,0,0,.08); font-size:13px; }
+  .panel { width:360px; max-height:72vh; overflow:auto; }
+  .panel h3 { margin:.2rem 0 .5rem; font-size:14px; }
+  .panel label { color:#6b7280; font-size:12px; display:block; margin:.35rem 0 .25rem; }
+  .panel select,.panel input[type="search"]{ width:100%; padding:.45rem .5rem; border:1px solid #d1d5db; border-radius:.5rem; }
+  .row { display:flex; gap:.5rem; margin:.4rem 0; }
+  .btn-sm { padding:.3rem .5rem; border-radius:.5rem; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
+  .btn-sm.primary { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+  .list { border:1px solid #e5e7eb; border-radius:.5rem; max-height:28vh; overflow:auto; padding:.25rem; background:#fff; }
+  .item { display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:.35rem; }
+  .item:hover { background:#f3f4f6; }
 
-    .panel, .legend, .metrics {
-      background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
-      box-shadow: 0 6px 18px rgba(0,0,0,.08); font-size: 13px;
-    }
-    .panel { width: 360px; max-height: 72vh; overflow:auto; }
-    .panel h3 { margin:.2rem 0 .5rem; font-size:14px; }
-    .panel label { color:#6b7280; font-size:12px; display:block; margin:.35rem 0 .25rem; }
-    .panel input[type="search"], .panel select {
-      width:100%; padding:.45rem .5rem; border:1px solid #d1d5db; border-radius:.5rem;
-    }
-    .row { display:flex; gap:.5rem; margin:.4rem 0; }
-    .btn-sm { padding:.3rem .5rem; border-radius:.5rem; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
-    .btn-sm.primary { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+  .legend { font-size:12px; }
+  .leg-row{ display:flex; align-items:center; gap:.5rem; margin:.15rem 0; }
+  .sw{ width:16px; height:12px; border:1px solid #9ca3af; border-radius:3px; }
 
-    .list { border:1px solid #e5e7eb; border-radius:.5rem; max-height:28vh; overflow:auto; padding:.25rem; background:#fff; }
-    .item { display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:.35rem; }
-    .item:hover { background:#f3f4f6; }
-    .muted { color:#6b7280; font-size:12px; }
-
-    .legend { font-size:12px; }
-    .leg-row { display:flex; align-items:center; gap:.5rem; margin:.15rem 0; }
-    .sw { width:16px; height:12px; border:1px solid #9ca3af; border-radius:3px; }
-
-    .metrics { min-width: 300px; }
-    .metrics h3 { margin:.2rem 0 .4rem; font-size:14px; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { padding:.25rem .35rem; border-bottom:1px solid #eceff1; text-align:right; }
-    th:first-child, td:first-child { text-align:left; }
-    tfoot td { font-weight:700; }
-    .small { font-size:12px; }
-    .slider-row { display:flex; align-items:center; gap:.6rem; }
-    .slider-row input[type="range"]{ width:140px; }
-    /* Evita sobreposição: controles de camada ficam à esquerda */
-    .leaflet-left .leaflet-control { margin-left: 10px; }
-    .leaflet-right .leaflet-control { margin-right: 10px; }
-  </style>
+  .metrics { min-width:300px; }
+  .metrics h3{ margin:.2rem 0 .4rem; font-size:14px; }
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ padding:.25rem .35rem; border-bottom:1px solid #eceff1; text-align:right; }
+  th:first-child,td:first-child{ text-align:left; }
+  .leaflet-control-layers{ margin-top:10px }
+</style>
 </head>
 <body>
   <div class="topbar">
     <button id="fitAll" class="btn">Ajustar visão</button>
     <div class="slider-row">
       <span class="muted">Opacidade</span>
-      <input id="opacity" type="range" min="20" max="100" value="70"/>
-      <span id="opacityVal" class="muted">70%</span>
+      <input id="opacity" type="range" min="20" max="100" value="70"/><span id="opacityVal" class="muted">70%</span>
     </div>
-    <div class="version">v6 — IDR-Paraná - PRNS © 2025</div>
+    <div class="version">v7 — legends com área + correções de exibição</div>
   </div>
   <div id="map"></div>
 
@@ -74,34 +61,18 @@
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
   <script>
-  // ====== CONFIG ======
-  const BASE = "./data/"; // arquivos em aguasegura/docs/data/
+  // ====== CONFIG & FILES ======
+  const BASE = "./data/";
 
-  // ====== LAYERS ======
   const LAYERS = [
-    { name:'Declividade',  key:'declividade',  type:'poly',
-      file:['declividade__declividade_otto.geojson.gz'] },
-
-    { name:'Altimetria',   key:'altimetria',   type:'poly',
-      file:['altimetria__altimetria_otto.geojson.gz'] },
-
-    { name:'Uso do Solo',  key:'uso_solo',     type:'poly',
-      file:['uso_solo__usodosolo_otto.geojson.gz'] },
-
-    { name:'Estradas',     key:'estradas',     type:'line',
-      file:['estradas__estradas_otto.geojson.gz'] },
-
-    { name:'Hidrografia',  key:'hidrografia',  type:'line',
-      file:['hidrografia__hidrografia_otto.geojson.gz'] },
-
-    { name:'Nascentes',    key:'nascentes',    type:'point',
-      file:['nascentes__nascentes_otto.geojson.gz'] },
-
-    { name:'Solos',        key:'solos',        type:'poly',
-      file:['solos__solos_otto.geojson.gz'] },
-
-    { name:'Construções',  key:'construcoes',  type:'point',
-      file:[
+    { name:'Declividade',  key:'declividade',  type:'poly',  file:['declividade__declividade_otto.geojson.gz'] },
+    { name:'Altimetria',   key:'altimetria',   type:'poly',  file:['altimetria__altimetria_otto.geojson.gz'] },
+    { name:'Uso do Solo',  key:'uso_solo',     type:'poly',  file:['uso_solo__usodosolo_otto.geojson.gz'] },
+    { name:'Estradas',     key:'estradas',     type:'line',  file:['estradas__estradas_otto.geojson.gz'] },
+    { name:'Hidrografia',  key:'hidrografia',  type:'line',  file:['hidrografia__hidrografia_otto.geojson.gz'] },
+    { name:'Nascentes',    key:'nascentes',    type:'point', file:['nascentes__nascentes_otto.geojson.gz'] },
+    { name:'Solos',        key:'solos',        type:'poly',  file:['solos__solos_otto.geojson.gz'] },
+    { name:'Construções',  key:'construcoes',  type:'point', file:[
         'construcoes__construcoes_otto__part1.geojson.gz',
         'construcoes__construcoes_otto__part2.geojson.gz',
         'construcoes__construcoes_otto__part3.geojson.gz',
@@ -109,77 +80,18 @@
         'construcoes__construcoes_otto__part5.geojson.gz',
         'construcoes__construcoes_otto__part6.geojson.gz'
       ]},
-
-    { name:'Microbacias',  key:'microbacias',  type:'poly',
-      file:['otto_selec__ottos_selec_lista4.geojson.gz'] },
-
-    { name:'CAF',          key:'caf',          type:'poly',
-      file:['caf__caf_otto.geojson.gz'] },
-
-    /* CAR — ajuste o nome do arquivo se necessário */
-    { name:'CAR',          key:'car',          type:'poly',
-      file:['imoveiscar__imoveiscar_otto.geojson.gz'], idField:'cod_imovel' }
+    { name:'Microbacias',  key:'microbacias',  type:'poly',  file:['otto_selec__ottos_selec_lista4.geojson.gz'] },
+    { name:'CAF',          key:'caf',          type:'poly',  file:['caf__caf_otto.geojson.gz'] },
+    { name:'CAR',          key:'car',          type:'poly',  file:['car__car_otto.geojson'], idField:'cod_imovel' } // << sem .gz
   ];
 
-  // ====== CAMPOS (conforme seus dados) ======
+  // ====== CAMPOS ======
   const CLASS_FIELDS = {
-    declividade: 'ClDec',
-    altimetria:  'ClAlt',
-    uso_solo:    'NIVEL_II',   // se ausente em algum feature, cai p/ NIVEL_I
-    solos:       'Cl_solos'
+    declividade:'ClDec',  // 000a003…>100
+    altimetria:'ClAlt',   // "x a y m"
+    uso_solo:'NIVEL_II',  // fallback NIVEL_I
+    solos:'Cl_solos'
   };
-  const MICRO_FIELD_LABEL_CANDIDATES = [
-    'Região_Município_Manancial','REGIÃO_MUNICÍPIO_MANANCIAL',
-    'Regiao_Municipio_Manancial','REGIAO_MUNICIPIO_MANANCIAL'
-  ];
-  const MICRO_FIELD_CODE_CANDIDATES = ['Cod_man','COD_MAN','cod_man','codman'];
-
-  // ====== TABELA (Cod_man -> filtros) ======
-  const MICRO_TABLE = [
-    {Cod_man:1, org:'IDR-Paraná', regional:'Santo Antonio da Platina', municipio:'Santo Antônio da Platina'},
-    {Cod_man:2, org:'IDR-Paraná', regional:'Maringá', municipio:'Ângulo'},
-    {Cod_man:3, org:'IDR-Paraná', regional:'Londrina', municipio:'Ibiporã'},
-    {Cod_man:6, org:'IDR-Paraná', regional:'Londrina', municipio:'Cambé'},
-    {Cod_man:9, org:'IDR-Paraná', regional:'Umuarama', municipio:'Alto Piquiri'},
-    {Cod_man:11, org:'IDR-Paraná', regional:'Cianorte', municipio:'São Manoel do Paraná'},
-    {Cod_man:17, org:'IDR-Paraná', regional:'Apucarana', municipio:'Arapongas'},
-    {Cod_man:20, org:'IDR-Paraná', regional:'Toledo', municipio:'Toledo'},
-    {Cod_man:23, org:'IDR-Paraná', regional:'Ivaiporã', municipio:'Manoel Ribas'},
-    {Cod_man:24, org:'IDR-Paraná', regional:'Paranaguá', municipio:'Morretes'},
-    {Cod_man:27, org:'IDR-Paraná', regional:'Cornélio Procópio', municipio:'Assaí'},
-    {Cod_man:26, org:'IDR-Paraná', regional:'Paranavaí', municipio:'Alto Paraná'},
-    {Cod_man:33, org:'IDR-Paraná', regional:'Campo Mourão', municipio:'Terra Boa'},
-    {Cod_man:36, org:'IDR-Paraná', regional:'Cascavel', municipio:'Cascavel'},
-    {Cod_man:34, org:'IDR-Paraná', regional:'União da Vitória', municipio:'União da Vitória'},
-    {Cod_man:4, org:'Sanepar', regional:'Cascavel', municipio:'Medianeira'},
-    {Cod_man:5, org:'Sanepar', regional:'Pato Branco', municipio:'Palmas'},
-    {Cod_man:7, org:'Sanepar', regional:'Cascavel', municipio:'Cascavel'},
-    {Cod_man:8, org:'Sanepar', regional:'Cornélio Procópio', municipio:'Cornélio Procópio'},
-    {Cod_man:10, org:'Sanepar', regional:'Guarapuava', municipio:'Guarapuava'},
-    {Cod_man:12, org:'Sanepar', regional:'Laranjeiras do Sul', municipio:'Laranjeiras do Sul'},
-    {Cod_man:13, org:'Sanepar', regional:'Irati', municipio:'Prudentópolis'},
-    {Cod_man:15, org:'Sanepar', regional:'Irati', municipio:'Irati'},
-    {Cod_man:16, org:'Sanepar', regional:'Londrina', municipio:'Rolândia'},
-    {Cod_man:18, org:'Sanepar', regional:'Santo Antonio da Platina', municipio:'Quatiguá'},
-    {Cod_man:19, org:'Sanepar', regional:'Dois Vizinhos', municipio:'Salto do Lontra'},
-    {Cod_man:21, org:'Sanepar', regional:'Francisco Beltrão', municipio:'Francisco Beltrão'},
-    {Cod_man:22, org:'Sanepar', regional:'Curitiba', municipio:'São José dos Pinhais'},
-    {Cod_man:25, org:'Sanepar', regional:'Pato Branco', municipio:'Pato Branco'},
-    {Cod_man:28, org:'Sanepar', regional:'Umuarama', municipio:'Umuarama'},
-    {Cod_man:29, org:'Sanepar', regional:'Paranavaí', municipio:'Paranavaí'},
-    {Cod_man:30, org:'Sanepar', regional:'Cianorte', municipio:'Cianorte'},
-    {Cod_man:31, org:'Sanepar', regional:'Pato Branco', municipio:'Bom Sucesso do Sul'},
-    {Cod_man:32, org:'Sanepar', regional:'Londrina', municipio:'Londrina'},
-    {Cod_man:14, org:'Sanepar', regional:'Londrina', municipio:'Rolândia'},
-    {Cod_man:35, org:'Sanepar', regional:'Ponta Grossa', municipio:'Castro'},
-    {Cod_man:37, org:'Sanepar', regional:'Francisco Beltrão', municipio:'Realeza'},
-    {Cod_man:38, org:'Sanepar', regional:'Cascavel', municipio:'Foz do Iguaçu'},
-    {Cod_man:39, org:'Sanepar', regional:'União da Vitória', municipio:'São Mateus do Sul'},
-    {Cod_man:40, org:'Sanepar', regional:'Toledo', municipio:'Toledo'},
-    {Cod_man:41, org:'Sanepar', regional:'Ponta Grossa', municipio:'Ponta Grossa'},
-    {Cod_man:42, org:'Sanepar', regional:'Toledo', municipio:'Palotina'},
-    {Cod_man:43, org:'Sanepar', regional:'', municipio:'Nova Esperança'}
-  ];
 
   // ====== PALETAS ======
   const slopeOrder  = ['000a003','003a008','008a015','015a025','025a045','045a100','>100'];
@@ -188,35 +100,30 @@
   const slopeColorFor = v => slopeColors[Math.max(0, slopeOrder.indexOf(String(v)))];
 
   const altRamp = ['#ffffcc','#c2e699','#78c679','#31a354','#006837','#00441b'];
-  function altColorFor(v) {
+  function altColorFor(v){
     if (!v) return altRamp[0];
-    const m = String(v).match(/(\d+).+?(\d+)/);
-    const mid = m ? (parseFloat(m[1])+parseFloat(m[2]))/2 : NaN;
+    const m = String(v).match(/(\d+).+?(\d+)/); const mid = m? ( +m[1] + +m[2] )/2 : NaN;
     if (isNaN(mid)) return altRamp[0];
     const brks = [0,400,800,1200,1600,2000,1e9];
     for (let i=0;i<brks.length-1;i++) if (mid>=brks[i] && mid<brks[i+1]) return altRamp[i];
-    return altRamp[altRamp.length-1];
+    return altRamp.at(-1);
   }
 
   const usoColors = {
     'Agricultura Anual':'#e6ab02','Agricultura Perene':'#c98c00',
     'Corpos d’Água':'#67a9cf','Floresta Nativa':'#1b9e77','Mangue':'#0f766e',
     'Pastagem/Campo':'#a6d854','Plantios Florestais':'#106b21','Restinga':'#66c2a5',
-    'Solo Exposto/Mineração':'#bdbdbd','Várzea':'#c7e9c0',
-    'Área Construída':'#7570b3','Área Urbanizada':'#6a51a3'
+    'Solo Exposto/Mineração':'#bdbdbd','Várzea':'#c7e9c0','Área Construída':'#7570b3','Área Urbanizada':'#6a51a3'
   };
   const usoFallbackColors = {
-    'Água':'#67a9cf','Áreas de Vegetação Natural':'#1b9e77',
-    'Áreas Antrópicas Agrícolas':'#e6ab02','Áreas Antrópicas Não Agrícolas':'#6a51a3',
-    'Áreas Antrópicas Agrícolas/Áreas de Vegetação Natural':'#8da0cb'
+    'Água':'#67a9cf','Áreas de Vegetação Natural':'#1b9e77','Áreas Antrópicas Agrícolas':'#e6ab02',
+    'Áreas Antrópicas Não Agrícolas':'#6a51a3','Áreas Antrópicas Agrícolas/Áreas de Vegetação Natural':'#8da0cb'
   };
 
   const soilColors = {
-    'LATOSSOLOS':'#d95f0e','ARGISSOLOS':'#fdae6b',
-    'NEOSSOLOS LITÓLICOS':'#fee6ce','NEOSSOLOS REGOLÍTICOS':'#fdd0a2',
-    'NITOSSOLOS':'#a6761d','CAMBISSOLOS':'#e0c2a2','GLEISSOLOS':'#74c476',
-    'ESPODOSSOLOS':'#9ecae1','ORGANOSSOLOS':'#807dba',
-    'AFLORAMENTOS DE ROCHAS':'#bdbdbd','ÁREAS URBANAS':'#756bb1','ESPELHOS DAGUA':'#67a9cf'
+    'LATOSSOLOS':'#d95f0e','ARGISSOLOS':'#fdae6b','NEOSSOLOS LITÓLICOS':'#fee6ce','NEOSSOLOS REGOLÍTICOS':'#fdd0a2',
+    'NITOSSOLOS':'#a6761d','CAMBISSOLOS':'#e0c2a2','GLEISSOLOS':'#74c476','ESPODOSSOLOS':'#9ecae1',
+    'ORGANOSSOLOS':'#807dba','AFLORAMENTOS DE ROCHAS':'#bdbdbd','ÁREAS URBANAS':'#756bb1','ESPELHOS DAGUA':'#67a9cf'
   };
 
   // ====== MAPA ======
@@ -226,10 +133,10 @@
   const baseESRISt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{ attribution:'Esri Streets' });
   const baseTerrain= L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',{ attribution:'Stamen Terrain' });
 
-  const map = L.map('map', { center: [-24.5,-51.5], zoom: 7, preferCanvas: true, layers:[baseCARTO] });
+  const map = L.map('map',{ center:[-24.5,-51.5], zoom:7, preferCanvas:true, layers:[baseCARTO] });
   const layerControl = L.control.layers(
     { 'CARTO Light':baseCARTO, 'OSM Padrão':baseOSM, 'Esri Imagery':baseESRI, 'Esri Streets':baseESRISt, 'Stamen Terrain':baseTerrain },
-    {}, { collapsed:false, position:'topleft' } // << à esquerda para não sobrepor
+    {}, { collapsed:false, position:'topleft' }
   ).addTo(map);
 
   // ====== ESTADO ======
@@ -237,405 +144,319 @@
   const addedLayers = [];
   let opacity = 0.7;
 
-  // ====== HELPERS ======
-  async function fetchMaybeGz(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    if (url.toLowerCase().endsWith(".gz")) {
-      const ab = await res.arrayBuffer();
-      return JSON.parse(window.pako.inflate(new Uint8Array(ab), { to: "string" }));
-    }
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) return res.json();
-    return JSON.parse(await res.text());
-  }
-  const toFeatArr = (gj) =>
-    gj?.type === "FeatureCollection" ? (gj.features||[]) :
-    (gj?.type === "Feature" ? [gj] : []);
-
-  // encontra campo por candidatos/regex
-  function findField(props, candidates){
-    const keys = Object.keys(props||{});
-    for (const c of candidates){
-      const k = keys.find(k => k.toLowerCase() === c.toLowerCase());
-      if (k) return k;
-    }
-    return null;
-  }
-
-  // estilo dinâmico por camada
-  function styleFn(key){
-    if (key === 'declividade') {
-      return f => {
-        const fill = slopeColorFor(f.properties?.[CLASS_FIELDS.declividade]);
-        return { color:'#444', weight:0.4, fillColor: fill, fillOpacity: 0.65*opacity, opacity:opacity };
-      };
-    }
-    if (key === 'altimetria')  {
-      return f => {
-        const fill = altColorFor(f.properties?.[CLASS_FIELDS.altimetria]);
-        return { color:'#333', weight:0.4, fillColor: fill, fillOpacity: 0.60*opacity, opacity:opacity };
-      };
-    }
-    if (key === 'solos') {
-      return f => {
-        const v = String(f.properties?.[CLASS_FIELDS.solos] || '');
-        const fill = soilColors[v] || '#dfc27d';
-        return { color:'#555', weight:0.4, fillColor: fill, fillOpacity: 0.65*opacity, opacity:opacity };
-      };
-    }
-    if (key === 'uso_solo') {
-      return f => {
-        const p = f.properties||{};
-        const field = (CLASS_FIELDS.uso_solo in p) ? CLASS_FIELDS.uso_solo : 'NIVEL_I';
-        const v = String(p[field] || '');
-        const fill = (field==='NIVEL_II' ? usoColors[v] : usoFallbackColors[v]) || '#31a354';
-        return { color:'#444', weight:0.3, fillColor: fill, fillOpacity: 0.55*opacity, opacity:opacity };
-      };
-    }
-    const defaults = {
-      estradas:   { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0, opacity:opacity },
-      hidrografia:{ color:'#2b8cbe', weight:2, fillOpacity:0.2*opacity, opacity:opacity },
-      nascentes:  { color:'#1c9099', weight:2, fillOpacity:0.8, opacity:opacity },
-      construcoes:{ color:'#252525', weight:1, fillOpacity:0.9, opacity:opacity },
-      caf:        { color:'#006837', weight:1, fillOpacity:0.35*opacity, opacity:opacity },
-      microbacias:{ color:'#1e40af', weight:2, fillColor:'#93c5fd', fillOpacity:0.25*opacity, opacity:opacity },
-      car:        { color:'#ff7f00', weight:1.2, fillColor:'#ffa64d', fillOpacity:0.20*opacity, opacity:opacity }
-    };
-    return ()=> defaults[key] || { color:'#555', weight:1, fillOpacity:0.25*opacity, opacity:opacity };
-  }
-
-  // métricas: usa atributos se existirem; caso contrário, Turf
-  const areaFieldRegex = /(ha(_final)?|area.*ha|ha.*final)$/i;
-  const lenFieldRegex  = /(km|_km$|compr.*km|extens.*km|comp_km)$/i;
-
-  function metricsFor(features, type){
-    let areaHaAttr=0, lenKmAttr=0, count=0, areaM2Geom=0, lenKmGeom=0;
-
-    for (const f of features){
-      const p = f.properties || {};
-      if (type==='poly'){
-        // tenta achar campo de área (ha)
-        const k = Object.keys(p).find(k => areaFieldRegex.test(k));
-        if (k && isFinite(+p[k])) areaHaAttr += +p[k];
-        else if (f.geometry && (f.geometry.type==='Polygon' || f.geometry.type==='MultiPolygon')){
-          areaM2Geom += turf.area(f);
-        }
-        count++;
-      } else if (type==='line'){
-        const k = Object.keys(p).find(k => lenFieldRegex.test(k));
-        if (k && isFinite(+p[k])) lenKmAttr += +p[k];
-        else if (f.geometry && (f.geometry.type==='LineString' || f.geometry.type==='MultiLineString')){
-          lenKmGeom += turf.length(f, {units:'kilometers'});
-        }
-        count++;
-      } else if (type==='point'){
-        if (f.geometry?.type==='MultiPoint') count += (f.geometry.coordinates?.length||0);
-        else count++;
-      }
-    }
-    const areaHa = areaHaAttr>0 ? areaHaAttr : areaM2Geom/10000;
-    const lenKm  = lenKmAttr>0  ? lenKmAttr  : lenKmGeom;
-    return { areaHa, lenKm, count };
-  }
-
+  // ====== UTILS ======
   const fmt = {
     ha: v => (v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2)).replace('.',','),
     km: v => (v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2)).replace('.',','),
     int: v => Math.round(v).toLocaleString('pt-BR')
   };
 
-  // ====== CARREGAMENTO ======
-  async function loadOne(def) {
-    const files = Array.isArray(def.file) ? def.file : [def.file];
-    const features = [];
-    for (const f of files) {
-      const url = BASE + f;
-      try { features.push(...toFeatArr(await fetchMaybeGz(url))); }
-      catch(e){ console.warn("Falha ao carregar", url, e); }
+  async function fetchMaybeGz(url){
+    const res = await fetch(url,{cache:'no-store'});
+    if (!res.ok) throw new Error(`HTTP ${res.status} para ${url}`);
+    if (url.toLowerCase().endsWith('.gz')){
+      const ab = await res.arrayBuffer();
+      return JSON.parse(window.pako.inflate(new Uint8Array(ab),{to:'string'}));
     }
-    const layer = L.geoJSON(features, {
+    const ct = res.headers.get('content-type')||'';
+    if (ct.includes('application/json')) return res.json();
+    return JSON.parse(await res.text());
+  }
+  const toFeatures = gj => gj?.type==='FeatureCollection' ? (gj.features||[]) : (gj?.type==='Feature' ? [gj] : []);
+
+  // ====== ESTILO ======
+  function styleFn(key){
+    if (key==='declividade'){
+      return f=>({color:'#444',weight:.4,fillColor:slopeColorFor(f.properties?.[CLASS_FIELDS.declividade]),fillOpacity:.65*opacity,opacity});
+    }
+    if (key==='altimetria'){
+      return f=>({color:'#333',weight:.4,fillColor:altColorFor(f.properties?.[CLASS_FIELDS.altimetria]),fillOpacity:.60*opacity,opacity});
+    }
+    if (key==='solos'){
+      return f=>{ const v=String(f.properties?.[CLASS_FIELDS.solos]||''); const c=soilColors[v]||'#dfc27d';
+        return {color:'#555',weight:.4,fillColor:c,fillOpacity:.65*opacity,opacity}; };
+    }
+    if (key==='uso_solo'){
+      return f=>{ const p=f.properties||{}; const fld=(CLASS_FIELDS.uso_solo in p)?CLASS_FIELDS.uso_solo:'NIVEL_I';
+        const v=String(p[fld]||''); const c=(fld==='NIVEL_II'?usoColors[v]:usoFallbackColors[v])||'#31a354';
+        return {color:'#444',weight:.3,fillColor:c,fillOpacity:.55*opacity,opacity}; };
+    }
+    const defaults = {
+      estradas:{color:'#737373',weight:2,dashArray:'4,4',fillOpacity:0,opacity},
+      hidrografia:{color:'#2b8cbe',weight:2,fillOpacity:.2*opacity,opacity},
+      nascentes:{color:'#1c9099',weight:2,fillOpacity:.8,opacity},
+      construcoes:{color:'#252525',weight:1,fillOpacity:.9,opacity},
+      caf:{color:'#006837',weight:1,fillOpacity:.35*opacity,opacity},
+      microbacias:{color:'#1e40af',weight:2,fillColor:'#93c5fd',fillOpacity:.25*opacity,opacity},
+      car:{color:'#ff7f00',weight:1.2,fillColor:'#ffa64d',fillOpacity:.20*opacity,opacity}
+    };
+    return ()=>defaults[key] || {color:'#555',weight:1,fillOpacity:.25*opacity,opacity};
+  }
+
+  // ====== MÉTRICAS ======
+  function metricsFor(features,type){
+    let areaM2=0,lenKm=0,count=0;
+    for (const f of features){
+      const g=f.geometry; if (!g) continue;
+      if (type==='poly' && (g.type==='Polygon'||g.type==='MultiPolygon')){ areaM2+=turf.area(f); count++; }
+      else if (type==='line' && (g.type==='LineString'||g.type==='MultiLineString')){ lenKm+=turf.length(f,{units:'kilometers'}); count++; }
+      else if (type==='point'){ if (g.type==='MultiPoint') count+=(g.coordinates?.length||0); else count++; }
+    }
+    return { areaHa: areaM2/10000, lenKm, count };
+  }
+
+  // ====== CARREGAR ======
+  async function loadOne(def){
+    const files = Array.isArray(def.file)?def.file:[def.file];
+    const feats = [];
+    for (const f of files){
+      try{ feats.push(...toFeatures(await fetchMaybeGz(BASE+f))); }
+      catch(e){ console.warn('Falha ao carregar',f,e); }
+    }
+    const layer = L.geoJSON(feats,{
       style: styleFn(def.key),
-      pointToLayer: (feat, latlng) => {
-        if (def.type === 'point') return L.circleMarker(latlng, { radius: 4, color:'#333', weight:1, fillOpacity:0.8 });
+      pointToLayer:(feat,latlng)=>{
+        if (def.type==='point') return L.circleMarker(latlng,{radius:4,color:'#333',weight:1,fillOpacity:.8});
         return L.marker(latlng);
       },
-      onEachFeature: (f,l) => {
-        const p = f?.properties || {};
+      onEachFeature:(f,l)=>{
+        const p=f?.properties||{};
         let title = def.name;
-        if (def.key==='car' && 'cod_imovel' in p) title += ` — ${p.cod_imovel}`;
-        const html = `<div><b>${title}</b></div>` +
-          Object.keys(p).slice(0,20).map(k => `<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
+        if (def.key==='car' && def.idField && p[def.idField]) title += ` — ${p[def.idField]}`;
+        const html = `<div><b>${title}</b></div>` + Object.keys(p).slice(0,20).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
         if (html) l.bindPopup(html);
       }
     }).addTo(map);
-
     layerControl.addOverlay(layer, def.name);
-    datasetByKey[def.key] = { def, features, layer };
+    datasetByKey[def.key] = { def, features:feats, layer };
     addedLayers.push(layer);
   }
-  async function loadAll() { for (const def of LAYERS) await loadOne(def); }
+  async function loadAll(){ for (const def of LAYERS) await loadOne(def); }
 
-  // ====== LEGENDAS ======
-  function addLegend(id, title, items){
-    const ctrl = L.control({position:'bottomleft'});
-    ctrl.onAdd = function(){
-      const div = L.DomUtil.create('div','legend');
-      div.id = id;
-      div.innerHTML = `<div><b>${title}</b></div>` + items.map(([label, color]) =>
-        `<div class="leg-row"><span class="sw" style="background:${color}"></span>${label}</div>`
-      ).join('');
+  // ====== LEGENDAS DINÂMICAS (com área e %) ======
+  function addLegend(id,title,items){
+    const ctrl=L.control({position:'bottomleft'});
+    ctrl.onAdd=function(){
+      const div=L.DomUtil.create('div','legend'); div.id=id;
+      div.innerHTML=`<div><b>${title}</b></div>`+items.map(([label,color,extra])=>
+        `<div class="leg-row"><span class="sw" style="background:${color}"></span>${label}${extra?` — <b>${extra}</b>`:''}</div>`).join('');
       return div;
-    };
-    return ctrl.addTo(map);
+    }; ctrl.addTo(map); return ctrl;
   }
-  addLegend('leg-decliv','Declividade (%)', slopeOrder.map((k,i)=>[slopeLabels[i], slopeColors[i]]));
-  addLegend('leg-alt','Altimetria (m)', [
-    ['0–400', '#ffffcc'], ['400–800', '#c2e699'],
-    ['800–1200', '#78c679'], ['1200–1600', '#31a354'],
-    ['>1600', '#006837']
-  ]);
-  addLegend('leg-uso','Uso do Solo (Nível II)', Object.entries(usoColors));
-  addLegend('leg-solos','Solos (classes)', Object.entries(soilColors));
 
-  // ====== MÉTRICAS ======
+  function summarizeAreasByClass(features, getKey, getColor){
+    const acc = new Map(); let total=0;
+    for (const f of features){
+      const k = getKey(f); if (!k) continue;
+      const area = turf.area(f)/10000; total+=area;
+      acc.set(k,(acc.get(k)||0)+area);
+    }
+    // retorna lista [label,color,"ha (xx%)"]
+    const out=[]; for (const [k,ha] of acc.entries()){
+      const pct = total>0 ? (ha/total*100) : 0;
+      out.push([k, getColor(k), `${fmt.ha(ha)} ha (${pct.toFixed(1)}%)`]);
+    }
+    return out.sort((a,b)=>a[0].localeCompare(b[0],'pt-BR'));
+  }
+
+  function buildLegends(){
+    // Declividade (ordem fixa)
+    const dsD = datasetByKey['declividade']; if (dsD){
+      const items = slopeOrder.map((code,i)=>{
+        // soma apenas features da classe
+        const feats = dsD.features.filter(f=>String(f.properties?.[CLASS_FIELDS.declividade])===code);
+        const ha = feats.length? feats.map(f=>turf.area(f)/10000).reduce((a,b)=>a+b,0):0;
+        const pct = (ha>0)? (ha / (metricsFor(dsD.features,'poly').areaHa) * 100) : 0;
+        return [slopeLabels[i], slopeColors[i], `${fmt.ha(ha)} ha (${pct.toFixed(1)}%)`];
+      });
+      addLegend('leg-decliv','Declividade (%)',items);
+    }
+
+    // Altimetria (classes encontradas)
+    const dsA = datasetByKey['altimetria']; if (dsA){
+      const items = summarizeAreasByClass(dsA.features,
+        f=>String(f.properties?.[CLASS_FIELDS.altimetria]||''),
+        label=>altColorFor(label)
+      ).sort((a,b)=>{
+        // ordenar pelo valor numérico inferior quando possível
+        const na=+(String(a[0]).match(/^\s*(\d+)/)?.[1]||0);
+        const nb=+(String(b[0]).match(/^\s*(\d+)/)?.[1]||0);
+        return na-nb;
+      });
+      addLegend('leg-alt','Altimetria (m)',items);
+    }
+
+    // Uso do Solo (NIVEL_II -> cores definidas)
+    const dsU = datasetByKey['uso_solo']; if (dsU){
+      const items = summarizeAreasByClass(dsU.features,
+        f=>{ const p=f.properties||{}; const fld=(CLASS_FIELDS.uso_solo in p)?CLASS_FIELDS.uso_solo:'NIVEL_I'; return String(p[fld]||''); },
+        label=>usoColors[label] || usoFallbackColors[label] || '#31a354'
+      );
+      addLegend('leg-uso','Uso do Solo (Nível II)',items);
+    }
+
+    // Solos
+    const dsS = datasetByKey['solos']; if (dsS){
+      const items = summarizeAreasByClass(dsS.features,
+        f=>String(f.properties?.[CLASS_FIELDS.solos]||''),
+        label=>soilColors[label] || '#dfc27d'
+      );
+      addLegend('leg-solos','Solos',items);
+    }
+  }
+
+  // ====== MÉTRICAS (tabela de totais) ======
   const MetricsControl = L.Control.extend({
-    onAdd: function(){
-      const div = L.DomUtil.create('div','metrics');
+    onAdd:function(){
+      const div=L.DomUtil.create('div','metrics');
       div.innerHTML = `
         <h3>Métricas</h3>
-        <div id="microSummary" class="small muted" style="margin-bottom:.4rem;">
-          Sem filtro de Microbacias — exibindo totais gerais.
-        </div>
-        <table>
-          <thead><tr><th>Camada</th><th>Área (ha)</th><th>Extensão (km)</th><th>Qtd</th></tr></thead>
-          <tbody id="mtbody"></tbody>
-        </table>
-      `;
+        <div id="microSummary" class="small muted" style="margin-bottom:.4rem;">Sem filtro de Microbacias — totais gerais.</div>
+        <table><thead><tr><th>Camada</th><th>Área (ha)</th><th>Extensão (km)</th><th>Qtd</th></tr></thead>
+        <tbody id="mtbody"></tbody></table>`;
       L.DomEvent.disableClickPropagation(div);
       return div;
     }
   });
-  const metricsCtrl = new MetricsControl({ position:'bottomright' }).addTo(map);
+  const metricsCtrl = new MetricsControl({position:'bottomright'}).addTo(map);
 
-  function refreshMetrics(selectionLabel=null, selectedFeatures=null){
-    const tb = document.getElementById('mtbody');
-    const microDiv = document.getElementById('microSummary');
-    tb.innerHTML = '';
-
+  function refreshTotals(selectionLabel=null, selectedFeatures=null){
+    const tb=document.getElementById('mtbody'); const microDiv=document.getElementById('microSummary');
+    tb.innerHTML='';
     for (const key of Object.keys(datasetByKey)){
-      const {def, features} = datasetByKey[key];
-      const m = metricsFor(features, def.type);
-      const row = document.createElement('tr');
-      const area = def.type==='poly' ? fmt.ha(m.areaHa) : '-';
-      const len  = def.type==='line' ? fmt.km(m.lenKm) : '-';
-      const cnt  = def.type==='point'? fmt.int(m.count) : '-';
-      row.innerHTML = `<td>${def.name}</td><td>${area}</td><td>${len}</td><td>${cnt}</td>`;
+      const {def,features}=datasetByKey[key]; const m=metricsFor(features, def.type);
+      const row=document.createElement('tr');
+      row.innerHTML=`<td>${def.name}</td><td>${def.type==='poly'?fmt.ha(m.areaHa):'-'}</td><td>${def.type==='line'?fmt.km(m.lenKm):'-'}</td><td>${def.type==='point'?fmt.int(m.count):'-'}</td>`;
       tb.appendChild(row);
     }
-
     if (selectionLabel && Array.isArray(selectedFeatures)){
-      const m = metricsFor(selectedFeatures, 'poly');
-      microDiv.innerHTML = `<b>Microbacias filtradas:</b> ${selectionLabel}<br/>
-        Área total selecionada: <b>${fmt.ha(m.areaHa)} ha</b>`;
+      const m=metricsFor(selectedFeatures,'poly');
+      microDiv.innerHTML=`<b>Microbacias filtradas:</b> ${selectionLabel}<br/>Área selecionada: <b>${fmt.ha(m.areaHa)} ha</b>`;
       microDiv.classList.remove('muted');
-    } else {
-      microDiv.textContent = 'Sem filtro de Microbacias — exibindo totais gerais.';
-      microDiv.classList.add('muted');
-    }
+    } else { microDiv.textContent='Sem filtro de Microbacias — totais gerais.'; microDiv.classList.add('muted'); }
   }
 
-  // ====== FILTRO — MICROBACIAS (com tabela de mapeamento) ======
-  const MicroFilter = L.Control.extend({
-    onAdd: function() {
-      const div = L.DomUtil.create('div','panel');
-      div.innerHTML = `
-        <h3>Microbacias</h3>
-        <label>Origem</label>
-        <select id="mf-org"><option value="">(todas)</option></select>
-        <label>Regional IDR</label>
-        <select id="mf-reg"><option value="">(todas)</option></select>
-        <label>Município</label>
-        <select id="mf-mun"><option value="">(todos)</option></select>
+  // ====== MICROBACIAS — FILTRO (Região_Município_Manancial + tabela Codes) ======
+  const MICRO_TABLE = [/* (mesma tabela que você enviou) */];
+  const MICRO_FIELD_LABELS = ['Região_Município_Manancial','REGIÃO_MUNICÍPIO_MANANCIAL','Regiao_Municipio_Manancial','REGIAO_MUNICIPIO_MANANCIAL'];
+  const MICRO_FIELD_CODES  = ['Cod_man','COD_MAN','cod_man','codman'];
 
+  const MicroFilter = L.Control.extend({
+    onAdd:function(){
+      const div=L.DomUtil.create('div','panel');
+      div.innerHTML=`
+        <h3>Microbacias</h3>
+        <label>Origem</label><select id="mf-org"><option value="">(todas)</option></select>
+        <label>Regional IDR</label><select id="mf-reg"><option value="">(todas)</option></select>
+        <label>Município</label><select id="mf-mun"><option value="">(todos)</option></select>
         <label style="margin-top:.5rem;">Pesquisar <b>Região_Município_Manancial</b></label>
         <input id="mf-search" type="search" placeholder="Pesquisar..."/>
         <div class="row">
-          <button id="mf-all" class="btn-sm">Marcar todos</button>
+          <button id="mf-all"  class="btn-sm">Marcar todos</button>
           <button id="mf-none" class="btn-sm">Desmarcar</button>
-          <button id="mf-apply" class="btn-sm primary">Aplicar</button>
+          <button id="mf-apply"class="btn-sm primary">Aplicar</button>
         </div>
-        <div id="mf-list" class="list"></div>
-      `;
-      L.DomEvent.disableClickPropagation(div);
-      L.DomEvent.disableScrollPropagation(div);
+        <div id="mf-list" class="list"></div>`;
+      L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div);
 
-      // refs
-      const selOrg = div.querySelector('#mf-org');
-      const selReg = div.querySelector('#mf-reg');
-      const selMun = div.querySelector('#mf-mun');
-      const list   = div.querySelector('#mf-list');
-      const search = div.querySelector('#mf-search');
-      const btnAll = div.querySelector('#mf-all');
-      const btnNone= div.querySelector('#mf-none');
-      const btnApply=div.querySelector('#mf-apply');
+      const selOrg=div.querySelector('#mf-org'), selReg=div.querySelector('#mf-reg'), selMun=div.querySelector('#mf-mun');
+      const list=div.querySelector('#mf-list'), search=div.querySelector('#mf-search');
+      const btnAll=div.querySelector('#mf-all'), btnNone=div.querySelector('#mf-none'), btnApply=div.querySelector('#mf-apply');
 
-      const ds = ()=> datasetByKey['microbacias'];
-      const active = new Set();
-      let labelField = 'Região_Município_Manancial';
-      let codeField  = 'Cod_man';
-      let allItems = []; // [{code,label,org,regional,municipio}]
+      const ds=()=>datasetByKey['microbacias']; const active=new Set();
+      let labelField='Região_Município_Manancial', codeField='Cod_man', items=[];
 
-      // monta combos a partir da tabela
-      function populateCombos(){
-        const setOrg = new Set(MICRO_TABLE.map(r=>r.org).filter(Boolean));
-        const setReg = new Set(MICRO_TABLE.map(r=>r.regional).filter(Boolean));
-        const setMun = new Set(MICRO_TABLE.map(r=>r.municipio).filter(Boolean));
-        for (const v of Array.from(setOrg).sort())  selOrg.append(new Option(v,v));
-        for (const v of Array.from(setReg).sort())  selReg.append(new Option(v,v));
-        for (const v of Array.from(setMun).sort())  selMun.append(new Option(v,v));
+      function combos(){
+        const o=[...new Set(MICRO_TABLE.map(r=>r.org).filter(Boolean))].sort();
+        const r=[...new Set(MICRO_TABLE.map(r=>r.regional).filter(Boolean))].sort();
+        const m=[...new Set(MICRO_TABLE.map(r=>r.municipio).filter(Boolean))].sort();
+        for (const v of o) selOrg.append(new Option(v,v));
+        for (const v of r) selReg.append(new Option(v,v));
+        for (const v of m) selMun.append(new Option(v,v));
       }
-
-      function detectFields(){
-        const d = ds(); if (!d) return;
-        const props = d.features[0]?.properties || {};
-        const hitLabel = MICRO_FIELD_LABEL_CANDIDATES.find(c => Object.keys(props).some(k => k.toLowerCase()===c.toLowerCase()));
-        if (hitLabel) labelField = Object.keys(props).find(k => k.toLowerCase()===hitLabel.toLowerCase()) || labelField;
-        const hitCode  = MICRO_FIELD_CODE_CANDIDATES.find(c => Object.keys(props).some(k => k.toLowerCase()===c.toLowerCase()));
-        if (hitCode) codeField = Object.keys(props).find(k => k.toLowerCase()===hitCode.toLowerCase()) || codeField;
-        list.dataset.labelfield = labelField;
-        list.dataset.codefield  = codeField;
+      function detect(){
+        const sample=ds()?.features?.[0]?.properties||{};
+        const hitL = MICRO_FIELD_LABELS.find(c=>Object.keys(sample).some(k=>k.toLowerCase()===c.toLowerCase()));
+        const hitC = MICRO_FIELD_CODES.find(c=>Object.keys(sample).some(k=>k.toLowerCase()===c.toLowerCase()));
+        if (hitL) labelField = Object.keys(sample).find(k=>k.toLowerCase()===hitL.toLowerCase());
+        if (hitC) codeField  = Object.keys(sample).find(k=>k.toLowerCase()===hitC.toLowerCase());
+        list.dataset.labelfield=labelField; list.dataset.codefield=codeField;
       }
-
-      function buildUniverse(){
-        const d = ds(); if (!d) return;
-        detectFields();
-        allItems = d.features.map(f => {
-          const p = f.properties||{};
-          const code = p[codeField];
-          const label= p[labelField];
-          const row  = MICRO_TABLE.find(r => String(r.Cod_man)===String(code));
-          return {
-            code: String(code),
-            label: String(label),
-            org: row?.org || '',
-            regional: row?.regional || '',
-            municipio: row?.municipio || '',
-            feature: f
-          };
+      function universe(){
+        detect();
+        items = ds().features.map(f=>{
+          const p=f.properties||{}; const code=String(p[codeField]||'');
+          const row=MICRO_TABLE.find(r=>String(r.Cod_man)===code);
+          return { code, label:String(p[labelField]||''), org:row?.org||'', regional:row?.regional||'', municipio:row?.municipio||'', feature:f };
         });
       }
-
-      function applyFiltersToUniverse(){
-        const o = selOrg.value, r = selReg.value, m = selMun.value;
-        return allItems.filter(it =>
-          (!o || it.org===o) &&
-          (!r || it.regional===r) &&
-          (!m || it.municipio===m)
-        );
+      function filtered(){
+        const o=selOrg.value, r=selReg.value, m=selMun.value;
+        return items.filter(it => (!o||it.org===o)&&(!r||it.regional===r)&&(!m||it.municipio===m));
       }
-
-      function renderList(){
-        list.innerHTML = '';
-        const filtered = applyFiltersToUniverse();
-        const q = (search.value||'').toLowerCase().trim();
-        const subset = q ? filtered.filter(it => it.label.toLowerCase().includes(q)) : filtered;
-
-        active.clear();
-        subset.forEach(it => {
-          const id = 'mc_' + btoa(it.code).replace(/=/g,'');
-          const row = document.createElement('label'); row.className='item'; row.htmlFor=id;
-          const cb = Object.assign(document.createElement('input'), { type:'checkbox', id, value:it.code, checked:true });
-          cb.addEventListener('change', e => (e.target.checked ? active.add(it.code) : active.delete(it.code)));
-          const span = document.createElement('span'); span.textContent = it.label;
-          row.append(cb, span); list.appendChild(row); active.add(it.code);
-        });
-
-        if (!subset.length) list.innerHTML = '<div class="muted">Nenhum item para os filtros atuais.</div>';
+      function render(){
+        list.innerHTML=''; active.clear();
+        const q=(search.value||'').toLowerCase().trim();
+        const arr=(q?filtered().filter(it=>it.label.toLowerCase().includes(q)):filtered());
+        for (const it of arr){
+          const id='mc_'+btoa(it.code).replace(/=/g,''); const row=document.createElement('label'); row.className='item'; row.htmlFor=id;
+          const cb=Object.assign(document.createElement('input'),{type:'checkbox',id,value:it.code,checked:true});
+          cb.addEventListener('change',e=>{ if(e.target.checked) active.add(it.code); else active.delete(it.code); });
+          const span=document.createElement('span'); span.textContent=it.label; row.append(cb,span); list.appendChild(row); active.add(it.code);
+        }
+        if (!arr.length) list.innerHTML='<div class="muted">Nenhum item para os filtros atuais.</div>';
       }
-
       function apply(){
-        const d = ds(); if (!d) return;
-        if (d.layer) { try{ map.removeLayer(d.layer) }catch{}; try{ layerControl.removeLayer(d.layer) }catch{}; d.layer = null; }
-
-        const codes = new Set(active);
-        const field = list.dataset.codefield || 'Cod_man';
-        const feats = d.features.filter(f => String((f.properties||{})[field]) && codes.has(String((f.properties||{})[field])));
-
-        const layer = L.geoJSON(feats, {
-          style: styleFn('microbacias'),
-          onEachFeature: (f,l) => {
-            const p = f?.properties || {};
-            const html = `<div><b>${labelField}</b>: ${String(p[labelField])}</div>` +
-                         Object.keys(p).slice(0,15).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
-            if (html) l.bindPopup(html);
-          }
-        }).addTo(map);
-        d.layer = layer;
-        layerControl.addOverlay(layer, "Microbacias (filtrado)");
-
-        try {
-          const b = layer.getBounds();
-          if (b && b.isValid()) map.fitBounds(b.pad(0.12));
-        } catch(e) {}
-
-        // métricas da seleção
-        const label = `${feats.length} seç. — ${labelField}`;
-        refreshMetrics(label, feats);
+        const d=ds(); if (!d) return;
+        if (d.layer){ try{map.removeLayer(d.layer)}catch{}; try{layerControl.removeLayer(d.layer)}catch{}; d.layer=null; }
+        const codes=new Set(active); const field=list.dataset.codefield||'Cod_man';
+        const feats=d.features.filter(f=>codes.has(String((f.properties||{})[field])));
+        const layer=L.geoJSON(feats,{ style:styleFn('microbacias') }).addTo(map);
+        d.layer=layer; layerControl.addOverlay(layer,"Microbacias (filtrado)");
+        try{ const b=layer.getBounds(); if (b && b.isValid()) map.fitBounds(b.pad(.12)); }catch{}
+        refreshTotals(`${feats.length} seç. — ${labelField}`,feats);
       }
+      selOrg.addEventListener('change',render); selReg.addEventListener('change',render); selMun.addEventListener('change',render);
+      search.addEventListener('input',render);
+      btnAll.addEventListener('click',()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=true;active.add(cb.value);}); });
+      btnNone.addEventListener('click',()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=false;active.delete(cb.value);}); });
+      btnApply.addEventListener('click',apply);
 
-      selOrg.addEventListener('change', renderList);
-      selReg.addEventListener('change', renderList);
-      selMun.addEventListener('change', renderList);
-      search.addEventListener('input', renderList);
-      btnAll.addEventListener('click', ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; active.add(cb.value); }); });
-      btnNone.addEventListener('click', ()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; active.delete(cb.value); }); });
-      btnApply.addEventListener('click', apply);
-
-      populateCombos();
-      setTimeout(()=>{ buildUniverse(); renderList(); }, 500);
+      combos(); setTimeout(()=>{ universe(); render(); }, 600);
       return div;
     }
   });
-  map.addControl(new MicroFilter({ position:'topright' }));
+  map.addControl(new MicroFilter({position:'topright'}));
 
   // ====== OPACIDADE GLOBAL ======
-  const opInput = document.getElementById('opacity');
-  const opVal   = document.getElementById('opacityVal');
-  opInput.addEventListener('input', ()=>{
-    const pct = Number(opInput.value);
-    opacity = Math.max(0.2, Math.min(1, pct/100));
-    opVal.textContent = `${pct}%`;
-    // reconstroi camadas vetoriais para aplicar opacidade no estilo
+  const opInput=document.getElementById('opacity'), opVal=document.getElementById('opacityVal');
+  opInput.addEventListener('input',async()=>{
+    const pct=+opInput.value; opacity=Math.max(0.2,Math.min(1,pct/100)); opVal.textContent=`${pct}%`;
+    // reconstroi layers para aplicar opacidade nos estilos
     for (const k of Object.keys(datasetByKey)){
-      const ds = datasetByKey[k];
-      if (!ds) continue;
-      try { if (ds.layer) map.removeLayer(ds.layer); } catch {}
-      ds.layer = L.geoJSON(ds.features, {
-        style: styleFn(k),
-        pointToLayer: (feat, latlng) => {
-          if (ds.def.type === 'point') return L.circleMarker(latlng, { radius: 4, color:'#333', weight:1, fillOpacity:0.8 });
-          return L.marker(latlng);
-        }
+      const ds=datasetByKey[k]; if (!ds) continue;
+      try{ if (ds.layer) map.removeLayer(ds.layer); }catch{}
+      ds.layer=L.geoJSON(ds.features,{
+        style:styleFn(k),
+        pointToLayer:(feat,latlng)=> ds.def.type==='point' ? L.circleMarker(latlng,{radius:4,color:'#333',weight:1,fillOpacity:.8}) : L.marker(latlng)
       }).addTo(map);
       layerControl.addOverlay(ds.layer, ds.def.name);
     }
   });
 
-  // ====== BOTÃO AJUSTAR VISÃO ======
-  document.getElementById('fitAll').onclick = () => {
-    const visibles = addedLayers.filter(l => map.hasLayer(l));
-    if(!visibles.length) return;
-    const group = L.featureGroup(visibles);
-    map.fitBounds(group.getBounds().pad(0.08));
+  // Ajustar visão
+  document.getElementById('fitAll').onclick=()=>{
+    const visibles=addedLayers.filter(l=>map.hasLayer(l)); if(!visibles.length) return;
+    const group=L.featureGroup(visibles); map.fitBounds(group.getBounds().pad(0.08));
   };
 
   // ====== BOOT ======
   (async function(){
-    await loadAll();
+    await loadAll();                    // carrega e coloca TODAS as camadas no mapa
+    buildLegends();                     // cria legendas com área por classe
+    refreshTotals(null,null);           // tabela de totais
     map.attributionControl.setPrefix(false);
-    map.attributionControl.addAttribution('Água Segura • classes + filtros Microbacias + métricas');
-    refreshMetrics(null, null); // totais gerais
+    map.attributionControl.addAttribution('Água Segura • classes + filtros + métricas');
   })();
   </script>
 </body>
