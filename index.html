@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Mapa – v1.1 (filtros por camada/coluna)</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    :root { --topbar-h: 44px; }
+    html,body { height:100%; margin:0; }
+    #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
+    .topbar {
+      position:fixed; left:0; right:0; top:0; height:var(--topbar-h);
+      display:flex; align-items:center; gap:.5rem;
+      background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
+    }
+    .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
+    .btn{ border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer }
+    .btn:hover{ background:#f9fafb }
+
+    /* Leaflet controls above map, below topbar */
+    .leaflet-control-container { z-index: 500; }
+    .leaflet-top.leaflet-right { margin-top: 10px; }
+
+    /* Filter control styling */
+    .filter-box {
+      background:#fff; padding:.6rem; border-radius:.75rem; border:1px solid #e5e7eb;
+      box-shadow: 0 6px 18px rgba(0,0,0,.08); width: 320px; max-height: 70vh; overflow:auto;
+      font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; font-size: 13px;
+    }
+    .filter-box h3 { margin:.25rem 0 .5rem; font-size:14px; }
+    .filter-box label { color:#6b7280; font-size:12px; display:block; margin-bottom:4px; }
+    .filter-box select, .filter-box input[type="search"] {
+      width:100%; padding:.45rem .5rem; border:1px solid #d1d5db; border-radius:.5rem; margin-bottom:.5rem;
+      font-size:13px;
+    }
+    .row { display:flex; gap:.5rem; margin:.25rem 0 .5rem; }
+    .btn-sm { padding:.3rem .5rem; border-radius:.5rem; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
+    .btn-sm.primary { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+    .list { border:1px solid #e5e7eb; border-radius:.5rem; max-height:28vh; overflow:auto; padding:.25rem; background:#fff; }
+    .item { display:flex; align-items:center; gap:.5rem; padding:.25rem .35rem; border-radius:.35rem; }
+    .item:hover { background:#f3f4f6; }
+    .muted { color:#6b7280; font-size:12px; }
+    .small { font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <button id="fitAll" class="btn">Ajustar visão</button>
+    <div class="version">v1.1 – filtros por camada/coluna</div>
+  </div>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+  // ====== CONFIG ======
+  // Ajuste para seu repositório (GitHub Pages) ou uso local:
+  const USER = "avnergomes";
+  const REPO = "aguasegura";                  // mude para "aguasegura" se quiser
+  const BASE = `https://${USER}.github.io/${REPO}/data/`;  // ou "./data/" se local
+
+  // Base layers
+  const baseStreets = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap • © CARTO', maxZoom: 20
+  });
+  const baseEsri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Imagery: Esri/Maxar', maxZoom: 19
+  });
+
+  // Map init
+  const map = L.map('map', { center: [-24.5,-51.5], zoom: 7, preferCanvas: true, layers:[baseStreets] });
+
+  // Layer control with base layers
+  const layerControl = L.control.layers(
+    { 'Streets': baseStreets, 'Satélite (Esri)': baseEsri },
+    {}, { collapsed:false }
+  ).addTo(map);
+
+// Styles per overlay key
+const styles = {
+  declividade:  { color:'#8c510a', weight:1, fillColor:'#d8b365', fillOpacity:0.4 },  // marrons claros
+  altimetria:   { color:'#542788', weight:1, fillColor:'#b2abd2', fillOpacity:0.35 }, // roxo/altitude
+  uso_solo:     { color:'#006d2c', weight:1, fillColor:'#31a354', fillOpacity:0.35 }, // verdes intensos
+  estradas:     { color:'#737373', weight:2, dashArray:'4,4', fillOpacity:0 },        // cinza tracejado
+  hidrografia:  { color:'#2b8cbe', weight:2, fillColor:'#67a9cf', fillOpacity:0.25 }, // azuis
+  nascentes:    { color:'#1c9099', weight:2, radius:5, fillColor:'#41b6c4', fillOpacity:0.8 }, // azul piscina
+  solos:        { color:'#a6611a', weight:1, fillColor:'#dfc27d', fillOpacity:0.45 }, // tons de terra
+  construcoes:  { color:'#252525', weight:1, radius:4, fillColor:'#636363', fillOpacity:0.9 }, // cinza escuro
+  imoveiscar:   { color:'#d73027', weight:1, fillColor:'#fc8d59', fillOpacity:0.35 }, // vermelho/laranja
+  caf:          { color:'#006837', weight:1, fillColor:'#31a354', fillOpacity:0.35 }  // verde escuro
+};
+
+
+  // Declare your layers list (adjust file names as needed)
+  const LAYERS = [
+  { name:'Declividade',  file:'declividade__declividade_otto.gz',  key:'declividade',  type:'poly' },
+  { name:'Altimetria',   file:'altimetria__altimetria_otto.gz',   key:'altimetria',   type:'poly' },
+  { name:'Uso do Solo',  file:'uso_solo__usodosolo_otto.gz',      key:'uso_solo',     type:'poly' },
+  { name:'Estradas',     file:'estradas__estradas_otto.gz',       key:'estradas',     type:'line' },
+  { name:'Hidrografia',  file:'hidrografia__hidrografia_otto.gz', key:'hidrografia',  type:'line' },
+  { name:'Nascentes',    file:'nascentes__nascentes_otto.gz',     key:'nascentes',    type:'point' },
+  { name:'Solos',        file:'solos__solos_otto.gz',             key:'solos',        type:'poly' },
+  { name:'Construções',  file:'construcoes__construcoes_otto.gz', key:'construcoes',  type:'point' },
+  { name:'Imóveis CAR',  file:'imoveiscar__imoveiscar_otto.gz',   key:'imoveiscar',   type:'poly' },
+  { name:'CAF',          file:'caf__caf_otto.gz',                 key:'caf',          type:'poly' }
+];
+
+
+  // Runtime state
+  const addedLayers = [];              // Leaflet overlay layers actually on map
+  const datasetByKey = {};             // key -> {def, features, layer}
+  let currentKey = null;               // which dataset user is filtering
+  let currentProp = null;              // which string column user picked
+  const activeValues = new Set();      // selected distinct values for currentProp
+
+  function addGeoJson(def, data){
+    const st = styles[def.key] || { color:'#555', weight:2, fillOpacity:0.2 };
+    const layer = L.geoJSON(data, {
+      style: st,
+      onEachFeature: (f,l) => {
+        const p = f?.properties || {};
+        const html = Object.keys(p).slice(0,12).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
+        if(html) l.bindPopup(html);
+      }
+    });
+    layer.addTo(map);
+    layerControl.addOverlay(layer, def.name);
+    addedLayers.push(layer);
+
+    // Keep original features for filtering
+    const feats = (data?.type === "FeatureCollection") ? data.features
+                : (data?.type === "Feature") ? [data] : [];
+    datasetByKey[def.key] = { def, features: feats, layer };
+  }
+
+  async function loadAll(){
+    for (const def of LAYERS){
+      const url = `${BASE}${def.file}?v=${Date.now()}`;
+      try{
+        const res = await fetch(url, { cache:'no-cache' });
+        if(!res.ok){
+          const txt = await res.text().catch(()=> '');
+          throw new Error(`HTTP ${res.status} ${res.statusText} ao buscar ${url}\n${txt.slice(0,160)}`);
+        }
+        const gj = await res.json();
+        addGeoJson(def, gj);
+      }catch(err){
+        console.error(`Falha ao carregar ${def.name}:`, err);
+        // Não alerta: deixa só no console para não interromper a UX.
+      }
+    }
+  }
+
+  // Fit visible overlays
+  document.getElementById('fitAll').onclick = () => {
+    const visibles = addedLayers.filter(l => map.hasLayer(l));
+    if(!visibles.length) return;
+    const group = L.featureGroup(visibles);
+    map.fitBounds(group.getBounds().pad(0.08));
+  };
+
+  // ---------- FILTER CONTROL (camada + coluna + distinct + aplicar) ----------
+  const FilterControl = L.Control.extend({
+    onAdd: function() {
+      const div = L.DomUtil.create('div','filter-box');
+
+      div.innerHTML = `
+        <h3>Filtros</h3>
+        <label>Camada</label>
+        <select id="fc-layer"></select>
+        <label>Coluna (texto)</label>
+        <select id="fc-prop"></select>
+        <input id="fc-search" type="search" placeholder="Pesquisar valor..."/>
+        <div class="row">
+          <button id="fc-all" class="btn-sm">Marcar todos</button>
+          <button id="fc-none" class="btn-sm">Desmarcar</button>
+          <button id="fc-apply" class="btn-sm primary">Aplicar</button>
+        </div>
+        <div id="fc-list" class="list"></div>
+        <div class="muted" style="margin-top:.4rem;">
+          Dica: apenas colunas cuja amostra indicar valores de <b>texto</b> aparecem aqui.
+        </div>
+      `;
+
+      // Stop map interactions when using UI
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+
+      // Wire events
+      const selLayer = div.querySelector('#fc-layer');
+      const selProp  = div.querySelector('#fc-prop');
+      const search   = div.querySelector('#fc-search');
+      const btnAll   = div.querySelector('#fc-all');
+      const btnNone  = div.querySelector('#fc-none');
+      const btnApply = div.querySelector('#fc-apply');
+      const list     = div.querySelector('#fc-list');
+
+      function refreshLayerOptions(){
+        // populate with datasets actually loaded
+        selLayer.innerHTML = '';
+        Object.keys(datasetByKey).forEach(key => {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = datasetByKey[key].def.name;
+          selLayer.appendChild(opt);
+        });
+        // choose first by default
+        currentKey = currentKey && datasetByKey[currentKey] ? currentKey : Object.keys(datasetByKey)[0];
+        selLayer.value = currentKey;
+      }
+
+      function distinctTextPropsFor(key){
+        const ds = datasetByKey[key]; if(!ds) return [];
+        const feats = ds.features || [];
+        // sample first features to guess which props are strings
+        const counts = {}; // prop -> number of string hits
+        const sample = feats.slice(0, 200);
+        for (const f of sample){
+          const p = f.properties || {};
+          for (const [k,v] of Object.entries(p)){
+            if (typeof v === 'string' && v !== '') {
+              counts[k] = (counts[k]||0) + 1;
+            }
+          }
+        }
+        return Object.keys(counts).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+      }
+
+      function refreshPropOptions(){
+        selProp.innerHTML = '';
+        const props = distinctTextPropsFor(currentKey);
+        if (props.length === 0){
+          const opt = document.createElement('option');
+          opt.value = ''; opt.textContent = '(sem colunas de texto detectadas)';
+          selProp.appendChild(opt);
+          currentProp = null;
+        } else {
+          props.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p; opt.textContent = p;
+            selProp.appendChild(opt);
+          });
+          currentProp = currentProp && props.includes(currentProp) ? currentProp : props[0];
+          selProp.value = currentProp || '';
+        }
+      }
+
+      function rebuildDistinctList(){
+        list.innerHTML = '';
+        activeValues.clear();
+        const ds = datasetByKey[currentKey]; if(!ds || !currentProp) return;
+
+        // Build distinct for selected text column
+        const setVals = new Set();
+        for (const f of ds.features){
+          const p = f.properties || {};
+          const v = p[currentProp];
+          if (typeof v === 'string' && v !== '') setVals.add(v);
+        }
+        const values = Array.from(setVals).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+        const q = (search.value || '').toLowerCase().trim();
+        const filtered = q ? values.filter(v => v.toLowerCase().includes(q)) : values;
+
+        for (const val of filtered){
+          const id = 'v_' + btoa(val).replace(/=/g,'');
+          const row = document.createElement('label'); row.className = 'item'; row.htmlFor = id;
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = id; cb.value = val; cb.checked = true;
+          cb.addEventListener('change', (e)=>{
+            if (e.target.checked) activeValues.add(val); else activeValues.delete(val);
+          });
+          const span = document.createElement('span'); span.textContent = val;
+          row.appendChild(cb); row.appendChild(span);
+          list.appendChild(row);
+          activeValues.add(val);
+        }
+
+        // small hint
+        if (values.length === 0){
+          const info = document.createElement('div');
+          info.className = 'muted';
+          info.textContent = 'Sem valores distintos (texto) encontrados nesta coluna.';
+          list.appendChild(info);
+        }
+      }
+
+      function applyFilter(){
+        const ds = datasetByKey[currentKey]; if(!ds) return;
+        // Remove old layer (only the one for this dataset)
+        if (ds.layer) {
+          try { map.removeLayer(ds.layer); } catch {}
+          try { layerControl.removeLayer(ds.layer); } catch {}
+          ds.layer = null;
+        }
+        // Filter features by currentProp in activeValues
+        const st = styles[currentKey] || { color:'#555', weight:2, fillOpacity:0.2 };
+        const feats = (!currentProp || activeValues.size===0)
+          ? [] // nothing selected
+          : ds.features.filter(f => {
+              const p = f.properties || {};
+              const v = p[currentProp];
+              return typeof v === 'string' && activeValues.has(v);
+            });
+
+        const layer = L.geoJSON(feats, {
+          style: st,
+          onEachFeature: (f,l) => {
+            const p = f?.properties || {};
+            const html = Object.keys(p).slice(0,12).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
+            if(html) l.bindPopup(html);
+          }
+        }).addTo(map);
+        ds.layer = layer;
+        layerControl.addOverlay(layer, datasetByKey[currentKey].def.name + " (filtrado)");
+      }
+
+      // Events
+      selLayer.addEventListener('change', ()=>{
+        currentKey = selLayer.value;
+        refreshPropOptions();
+        rebuildDistinctList();
+      });
+
+      selProp.addEventListener('change', ()=>{
+        currentProp = selProp.value || null;
+        rebuildDistinctList();
+      });
+
+      search.addEventListener('input', rebuildDistinctList);
+      btnAll.addEventListener('click', ()=>{
+        // mark all visible list items
+        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = true; activeValues.add(cb.value);
+        });
+      });
+      btnNone.addEventListener('click', ()=>{
+        list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = false; activeValues.delete(cb.value);
+        });
+      });
+      btnApply.addEventListener('click', applyFilter);
+
+      // First paint after data is loaded
+      setTimeout(() => {
+        refreshLayerOptions();
+        refreshPropOptions();
+        rebuildDistinctList();
+      }, 50);
+
+      return div;
+    },
+    onRemove: function(){ /* noop */ }
+  });
+
+  // Add control to map (top-right)
+  map.addControl(new FilterControl({ position: 'topright' }));
+
+  // Boot
+  (async function(){
+    await loadAll();
+    // attribution/footer
+    map.attributionControl.setPrefix(false);
+    map.attributionControl.addAttribution('v1.1 filtros • inspirado no índice original');
+  })();
+  </script>
+</body>
+</html>
