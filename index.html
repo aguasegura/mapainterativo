@@ -1,59 +1,566 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Água Segura – Pré‑Diagnóstico</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Água Segura — Análise de Bacias Hidrográficas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        :root { --topbar-h: 60px; }
+        html,body { height:100%; margin:0; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
+
+        .topbar { 
+            position:fixed; inset:0 0 auto 0; height:var(--topbar-h);
+            display:flex; align-items:center; gap:1rem; 
+            background:linear-gradient(90deg, #1e3a8a 0%, #1e40af 100%); 
+            padding:0 1.5rem; z-index:1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .logo { display:flex; align-items:center; gap:0.75rem; color:white; font-weight:600; }
+        .logo img { height:32px; }
+        .btn { 
+            border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.1); 
+            padding:0.5rem 1rem; border-radius:8px; font-weight:500; color:white; cursor:pointer;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background:rgba(255,255,255,0.2); }
+        .btn.active { background:white; color:#1e40af; }
+        .slider-row { display:flex; align-items:center; gap:0.75rem; }
+        .slider-row input[type="range"] { width:140px; accent-color:white; }
+        .version { margin-left:auto; color:rgba(255,255,255,0.7); font-size:0.85rem; white-space:nowrap; }
+
+        .panel, .legend, .metrics { 
+            background:white; padding:1rem; border-radius:12px; border:1px solid #e5e7eb;
+            box-shadow:0 4px 20px rgba(0,0,0,0.1); font-size:0.9rem; 
+        }
+        .panel { width:360px; max-height:72vh; overflow:auto; }
+        .panel h3 { margin:0 0 0.75rem; font-size:1rem; font-weight:600; color:#1e40af; }
+        .panel label { color:#4b5563; font-size:0.85rem; display:block; margin:0.5rem 0 0.25rem; }
+        .panel select, .panel input[type="search"] { 
+            width:100%; padding:0.5rem 0.75rem; border:1px solid #d1d5db; border-radius:8px;
+            background:#f9fafb; transition: all 0.2s ease;
+        }
+        .panel select:focus, .panel input[type="search"]:focus { 
+            outline:none; border-color:#93c5fd; box-shadow:0 0 0 3px rgba(147,197,253,0.3);
+        }
+        .row { display:flex; gap:0.5rem; margin:0.75rem 0; }
+        .btn-sm { 
+            padding:0.4rem 0.75rem; border-radius:8px; border:1px solid #d1d5db; 
+            background:#f3f4f6; cursor:pointer; font-size:0.85rem; transition: all 0.2s ease;
+        }
+        .btn-sm:hover { background:#e5e7eb; }
+        .btn-sm.primary { 
+            background:#1d4ed8; color:white; border-color:#1d4ed8; 
+        }
+        .btn-sm.primary:hover { background:#1e40af; }
+        .list { 
+            border:1px solid #e5e7eb; border-radius:8px; max-height:28vh; overflow:auto; 
+            padding:0.25rem; background:#f9fafb;
+        }
+        .item { 
+            display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0.75rem; border-radius:6px;
+            transition: all 0.1s ease;
+        }
+        .item:hover { background:#e5e7eb; }
+        .item input[type="checkbox"] { accent-color:#1d4ed8; }
+
+        .legend { font-size:0.85rem; }
+        .leg-row { display:flex; align-items:center; gap:0.75rem; margin:0.25rem 0; }
+        .sw { width:16px; height:16px; border-radius:4px; }
+
+        .metrics { min-width:320px; }
+        .metrics h3 { margin:0 0 0.5rem; font-size:1rem; font-weight:600; color:#1e40af; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:0.5rem 0.75rem; border-bottom:1px solid #f3f4f6; text-align:right; }
+        th:first-child, td:first-child { text-align:left; }
+        th { color:#4b5563; font-weight:500; font-size:0.85rem; }
+        tr:hover td { background:#f9fafb; }
+
+        .leaflet-control-layers { margin-top:10px; border-radius:8px !important; }
+        .leaflet-control-layers-toggle { background-size:24px !important; }
+        .leaflet-popup-content { max-height:50vh; overflow:auto; }
+        .leaflet-popup-content h3 { margin:0 0 0.5rem; color:#1e40af; }
+        .leaflet-popup-content p { margin:0.25rem 0; }
+
+        .loading { 
+            position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000;
+            display:flex; justify-content:center; align-items:center; color:white;
+        }
+        .spinner { 
+            width:40px; height:40px; border:4px solid rgba(255,255,255,0.3);
+            border-radius:50%; border-top-color:white; animation:spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .layer-toggle { 
+            position:absolute; top:70px; right:20px; z-index:1000;
+            background:white; border-radius:8px; padding:0.75rem; box-shadow:0 4px 12px rgba(0,0,0,0.1);
+        }
+        .layer-toggle h4 { margin:0 0 0.5rem; font-weight:600; color:#1e40af; }
+        .layer-toggle label { display:flex; align-items:center; gap:0.5rem; margin:0.25rem 0; cursor:pointer; }
+    </style>
 </head>
 <body>
-  <header class="map-header">
-    <div class="header-left">
-      <img src="data/logo‑idr.png" alt="IDR‑Paraná" class="logo">
+    <div class="topbar">
+        <div class="logo">
+            <img src="https://static.photos/blue/200x200/1" alt="Logo"/>
+            <span>Água Segura</span>
+        </div>
+        <button id="fitAll" class="btn">
+            <i data-feather="maximize-2"></i> Ajustar visão
+        </button>
+        <div class="slider-row">
+            <span style="color:white; font-size:0.85rem;">Opacidade</span>
+            <input id="opacity" type="range" min="20" max="100" value="70"/>
+            <span id="opacityVal" style="color:white; font-size:0.85rem;">70%</span>
+        </div>
+        <div class="version">v8 — Interface aprimorada</div>
     </div>
-    <div class="header-title">
-      <h1>Água Segura – Pré‑Diagnóstico</h1>
-    </div>
-  </header>
-
-  <div class="map-container">
     <div id="map"></div>
-    <aside class="side-panel">
-      <section class="filters">
-        <h2>Filtros</h2>
-        <label for="origemFilter">Origem:</label>
-        <select id="origemFilter">
-          <option value="(todos)">Todos</option>
-        </select>
 
-        <label for="regiaoFilter">Região / Município / Manancial:</label>
-        <select id="regiaoFilter">
-          <option value="(todos)">Todos</option>
-        </select>
-
-        <button id="btnApplyFilters">Aplicar Filtros</button>
-      </section>
-      <section class="legend">
-        <h2>Legenda</h2>
-        <div class="legend-item">
-          <span class="legend-color" style="background-color: #336699;"></span>
-          <span>Uso do Solo</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background-color: #66cc99;"></span>
-          <span>Hidrografia</span>
-        </div>
-      </section>
-    </aside>
-  </div>
-
-  <footer class="map-footer">
-    <div class="credits">
-      Dados: IBGE • Embrapa • ADAPAR • IAT • Sanepar • MDA • Ipardes • IDR‑Paraná
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
     </div>
-  </footer>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="script.js"></script>
+    <div class="layer-toggle">
+        <h4>Camadas Base</h4>
+        <label><input type="radio" name="basemap" value="carto" checked/> CARTO Light</label>
+        <label><input type="radio" name="basemap" value="osm"/> OSM Padrão</label>
+        <label><input type="radio" name="basemap" value="esri"/> Esri Imagery</label>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+    <script>
+    // ====== CONFIG & FILES ======
+    const BASE = "./data/";
+
+    const LAYERS = [
+        { name:'Declividade',  key:'declividade',  type:'poly',  file:['declividade__declividade_otto.geojson.gz'] },
+        { name:'Altimetria',   key:'altimetria',   type:'poly',  file:['altimetria__altimetria_otto.geojson.gz'] },
+        { name:'Uso do Solo',  key:'uso_solo',     type:'poly',  file:['uso_solo__usodosolo_otto.geojson.gz'] },
+        { name:'Estradas',     key:'estradas',     type:'line',  file:['estradas__estradas_otto.geojson.gz'] },
+        { name:'Hidrografia',  key:'hidrografia',  type:'line',  file:['hidrografia__hidrografia_otto.geojson.gz'] },
+        { name:'Nascentes',    key:'nascentes',    type:'point', file:['nascentes__nascentes_otto.geojson.gz'] },
+        { name:'Solos',        key:'solos',        type:'poly',  file:['solos__solos_otto.geojson.gz'] },
+        { name:'Construções',  key:'construcoes',  type:'point', file:[
+            'construcoes__construcoes_otto__part1.geojson.gz',
+            'construcoes__construcoes_otto__part2.geojson.gz',
+            'construcoes__construcoes_otto__part3.geojson.gz',
+            'construcoes__construcoes_otto__part4.geojson.gz',
+            'construcoes__construcoes_otto__part5.geojson.gz',
+            'construcoes__construcoes_otto__part6.geojson.gz'
+        ]},
+        { name:'Microbacias',  key:'microbacias',  type:'poly',  file:['otto_selec__ottos_selec_lista4.geojson.gz'] },
+        { name:'CAF',          key:'caf',          type:'poly',  file:['caf__caf_otto.geojson.gz'] },
+        { name:'CAR',          key:'car',          type:'poly',  file:['car__car_otto.geojson'], idField:'cod_imovel' }
+    ];
+
+    // ====== CAMPOS ======
+    const CLASS_FIELDS = {
+        declividade:'ClDec',  // 000a003…>100
+        altimetria:'ClAlt',   // "x a y m"
+        uso_solo:'NIVEL_II',  // fallback NIVEL_I
+        solos:'Cl_solos'
+    };
+
+    // ====== PALETAS ======
+    const slopeOrder  = ['000a003','003a008','008a015','015a025','025a045','045a100','>100'];
+    const slopeLabels = ['0–3%','3–8%','8–15%','15–25%','25–45%','45–100%','>100%'];
+    const slopeColors = ['#edf8e9','#c7e9c0','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#0c2c84'];
+    const slopeColorFor = v => slopeColors[Math.max(0, slopeOrder.indexOf(String(v)))];
+
+    const altRamp = ['#ffffcc','#c2e699','#78c679','#31a354','#006837','#00441b'];
+    function altColorFor(v){
+        if (!v) return altRamp[0];
+        const m = String(v).match(/(\d+).+?(\d+)/); const mid = m? ( +m[1] + +m[2] )/2 : NaN;
+        if (isNaN(mid)) return altRamp[0];
+        const brks = [0,400,800,1200,1600,2000,1e9];
+        for (let i=0;i<brks.length-1;i++) if (mid>=brks[i] && mid<brks[i+1]) return altRamp[i];
+        return altRamp.at(-1);
+    }
+
+    const usoColors = {
+        'Agricultura Anual':'#e6ab02','Agricultura Perene':'#c98c00',
+        'Corpos d’Água':'#67a9cf','Floresta Nativa':'#1b9e77','Mangue':'#0f766e',
+        'Pastagem/Campo':'#a6d854','Plantios Florestais':'#106b21','Restinga':'#66c2a5',
+        'Solo Exposto/Mineração':'#bdbdbd','Várzea':'#c7e9c0','Área Construída':'#7570b3','Área Urbanizada':'#6a51a3'
+    };
+    const usoFallbackColors = {
+        'Água':'#67a9cf','Áreas de Vegetação Natural':'#1b9e77','Áreas Antrópicas Agrícolas':'#e6ab02',
+        'Áreas Antrópicas Não Agrícolas':'#6a51a3','Áreas Antrópicas Agrícolas/Áreas de Vegetação Natural':'#8da0cb'
+    };
+
+    const soilColors = {
+        'LATOSSOLOS':'#d95f0e','ARGISSOLOS':'#fdae6b','NEOSSOLOS LITÓLICOS':'#fee6ce','NEOSSOLOS REGOLÍTICOS':'#fdd0a2',
+        'NITOSSOLOS':'#a6761d','CAMBISSOLOS':'#e0c2a2','GLEISSOLOS':'#74c476','ESPODOSSOLOS':'#9ecae1',
+        'ORGANOSSOLOS':'#807dba','AFLORAMENTOS DE ROCHAS':'#bdbdbd','ÁREAS URBANAS':'#756bb1','ESPELHOS DAGUA':'#67a9cf'
+    };
+
+    // ====== MAPA ======
+    const baseOSM    = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap' });
+    const baseCARTO  = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{ attribution:'© OSM • © CARTO' });
+    const baseESRI   = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{ attribution:'Imagery: Esri/Maxar' });
+    const baseESRISt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{ attribution:'Esri Streets' });
+    const baseTerrain= L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg',{ attribution:'Stamen Terrain' });
+
+    const map = L.map('map',{ center:[-24.5,-51.5], zoom:7, preferCanvas:true, layers:[baseCARTO] });
+    const layerControl = L.control.layers(
+        { 'CARTO Light':baseCARTO, 'OSM Padrão':baseOSM, 'Esri Imagery':baseESRI, 'Esri Streets':baseESRISt, 'Stamen Terrain':baseTerrain },
+        {}, { collapsed:false, position:'topleft' }
+    ).addTo(map);
+
+    // ====== ESTADO ======
+    const datasetByKey = {};   // key -> {def, features, layer}
+    const addedLayers = [];
+    let opacity = 0.7;
+
+    // ====== UTILS ======
+    const fmt = {
+        ha: v => (v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2)).replace('.',','),
+        km: v => (v>=100 ? v.toFixed(0) : v>=10 ? v.toFixed(1) : v.toFixed(2)).replace('.',','),
+        int: v => Math.round(v).toLocaleString('pt-BR')
+    };
+
+    async function fetchMaybeGz(url){
+        const res = await fetch(url,{cache:'no-store'});
+        if (!res.ok) throw new Error(`HTTP ${res.status} para ${url}`);
+        if (url.toLowerCase().endsWith('.gz')){
+            const ab = await res.arrayBuffer();
+            return JSON.parse(window.pako.inflate(new Uint8Array(ab),{to:'string'}));
+        }
+        const ct = res.headers.get('content-type')||'';
+        if (ct.includes('application/json')) return res.json();
+        return JSON.parse(await res.text());
+    }
+    const toFeatures = gj => gj?.type==='FeatureCollection' ? (gj.features||[]) : (gj?.type==='Feature' ? [gj] : []);
+
+    // ====== ESTILO ======
+    function styleFn(key){
+        if (key==='declividade'){
+            return f=>({color:'#444',weight:.4,fillColor:slopeColorFor(f.properties?.[CLASS_FIELDS.declividade]),fillOpacity:.65*opacity,opacity});
+        }
+        if (key==='altimetria'){
+            return f=>({color:'#333',weight:.4,fillColor:altColorFor(f.properties?.[CLASS_FIELDS.altimetria]),fillOpacity:.60*opacity,opacity});
+        }
+        if (key==='solos'){
+            return f=>{ const v=String(f.properties?.[CLASS_FIELDS.solos]||''); const c=soilColors[v]||'#dfc27d';
+                return {color:'#555',weight:.4,fillColor:c,fillOpacity:.65*opacity,opacity}; };
+        }
+        if (key==='uso_solo'){
+            return f=>{ const p=f.properties||{}; const fld=(CLASS_FIELDS.uso_solo in p)?CLASS_FIELDS.uso_solo:'NIVEL_I';
+                const v=String(p[fld]||''); const c=(fld==='NIVEL_II'?usoColors[v]:usoFallbackColors[v])||'#31a354';
+                return {color:'#444',weight:.3,fillColor:c,fillOpacity:.55*opacity,opacity}; };
+        }
+        const defaults = {
+            estradas:{color:'#737373',weight:2,dashArray:'4,4',fillOpacity:0,opacity},
+            hidrografia:{color:'#2b8cbe',weight:2,fillOpacity:.2*opacity,opacity},
+            nascentes:{color:'#1c9099',weight:2,fillOpacity:.8,opacity},
+            construcoes:{color:'#252525',weight:1,fillOpacity:.9,opacity},
+            caf:{color:'#006837',weight:1,fillOpacity:.35*opacity,opacity},
+            microbacias:{color:'#1e40af',weight:2,fillColor:'#93c5fd',fillOpacity:.25*opacity,opacity},
+            car:{color:'#ff7f00',weight:1.2,fillColor:'#ffa64d',fillOpacity:.20*opacity,opacity}
+        };
+        return ()=>defaults[key] || {color:'#555',weight:1,fillOpacity:.25*opacity,opacity};
+    }
+
+    // ====== MÉTRICAS ======
+    function metricsFor(features,type){
+        let areaM2=0,lenKm=0,count=0;
+        for (const f of features){
+            const g=f.geometry; if (!g) continue;
+            if (type==='poly' && (g.type==='Polygon'||g.type==='MultiPolygon')){ areaM2+=turf.area(f); count++; }
+            else if (type==='line' && (g.type==='LineString'||g.type==='MultiLineString')){ lenKm+=turf.length(f,{units:'kilometers'}); count++; }
+            else if (type==='point'){ if (g.type==='MultiPoint') count+=(g.coordinates?.length||0); else count++; }
+        }
+        return { areaHa: areaM2/10000, lenKm, count };
+    }
+
+    // ====== CARREGAR ======
+    async function loadOne(def){
+        const files = Array.isArray(def.file)?def.file:[def.file];
+        const feats = [];
+        for (const f of files){
+            try{ feats.push(...toFeatures(await fetchMaybeGz(BASE+f))); }
+            catch(e){ console.warn('Falha ao carregar',f,e); }
+        }
+        const layer = L.geoJSON(feats,{
+            style: styleFn(def.key),
+            pointToLayer:(feat,latlng)=>{
+                if (def.type==='point') return L.circleMarker(latlng,{radius:4,color:'#333',weight:1,fillOpacity:.8});
+                return L.marker(latlng);
+            },
+            onEachFeature:(f,l)=>{
+                const p=f?.properties||{};
+                let title = def.name;
+                if (def.key==='car' && def.idField && p[def.idField]) title += ` — ${p[def.idField]}`;
+                const html = `<div><b>${title}</b></div>` + Object.keys(p).slice(0,20).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
+                if (html) l.bindPopup(html);
+            }
+        }).addTo(map);
+        layerControl.addOverlay(layer, def.name);
+        datasetByKey[def.key] = { def, features:feats, layer };
+        addedLayers.push(layer);
+    }
+    async function loadAll(){ 
+        for (const def of LAYERS) await loadOne(def); 
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    // ====== LEGENDAS DINÂMICAS (com área e %) ======
+    function addLegend(id,title,items){
+        const ctrl=L.control({position:'bottomleft'});
+        ctrl.onAdd=function(){
+            const div=L.DomUtil.create('div','legend'); div.id=id;
+            div.innerHTML=`<div><b>${title}</b></div>`+items.map(([label,color,extra])=>
+                `<div class="leg-row"><span class="sw" style="background:${color}"></span>${label}${extra?` — <b>${extra}</b>`:''}</div>`).join('');
+            return div;
+        }; ctrl.addTo(map); return ctrl;
+    }
+
+    function summarizeAreasByClass(features, getKey, getColor){
+        const acc = new Map(); let total=0;
+        for (const f of features){
+            const k = getKey(f); if (!k) continue;
+            const area = turf.area(f)/10000; total+=area;
+            acc.set(k,(acc.get(k)||0)+area);
+        }
+        // retorna lista [label,color,"ha (xx%)"]
+        const out=[]; for (const [k,ha] of acc.entries()){
+            const pct = total>0 ? (ha/total*100) : 0;
+            out.push([k, getColor(k), `${fmt.ha(ha)} ha (${pct.toFixed(1)}%)`]);
+        }
+        return out.sort((a,b)=>a[0].localeCompare(b[0],'pt-BR'));
+    }
+
+    function buildLegends(){
+        // Declividade (ordem fixa)
+        const dsD = datasetByKey['declividade']; if (dsD){
+            const items = slopeOrder.map((code,i)=>{
+                // soma apenas features da classe
+                const feats = dsD.features.filter(f=>String(f.properties?.[CLASS_FIELDS.declividade])===code);
+                const ha = feats.length? feats.map(f=>turf.area(f)/10000).reduce((a,b)=>a+b,0):0;
+                const pct = (ha>0)? (ha / (metricsFor(dsD.features,'poly').areaHa) * 100) : 0;
+                return [slopeLabels[i], slopeColors[i], `${fmt.ha(ha)} ha (${pct.toFixed(1)}%)`];
+            });
+            addLegend('leg-decliv','Declividade (%)',items);
+        }
+
+        // Altimetria (classes encontradas)
+        const dsA = datasetByKey['altimetria']; if (dsA){
+            const items = summarizeAreasByClass(dsA.features,
+                f=>String(f.properties?.[CLASS_FIELDS.altimetria]||''),
+                label=>altColorFor(label)
+            ).sort((a,b)=>{
+                // ordenar pelo valor numérico inferior quando possível
+                const na=+(String(a[0]).match(/^\s*(\d+)/)?.[1]||0);
+                const nb=+(String(b[0]).match(/^\s*(\d+)/)?.[1]||0);
+                return na-nb;
+            });
+            addLegend('leg-alt','Altimetria (m)',items);
+        }
+
+        // Uso do Solo (NIVEL_II -> cores definidas)
+        const dsU = datasetByKey['uso_solo']; if (dsU){
+            const items = summarizeAreasByClass(dsU.features,
+                f=>{ const p=f.properties||{}; const fld=(CLASS_FIELDS.uso_solo in p)?CLASS_FIELDS.uso_solo:'NIVEL_I'; return String(p[fld]||''); },
+                label=>usoColors[label] || usoFallbackColors[label] || '#31a354'
+            );
+            addLegend('leg-uso','Uso do Solo (Nível II)',items);
+        }
+
+        // Solos
+        const dsS = datasetByKey['solos']; if (dsS){
+            const items = summarizeAreasByClass(dsS.features,
+                f=>String(f.properties?.[CLASS_FIELDS.solos]||''),
+                label=>soilColors[label] || '#dfc27d'
+            );
+            addLegend('leg-solos','Solos',items);
+        }
+    }
+
+    // ====== MÉTRICAS (tabela de totais) ======
+    const MetricsControl = L.Control.extend({
+        onAdd:function(){
+            const div=L.DomUtil.create('div','metrics');
+            div.innerHTML = `
+                <h3>Métricas</h3>
+                <div id="microSummary" class="small muted" style="margin-bottom:.4rem;">Sem filtro de Microbacias — totais gerais.</div>
+                <table><thead><tr><th>Camada</th><th>Área (ha)</th><th>Extensão (km)</th><th>Qtd</th></tr></thead>
+                <tbody id="mtbody"></tbody></table>`;
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        }
+    });
+    const metricsCtrl = new MetricsControl({position:'bottomright'}).addTo(map);
+
+    function refreshTotals(selectionLabel=null, selectedFeatures=null){
+        const tb=document.getElementById('mtbody'); const microDiv=document.getElementById('microSummary');
+        tb.innerHTML='';
+        for (const key of Object.keys(datasetByKey)){
+            const {def,features}=datasetByKey[key]; const m=metricsFor(features, def.type);
+            const row=document.createElement('tr');
+            row.innerHTML=`<td>${def.name}</td><td>${def.type==='poly'?fmt.ha(m.areaHa):'-'}</td><td>${def.type==='line'?fmt.km(m.lenKm):'-'}</td><td>${def.type==='point'?fmt.int(m.count):'-'}</td>`;
+            tb.appendChild(row);
+        }
+        if (selectionLabel && Array.isArray(selectedFeatures)){
+            const m=metricsFor(selectedFeatures,'poly');
+            microDiv.innerHTML=`<b>Microbacias filtradas:</b> ${selectionLabel}<br/>Área selecionada: <b>${fmt.ha(m.areaHa)} ha</b>`;
+            microDiv.classList.remove('muted');
+        } else { microDiv.textContent='Sem filtro de Microbacias — totais gerais.'; microDiv.classList.add('muted'); }
+    }
+
+    // ====== MICROBACIAS — FILTRO (Região_Município_Manancial + tabela Codes) ======
+    const MICRO_TABLE = [/* (mesma tabela que você enviou) */];
+    const MICRO_FIELD_LABELS = ['Região_Município_Manancial','REGIÃO_MUNICÍPIO_MANANCIAL','Regiao_Municipio_Manancial','REGIAO_MUNICIPIO_MANANCIAL'];
+    const MICRO_FIELD_CODES  = ['Cod_man','COD_MAN','cod_man','codman'];
+
+    const MicroFilter = L.Control.extend({
+        onAdd:function(){
+            const div=L.DomUtil.create('div','panel');
+            div.innerHTML=`
+                <h3>Filtrar Microbacias</h3>
+                <label>Origem</label>
+                <select id="mf-org"><option value="">(todas)</option></select>
+                <label>Regional IDR</label>
+                <select id="mf-reg"><option value="">(todas)</option></select>
+                <label>Município</label>
+                <select id="mf-mun"><option value="">(todos)</option></select>
+                <label style="margin-top:.5rem;">Pesquisar <b>Região_Município_Manancial</b></label>
+                <input id="mf-search" type="search" placeholder="Pesquisar..."/>
+                <div class="row">
+                    <button id="mf-all"  class="btn-sm">Marcar todos</button>
+                    <button id="mf-none" class="btn-sm">Desmarcar</button>
+                    <button id="mf-apply"class="btn-sm primary">Aplicar Filtro</button>
+                </div>
+                <div id="mf-list" class="list"></div>`;
+            L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div);
+
+            const selOrg=div.querySelector('#mf-org'), selReg=div.querySelector('#mf-reg'), selMun=div.querySelector('#mf-mun');
+            const list=div.querySelector('#mf-list'), search=div.querySelector('#mf-search');
+            const btnAll=div.querySelector('#mf-all'), btnNone=div.querySelector('#mf-none'), btnApply=div.querySelector('#mf-apply');
+
+            const ds=()=>datasetByKey['microbacias']; const active=new Set();
+            let labelField='Região_Município_Manancial', codeField='Cod_man', items=[];
+
+            function combos(){
+                const o=[...new Set(MICRO_TABLE.map(r=>r.org).filter(Boolean))].sort();
+                const r=[...new Set(MICRO_TABLE.map(r=>r.regional).filter(Boolean))].sort();
+                const m=[...new Set(MICRO_TABLE.map(r=>r.municipio).filter(Boolean))].sort();
+                for (const v of o) selOrg.append(new Option(v,v));
+                for (const v of r) selReg.append(new Option(v,v));
+                for (const v of m) selMun.append(new Option(v,v));
+            }
+            function detect(){
+                const sample=ds()?.features?.[0]?.properties||{};
+                const hitL = MICRO_FIELD_LABELS.find(c=>Object.keys(sample).some(k=>k.toLowerCase()===c.toLowerCase()));
+                const hitC = MICRO_FIELD_CODES.find(c=>Object.keys(sample).some(k=>k.toLowerCase()===c.toLowerCase()));
+                if (hitL) labelField = Object.keys(sample).find(k=>k.toLowerCase()===hitL.toLowerCase());
+                if (hitC) codeField  = Object.keys(sample).find(k=>k.toLowerCase()===hitC.toLowerCase());
+                list.dataset.labelfield=labelField; list.dataset.codefield=codeField;
+            }
+            function universe(){
+                detect();
+                items = ds().features.map(f=>{
+                    const p=f.properties||{}; const code=String(p[codeField]||'');
+                    const row=MICRO_TABLE.find(r=>String(r.Cod_man)===code);
+                    return { code, label:String(p[labelField]||''), org:row?.org||'', regional:row?.regional||'', municipio:row?.municipio||'', feature:f };
+                });
+            }
+            function filtered(){
+                const o=selOrg.value, r=selReg.value, m=selMun.value;
+                return items.filter(it => (!o||it.org===o)&&(!r||it.regional===r)&&(!m||it.municipio===m));
+            }
+            function render(){
+                list.innerHTML=''; active.clear();
+                const q=(search.value||'').toLowerCase().trim();
+                const arr=(q?filtered().filter(it=>it.label.toLowerCase().includes(q)):filtered());
+                for (const it of arr){
+                    const id='mc_'+btoa(it.code).replace(/=/g,''); const row=document.createElement('label'); row.className='item'; row.htmlFor=id;
+                    const cb=Object.assign(document.createElement('input'),{type:'checkbox',id,value:it.code,checked:true});
+                    cb.addEventListener('change',e=>{ if(e.target.checked) active.add(it.code); else active.delete(it.code); });
+                    const span=document.createElement('span'); span.textContent=it.label; row.append(cb,span); list.appendChild(row); active.add(it.code);
+                }
+                if (!arr.length) list.innerHTML='<div class="muted">Nenhum item para os filtros atuais.</div>';
+            }
+            function apply(){
+                const d=ds(); if (!d) return;
+                if (d.layer){ try{map.removeLayer(d.layer)}catch{}; try{layerControl.removeLayer(d.layer)}catch{}; d.layer=null; }
+                const codes=new Set(active); const field=list.dataset.codefield||'Cod_man';
+                const feats=d.features.filter(f=>codes.has(String((f.properties||{})[field])));
+                const layer=L.geoJSON(feats,{ style:styleFn('microbacias') }).addTo(map);
+                d.layer=layer; layerControl.addOverlay(layer,"Microbacias (filtrado)");
+                try{ const b=layer.getBounds(); if (b && b.isValid()) map.fitBounds(b.pad(.12)); }catch{}
+                refreshTotals(`${feats.length} seç. — ${labelField}`,feats);
+            }
+            selOrg.addEventListener('change',render); selReg.addEventListener('change',render); selMun.addEventListener('change',render);
+            search.addEventListener('input',render);
+            btnAll.addEventListener('click',()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=true;active.add(cb.value);}); });
+            btnNone.addEventListener('click',()=>{ list.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=false;active.delete(cb.value);}); });
+            btnApply.addEventListener('click',apply);
+
+            combos(); setTimeout(()=>{ universe(); render(); }, 600);
+            return div;
+        }
+    });
+    map.addControl(new MicroFilter({position:'topright'}));
+
+    // ====== OPACIDADE GLOBAL ======
+    const opInput=document.getElementById('opacity'), opVal=document.getElementById('opacityVal');
+    opInput.addEventListener('input',async()=>{
+        const pct=+opInput.value; opacity=Math.max(0.2,Math.min(1,pct/100)); opVal.textContent=`${pct}%`;
+        // reconstroi layers para aplicar opacidade nos estilos
+        for (const k of Object.keys(datasetByKey)){
+            const ds=datasetByKey[k]; if (!ds) continue;
+            try{ if (ds.layer) map.removeLayer(ds.layer); }catch{}
+            ds.layer=L.geoJSON(ds.features,{
+                style:styleFn(k),
+                pointToLayer:(feat,latlng)=> ds.def.type==='point' ? L.circleMarker(latlng,{radius:4,color:'#333',weight:1,fillOpacity:.8}) : L.marker(latlng)
+            }).addTo(map);
+            layerControl.addOverlay(ds.layer, ds.def.name);
+        }
+    });
+
+    // Ajustar visão
+    document.getElementById('fitAll').onclick=()=>{
+        const visibles=addedLayers.filter(l=>map.hasLayer(l)); if(!visibles.length) return;
+        const group=L.featureGroup(visibles); map.fitBounds(group.getBounds().pad(0.08));
+    };
+
+    // Basemap toggle
+    document.querySelectorAll('input[name="basemap"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const value = this.value;
+            if (value === 'carto') {
+                map.removeLayer(baseOSM);
+                map.removeLayer(baseESRI);
+                map.addLayer(baseCARTO);
+            } else if (value === 'osm') {
+                map.removeLayer(baseCARTO);
+                map.removeLayer(baseESRI);
+                map.addLayer(baseOSM);
+            } else if (value === 'esri') {
+                map.removeLayer(baseCARTO);
+                map.removeLayer(baseOSM);
+                map.addLayer(baseESRI);
+            }
+        });
+    });
+
+    // ====== BOOT ======
+    (async function(){
+        feather.replace();
+        await loadAll();                    // carrega e coloca TODAS as camadas no mapa
+        buildLegends();                     // cria legendas com área por classe
+        refreshTotals(null,null);           // tabela de totais
+        map.attributionControl.setPrefix(false);
+        map.attributionControl.addAttribution('Água Segura • Análise de Bacias Hidrográficas');
+    })();
+    </script>
 </body>
 </html>
