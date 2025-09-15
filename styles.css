@@ -26,12 +26,12 @@ body, html {
 
 .header-title h1 {
   font-size: 24px;
-  color: #1a3e5b; /* azul institucional escuro como exemplo */
+  color: #1a3e5b;
 }
 
 .map-container {
   display: flex;
-  height: calc(100vh - 120px); /* descontar header + footer aproximado */
+  height: calc(100vh - 120px);
 }
 
 #map {
@@ -49,7 +49,7 @@ body, html {
 .side-panel h2 {
   font-size: 18px;
   margin-bottom: 10px;
-  color: #155a7e; /* azul mais suave ou secundário */
+  color: #155a7e;
 }
 
 .filters label {
