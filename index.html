@@ -1,139 +1,59 @@
- (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/index.html b/index.html
-index f7067862e8f59907d69e6a8f6410539bd1653260..1b76bc8ae47dfa7b0c14a5fb5c79b9833cb16ba9 100644
---- a/index.html
-+++ b/index.html
-@@ -1,128 +1,20 @@
- <!DOCTYPE html>
- <html lang="pt-br">
- <head>
-   <meta charset="utf-8"/>
-   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-   <title>Mapa – v1.0 (c) Avner Gomes</title>
--
--  <!-- Leaflet CSS (tem que carregar!) -->
-   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
--
--  <style>
--    :root { --topbar-h: 44px; }
--    html,body { height:100%; margin:0; }
--    #map { position:absolute; inset:var(--topbar-h) 0 0 0; }
--    .topbar {
--      position:fixed; left:0; right:0; top:0; height:var(--topbar-h);
--      display:flex; align-items:center; gap:.5rem;
--      background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
--    }
--    .version{ margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap }
--    .btn{ border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer }
--    .btn:hover{ background:#f9fafb }
--
--    /* Garante que o controle fique acima do mapa e abaixo da topbar */
--    .leaflet-control-container { z-index: 500; }
--    .leaflet-top.leaflet-right { margin-top: 10px; } /* espaço extra do topo */
--  </style>
-+  <link rel="stylesheet" href="styles.css"/>
- </head>
- <body>
-   <div class="topbar">
-     <button id="fitAll" class="btn">Ajustar visão</button>
-     <div class="version">v1.0 (c) Avner Gomes</div>
-   </div>
-   <div id="map"></div>
- 
-   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
--  <script>
--  // ====== CONFIG ======
--  const USER = "avnergomes";
--  const REPO = "prns";
--  const BASE = `https://${USER}.github.io/${REPO}/data/`; // caminho absoluto no GitHub Pages
--
--  // Se estes dois aparecerem, o menu de camadas TEM que aparecer
--  const baseStreets = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
--    attribution: '© OpenStreetMap • © CARTO', maxZoom: 20
--  });
--  const baseEsri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
--    attribution: 'Imagery: Esri/Maxar', maxZoom: 19
--  });
--
--  const map = L.map('map', { center: [-24.5,-51.5], zoom: 7, preferCanvas: true, layers:[baseStreets] });
--
--  // CRIA O CONTROLE JÁ COM BASES (menu deve aparecer mesmo sem overlays)
--  const layerControl = L.control.layers(
--    { 'Streets': baseStreets, 'Satélite (Esri)': baseEsri },
--    {}, { collapsed:false }
--  ).addTo(map);
--
--  // Estilos para overlays
--  const styles = {
--    altimetria:  { color:'#542788', weight:2, fillOpacity:0.20 },
--    hidrografia: { color:'#2b8cbe', weight:2, fillOpacity:0.15 },
--    caf:         { color:'#006d2c', weight:2, fillOpacity:0.25 }
--  };
--
--  // Use os nomes que EXISTEM no repo (pela sua screenshot):
--  const LAYERS = [
--    { name:'Altimetria',  file:'altimetria.geojson',  key:'altimetria',  type:'poly' },
--    { name:'Hidrografia', file:'hidrografia.geojson', key:'hidrografia', type:'line' },
--    { name:'CAF',         file:'caf.geojson',         key:'caf',         type:'poly' }
--  ];
--
--  const addedLayers = [];
--
--  function addGeoJson(def, data){
--    const st = styles[def.key] || { color:'#555', weight:2, fillOpacity:0.2 };
--    const layer = L.geoJSON(data, {
--      style: st,
--      onEachFeature: (f,l) => {
--        const p = f?.properties || {};
--        const html = Object.keys(p).slice(0,12).map(k=>`<div><b>${k}</b>: ${String(p[k])}</div>`).join('');
--        if(html) l.bindPopup(html);
--      }
--    });
--    layer.addTo(map);
--    layerControl.addOverlay(layer, def.name);   // <- adiciona ao menu
--    addedLayers.push(layer);
--  }
--
--  async function loadAll(){
--    for (const def of LAYERS){
--      const url = `${BASE}${def.file}?v=${Date.now()}`; // cache-buster
--      try{
--        const res = await fetch(url, { cache:'no-cache' });
--        if(!res.ok){
--          const txt = await res.text().catch(()=> '');
--          throw new Error(`HTTP ${res.status} ${res.statusText} ao buscar ${url}\n${txt.slice(0,160)}`);
--        }
--        let gj;
--        try {
--          gj = await res.json();
--        } catch(parseErr){
--          const txt = await res.text().catch(()=> '');
--          throw new Error(`JSON inválido em ${def.name}. Detalhe: ${parseErr.message}\nPrévia: ${txt.slice(0,160)}`);
--        }
--        addGeoJson(def, gj);
--      }catch(err){
--        console.error(`Falha ao carregar ${def.name}:`, err);
--        alert(`Falha ao carregar ${def.name}. Abra o console (F12) para o detalhe do erro.`);
--      }
--    }
--  }
--
--  loadAll();
--
--  document.getElementById('fitAll').onclick = () => {
--    const visibles = addedLayers.filter(l => map.hasLayer(l));
--    if(!visibles.length) return;
--    const group = L.featureGroup(visibles);
--    map.fitBounds(group.getBounds().pad(0.08));
--  };
--
--  // Assinatura no rodapé
--  map.attributionControl.setPrefix(false);
--  map.attributionControl.addAttribution('v1.0 (c) Avner Gomes');
--  </script>
-+  <script src="script.js"></script>
- </body>
- </html>
- 
-EOF
-)
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Água Segura – Pré‑Diagnóstico</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body>
+  <header class="map-header">
+    <div class="header-left">
+      <img src="data/logo‑idr.png" alt="IDR‑Paraná" class="logo">
+    </div>
+    <div class="header-title">
+      <h1>Água Segura – Pré‑Diagnóstico</h1>
+    </div>
+  </header>
+
+  <div class="map-container">
+    <div id="map"></div>
+    <aside class="side-panel">
+      <section class="filters">
+        <h2>Filtros</h2>
+        <label for="origemFilter">Origem:</label>
+        <select id="origemFilter">
+          <option value="(todos)">Todos</option>
+        </select>
+
+        <label for="regiaoFilter">Região / Município / Manancial:</label>
+        <select id="regiaoFilter">
+          <option value="(todos)">Todos</option>
+        </select>
+
+        <button id="btnApplyFilters">Aplicar Filtros</button>
+      </section>
+      <section class="legend">
+        <h2>Legenda</h2>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #336699;"></span>
+          <span>Uso do Solo</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #66cc99;"></span>
+          <span>Hidrografia</span>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <footer class="map-footer">
+    <div class="credits">
+      Dados: IBGE • Embrapa • ADAPAR • IAT • Sanepar • MDA • Ipardes • IDR‑Paraná
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
