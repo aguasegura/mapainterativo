@@ -1,3 +1,4 @@
+const scriptSrc = (() => {
   if (document.currentScript?.src) return document.currentScript.src;
   const scripts = document.getElementsByTagName('script');
   for (const el of scripts) {
