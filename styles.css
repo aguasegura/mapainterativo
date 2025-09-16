@@ -1,0 +1,15 @@
++14-0
+:root { --topbar-h: 44px; }
+html, body { height:100%; margin:0; }
+#map { position:absolute; inset:var(--topbar-h) 0 0 0; }
+.topbar {
+  position:fixed; left:0; right:0; top:0; height:var(--topbar-h);
+  display:flex; align-items:center; gap:.5rem;
+  background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
+}
+.version { margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap; }
+.btn { border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer; }
+.btn:hover { background:#f9fafb; }
+/* Garante que o controle fique acima do mapa e abaixo da topbar */
+.leaflet-control-container { z-index:500; }
+.leaflet-top.leaflet-right { margin-top:10px; }
