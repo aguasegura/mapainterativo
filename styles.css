@@ -1,15 +1,214 @@
-+14-0
-:root { --topbar-h: 44px; }
-html, body { height:100%; margin:0; }
-#map { position:absolute; inset:var(--topbar-h) 0 0 0; }
-.topbar {
-  position:fixed; left:0; right:0; top:0; height:var(--topbar-h);
-  display:flex; align-items:center; gap:.5rem;
-  background:#fff; border-bottom:1px solid #e5e7eb; padding:0 .75rem; z-index:1000;
+:root {
+  --topbar-h: 50px;
+  --panel-bg: #ffffff;
+  --border-color: #e5e7eb;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
-.version { margin-left:auto; color:#666; font-size:.85rem; white-space:nowrap; }
-.btn { border:1px solid #d1d5db; background:#fff; padding:.35rem .6rem; border-radius:8px; font-weight:600; cursor:pointer; }
-.btn:hover { background:#f9fafb; }
-/* Garante que o controle fique acima do mapa e abaixo da topbar */
-.leaflet-control-container { z-index:500; }
-.leaflet-top.leaflet-right { margin-top:10px; }
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #f1f5f9;
+}
+
+#map {
+  position: absolute;
+  inset: var(--topbar-h) 0 0 0;
+}
+
+.topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 1000;
+}
+
+.btn {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn:hover {
+  background: #f9fafb;
+}
+
+.btn-sm {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-sm.primary {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.slider-row input[type='range'] {
+  width: 150px;
+}
+
+.version {
+  margin-left: auto;
+  color: #4b5563;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.panel,
+.legend,
+.metrics {
+  background: var(--panel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  padding: 0.7rem;
+  font-size: 13px;
+}
+
+.panel {
+  width: 360px;
+  max-height: 72vh;
+  overflow: auto;
+}
+
+.panel h3,
+.metrics h3 {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 14px;
+}
+
+.panel label {
+  display: block;
+  margin: 0.35rem 0 0.25rem;
+  color: #6b7280;
+  font-size: 12px;
+  text-transform: none;
+}
+
+.panel select,
+.panel input[type='search'] {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.35rem;
+}
+
+.list {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 28vh;
+  overflow: auto;
+  padding: 0.3rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+}
+
+.item:hover {
+  background: #f3f4f6;
+}
+
+.item input[type='checkbox'] {
+  margin: 0;
+}
+
+.legend {
+  font-size: 12px;
+}
+
+.legend .leg-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.15rem 0;
+}
+
+.legend .sw {
+  width: 16px;
+  height: 12px;
+  border: 1px solid #9ca3af;
+  border-radius: 3px;
+}
+
+.metrics {
+  min-width: 300px;
+}
+
+.metrics table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.metrics th,
+.metrics td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #eceff1;
+  text-align: right;
+}
+
+.metrics th:first-child,
+.metrics td:first-child {
+  text-align: left;
+}
+
+.metrics tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#microSummary {
+  margin-bottom: 0.45rem;
+}
+
+.leaflet-control-container {
+  z-index: 500;
+}
+
+.leaflet-control-layers {
+  margin-top: 10px;
+}
