@@ -1,0 +1,106 @@
+const scriptSrc = (() => {
+  if (document.currentScript?.src) return document.currentScript.src;
+  const scripts = document.getElementsByTagName('script');
+  for (const el of scripts) {
+    if (el.src) return el.src;
+  }
+  return window.location.href;
+})();
+
+const DATA_BASE_URL = new URL('./data/', scriptSrc);
+
+function versionedUrl(fileName) {
+  const url = new URL(fileName, DATA_BASE_URL);
+  url.searchParams.set('v', Date.now().toString());
+  return url.toString();
+}
+
+// Base layers
+const baseStreets = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap • © CARTO',
+  maxZoom: 20
+});
+const baseEsri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Imagery: Esri/Maxar',
+  maxZoom: 19
+});
+
+const map = L.map('map', { center: [-24.5, -51.5], zoom: 7, preferCanvas: true, layers: [baseStreets] });
+
+// Layer control (menu shown even without overlays)
+const layerControl = L.control.layers(
+  { 'Streets': baseStreets, 'Satélite (Esri)': baseEsri },
+  {},
+  { collapsed: false }
+).addTo(map);
+
+// Overlay styles
+const styles = {
+  altimetria:  { color: '#542788', weight: 2, fillOpacity: 0.20 },
+  hidrografia: { color: '#2b8cbe', weight: 2, fillOpacity: 0.15 },
+  caf:         { color: '#006d2c', weight: 2, fillOpacity: 0.25 }
+};
+
+// Available GeoJSON layers
+const LAYERS = [
+  { name: 'Altimetria',  file: 'altimetria.geojson',  key: 'altimetria',  type: 'poly' },
+  { name: 'Hidrografia', file: 'hidrografia.geojson', key: 'hidrografia', type: 'line' },
+  { name: 'CAF',         file: 'caf.geojson',         key: 'caf',         type: 'poly' }
+];
+
+const addedLayers = [];
+
+function addGeoJson(def, data) {
+  const st = styles[def.key] || { color: '#555', weight: 2, fillOpacity: 0.2 };
+  const layer = L.geoJSON(data, {
+    style: st,
+    onEachFeature: (feature, leafletLayer) => {
+      const properties = feature?.properties || {};
+      const html = Object.keys(properties)
+        .slice(0, 12)
+        .map(key => `<div><b>${key}</b>: ${String(properties[key])}</div>`)
+        .join('');
+      if (html) leafletLayer.bindPopup(html);
+    }
+  });
+  layer.addTo(map);
+  layerControl.addOverlay(layer, def.name);
+  addedLayers.push(layer);
+}
+
+async function loadAll() {
+  for (const def of LAYERS) {
+    const url = versionedUrl(def.file);
+    try {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${res.statusText} ao buscar ${url}\n${txt.slice(0, 160)}`);
+      }
+      let gj;
+      try {
+        gj = await res.json();
+      } catch (parseErr) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`JSON inválido em ${def.name}. Detalhe: ${parseErr.message}\nPrévia: ${txt.slice(0, 160)}`);
+      }
+      addGeoJson(def, gj);
+    } catch (err) {
+      console.error(`Falha ao carregar ${def.name}:`, err);
+      alert(`Falha ao carregar ${def.name}. Abra o console (F12) para o detalhe do erro.`);
+    }
+  }
+}
+
+loadAll();
+
+document.getElementById('fitAll').addEventListener('click', () => {
+  const visibles = addedLayers.filter(l => map.hasLayer(l));
+  if (!visibles.length) return;
+  const group = L.featureGroup(visibles);
+  map.fitBounds(group.getBounds().pad(0.08));
+});
+
+// Footer attribution
+map.attributionControl.setPrefix(false);
+map.attributionControl.addAttribution('v1.0 (c) Avner Gomes');
