@@ -128,7 +128,8 @@ body {
   display: flex;
   gap: 0.5rem;
   margin: 0.5rem 0 0.35rem;
-@@ -135,80 +133,97 @@ body {
+}
+
 .list {
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -225,4 +226,47 @@ body {
   margin-top: 0.4rem;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.metrics {
+  background: var(--panel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+  padding: 0.75rem;
+  min-width: 300px;
+  font-size: 12px;
+}
+
+.metrics h3 {
+  margin: 0.2rem 0 0.45rem;
+  font-size: 14px;
+}
+
+.metrics-summary {
+  margin-bottom: 0.45rem;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.metrics table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.metrics th,
+.metrics td {
+  padding: 0.25rem 0.35rem;
+  border-bottom: 1px solid #eceff1;
+  text-align: right;
+}
+
+.metrics th:first-child,
+.metrics td:first-child {
+  text-align: left;
+}
+
+.metrics tbody tr:last-child td {
+  border-bottom: none;
 }
