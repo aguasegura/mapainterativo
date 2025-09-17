@@ -1,21 +1,14 @@
 (function () {
   'use strict';
 
-  const scriptSrc = (() => {
-    if (document.currentScript?.src) return document.currentScript.src;
-    const scripts = document.getElementsByTagName('script');
-    for (const el of scripts) {
-      if (el.src) return el.src;
-    }
-    return window.location.href;
-  })();
-
-  const DATA_BASE_URL = new URL('./data/', scriptSrc);
+  const pageUrl = new URL(window.location.href);
+  pageUrl.pathname = pageUrl.pathname.replace(/[^/]*$/, '');
+  const DATA_BASE_URL = new URL('data/', pageUrl);
 
   const LAYERS = [
-    { name: 'Declividade', key: 'declividade', type: 'poly', file: ['declividade__declividade_otto.geojson.gz'], preload: true },
-    { name: 'Altimetria', key: 'altimetria', type: 'poly', file: ['altimetria__altimetria_otto.geojson.gz'], preload: true },
-    { name: 'Uso do Solo', key: 'uso_solo', type: 'poly', file: ['uso_solo__usodosolo_otto.geojson.gz'], preload: true },
+    { name: 'Declividade', key: 'declividade', type: 'poly', file: ['declividade__declividade_otto.geojson.gz'] },
+    { name: 'Altimetria', key: 'altimetria', type: 'poly', file: ['altimetria__altimetria_otto.geojson.gz'] },
+    { name: 'Uso do Solo', key: 'uso_solo', type: 'poly', file: ['uso_solo__usodosolo_otto.geojson.gz'] },
     { name: 'Estradas', key: 'estradas', type: 'line', file: ['estradas__estradas_otto.geojson.gz'] },
     { name: 'Hidrografia', key: 'hidrografia', type: 'line', file: ['hidrografia__hidrografia_otto.geojson.gz'] },
     { name: 'Nascentes', key: 'nascentes', type: 'point', file: ['nascentes__nascentes_otto.geojson.gz'] },
@@ -32,9 +25,9 @@
         'construcoes__construcoes_otto__part6.geojson.gz'
       ]
     },
-    { name: 'Solos', key: 'solos', type: 'poly', file: ['solos__solos_otto.geojson.gz'], preload: true },
-    { name: 'Microbacias', key: 'microbacias', type: 'poly', file: ['otto_selec__ottos_selec_lista4.geojson.gz'], preload: true },
-    { name: 'CAF', key: 'caf', type: 'poly', file: ['caf__caf_otto.geojson.gz'], preload: true },
+    { name: 'Solos', key: 'solos', type: 'poly', file: ['solos__solos_otto.geojson.gz'] },
+    { name: 'Microbacias', key: 'microbacias', type: 'poly', file: ['otto_selec__ottos_selec_lista4.geojson.gz'], initiallyVisible: true },
+    { name: 'CAF', key: 'caf', type: 'point', file: ['caf__caf_otto.geojson.gz'] },
     { name: 'CAR', key: 'car', type: 'poly', file: ['car__car_otto.geojson'], idField: 'cod_imovel' }
   ];
 
@@ -79,7 +72,7 @@
     'Várzea': '#c7e9c0',
     'Área Construída': '#7570b3',
     'Área Urbanizada': '#6a51a3'
- };
+  };
 
   const usoFallbackColors = {
     Água: '#67a9cf',
@@ -115,9 +108,25 @@
   const fmt = {
     ha(value) {
       if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-      if (value >= 100) return value.toFixed(0).replace('.', ',');
-      if (value >= 10) return value.toFixed(1).replace('.', ',');
-      return value.toFixed(2).replace('.', ',');
+      const abs = Math.abs(value);
+      const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+      return value.toLocaleString('pt-BR', {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+    },
+    km(value) {
+      if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+      const abs = Math.abs(value);
+      const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+      return value.toLocaleString('pt-BR', {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+    },
+    int(value) {
+      if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+      return Math.round(value).toLocaleString('pt-BR');
     }
   };
 
@@ -193,6 +202,127 @@
   if (legendDockContainer) {
     L.DomEvent.disableScrollPropagation(legendDockContainer);
     L.DomEvent.disableClickPropagation(legendDockContainer);
+  }
+
+  const metricsState = { tbody: null, summary: null };
+  const metricsRowByKey = new Map();
+
+  const MetricsControl = L.Control.extend({
+    onAdd() {
+      const container = L.DomUtil.create('div', 'metrics');
+      container.innerHTML = `
+        <h3>Métricas</h3>
+        <div class="metrics-summary muted">Sem filtro de Microbacias — totais gerais.</div>
+        <table>
+          <thead><tr><th>Camada</th><th>Área (ha)</th><th>Extensão (km)</th><th>Qtd</th></tr></thead>
+          <tbody></tbody>
+        </table>`;
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      metricsState.summary = container.querySelector('.metrics-summary');
+      metricsState.tbody = container.querySelector('tbody');
+      buildMetricsSkeleton();
+      updateMetricsSummary();
+      return container;
+    }
+  });
+  const metricsControl = new MetricsControl({ position: 'bottomright' }).addTo(map);
+
+  function buildMetricsSkeleton() {
+    if (!metricsState.tbody) return;
+    metricsState.tbody.innerHTML = '';
+    metricsRowByKey.clear();
+    LAYERS.forEach(def => {
+      const row = document.createElement('tr');
+      row.dataset.metricsKey = def.key;
+      row.innerHTML = `
+        <td>${def.name}</td>
+        <td class="metrics-area">—</td>
+        <td class="metrics-length">—</td>
+        <td class="metrics-count">—</td>`;
+      metricsState.tbody.appendChild(row);
+      metricsRowByKey.set(def.key, row);
+    });
+    updateAllMetricsRows();
+  }
+
+  function updateMetricsSummary() {
+    const summary = metricsState.summary;
+    if (!summary) return;
+    if (activeMicroCodes === null) {
+      summary.textContent = 'Sem filtro de Microbacias — totais gerais.';
+      summary.classList.add('muted');
+      return;
+    }
+    if (!activeMicroCodes.size) {
+      summary.textContent = 'Nenhuma microbacia selecionada.';
+      summary.classList.remove('muted');
+      return;
+    }
+    const microEntry = datasetByKey.microbacias;
+    if (!microEntry?.metrics) {
+      summary.textContent = 'Carregando dados de microbacias...';
+      summary.classList.add('muted');
+      return;
+    }
+    let areaHa = 0;
+    activeMicroCodes.forEach(code => {
+      const record = microEntry.metrics.byCode.get(code);
+      if (record) areaHa += record.areaHa;
+    });
+    summary.innerHTML = `<b>${activeMicroCodes.size}</b> microbacias selecionadas — área filtrada <b>${fmt.ha(areaHa)}</b> ha.`;
+    summary.classList.remove('muted');
+  }
+
+  function aggregateMetrics(entry) {
+    if (!entry?.metrics) return null;
+    if (activeMicroCodes === null) return entry.metrics.totals;
+    if (!activeMicroCodes.size) return { areaHa: 0, lenKm: 0, count: 0 };
+    const microField = detectMicroField(entry);
+    if (!microField) return entry.metrics.totals;
+    let areaHa = 0;
+    let lenKm = 0;
+    let count = 0;
+    activeMicroCodes.forEach(code => {
+      const record = entry.metrics.byCode.get(code);
+      if (!record) return;
+      areaHa += record.areaHa;
+      lenKm += record.lenKm;
+      count += record.count;
+    });
+    return { areaHa, lenKm, count };
+  }
+
+  function updateMetricsRow(entry) {
+    if (!entry) return;
+    const row = metricsRowByKey.get(entry.def.key);
+    if (!row) return;
+    const areaCell = row.querySelector('.metrics-area');
+    const lenCell = row.querySelector('.metrics-length');
+    const countCell = row.querySelector('.metrics-count');
+    const values = aggregateMetrics(entry);
+    if (entry.def.type === 'poly') {
+      areaCell.textContent = values ? fmt.ha(values.areaHa) : '—';
+    } else {
+      areaCell.textContent = '—';
+    }
+    if (entry.def.type === 'line') {
+      lenCell.textContent = values ? fmt.km(values.lenKm) : '—';
+    } else {
+      lenCell.textContent = '—';
+    }
+    if (entry.def.type === 'point') {
+      countCell.textContent = values ? fmt.int(values.count) : '—';
+    } else {
+      countCell.textContent = '—';
+    }
+  }
+
+  function updateAllMetricsRows() {
+    metricsRowByKey.forEach((_, key) => {
+      const entry = datasetByKey[key];
+      if (entry?.metrics) updateMetricsRow(entry);
+    });
   }
 
   const MicroFilterControl = L.Control.extend({
@@ -525,7 +655,85 @@
       return feature => {
         const props = feature?.properties || {};
         const field = Object.prototype.hasOwnProperty.call(props, CLASS_FIELDS.uso_solo)
-@@ -589,402 +599,441 @@
+          ? CLASS_FIELDS.uso_solo
+          : 'NIVEL_I';
+        const value = String(props[field] || '');
+        const color = field === 'NIVEL_II'
+          ? (usoColors[value] || '#31a354')
+          : (usoFallbackColors[value] || '#31a354');
+        return {
+          color: '#444',
+          weight: 0.3,
+          fillColor: color,
+          fillOpacity: 0.55 * currentOpacity,
+          opacity: currentOpacity
+        };
+      };
+    }
+    if (key === 'solos') {
+      return feature => {
+        const value = String(feature?.properties?.[CLASS_FIELDS.solos] || '');
+        const color = soilColors[value] || '#dfc27d';
+        return {
+          color: '#555',
+          weight: 0.4,
+          fillColor: color,
+          fillOpacity: 0.65 * currentOpacity,
+          opacity: currentOpacity
+        };
+      };
+    }
+    const defaults = {
+      estradas: { color: '#737373', weight: 2, dashArray: '4,4', opacity: currentOpacity },
+      hidrografia: { color: '#2b8cbe', weight: 2, opacity: currentOpacity, fillOpacity: 0.2 * currentOpacity },
+      nascentes: { color: '#1c9099', weight: 1, opacity: currentOpacity, fillOpacity: Math.min(1, 0.8 * currentOpacity) },
+      construcoes: { color: '#252525', weight: 0.6, opacity: currentOpacity, fillOpacity: Math.min(1, 0.9 * currentOpacity) },
+      caf: { color: '#006837', weight: 1, opacity: currentOpacity, fillOpacity: 0.35 * currentOpacity },
+      microbacias: { color: '#1e40af', weight: 2, fillColor: '#93c5fd', opacity: currentOpacity, fillOpacity: 0.25 * currentOpacity },
+      car: { color: '#ff7f00', weight: 1.2, fillColor: '#ffa64d', opacity: currentOpacity, fillOpacity: 0.2 * currentOpacity }
+    };
+    return () => ({
+      color: '#555',
+      weight: 1,
+      opacity: currentOpacity,
+      fillOpacity: 0.25 * currentOpacity,
+      ...(defaults[key] || {})
+    });
+  }
+
+  function pointOptionsFor(key) {
+    const base = {
+      nascentes: { radius: 5, color: '#1c9099', fillColor: '#1c9099', weight: 1, fillOpacity: 0.85 },
+      construcoes: { radius: 2, color: '#252525', fillColor: '#252525', weight: 0, fillOpacity: 0.85 },
+      caf: { radius: 4, color: '#006837', fillColor: '#22c55e', weight: 1, fillOpacity: 0.8 }
+    };
+    const defaults = base[key] || { radius: 4, color: '#333', fillColor: '#333', weight: 1, fillOpacity: 0.8 };
+    return {
+      ...defaults,
+      opacity: currentOpacity,
+      fillOpacity: Math.min(1, defaults.fillOpacity * currentOpacity)
+    };
+  }
+
+  function popupHtml(def, feature) {
+    const props = feature?.properties || {};
+    let title = def.name;
+    if (def.key === 'car' && def.idField && props[def.idField]) {
+      title += ` — ${props[def.idField]}`;
+    }
+    const lines = Object.keys(props)
+      .slice(0, 20)
+      .map(key => `<div><b>${key}</b>: ${String(props[key])}</div>`);
+    return `<div><b>${title}</b></div>${lines.join('')}`;
+  }
+
+  function createGeoLayer(entry) {
+    const def = entry.def;
+    const style = styleFn(def.key);
+    return L.geoJSON(entry.features, {
+      style,
+      pointToLayer: (feature, latlng) => {
+        if (def.type === 'point') return L.circleMarker(latlng, pointOptionsFor(def.key));
         return L.marker(latlng);
       },
       onEachFeature: (feature, layer) => {
@@ -534,6 +742,68 @@
       }
     });
   }
+
+  function measureFeature(feature, type) {
+    if (!feature || !feature.geometry) return { areaHa: 0, lenKm: 0, count: 0 };
+    if (type === 'poly') {
+      const geomType = feature.geometry.type;
+      if (geomType !== 'Polygon' && geomType !== 'MultiPolygon') return { areaHa: 0, lenKm: 0, count: 0 };
+      if (feature.__areaHa === undefined) {
+        try {
+          feature.__areaHa = turf.area(feature) / 10000;
+        } catch (error) {
+          feature.__areaHa = 0;
+        }
+      }
+      return { areaHa: feature.__areaHa || 0, lenKm: 0, count: 0 };
+    }
+    if (type === 'line') {
+      const geomType = feature.geometry.type;
+      if (geomType !== 'LineString' && geomType !== 'MultiLineString') return { areaHa: 0, lenKm: 0, count: 0 };
+      if (feature.__lenKm === undefined) {
+        try {
+          feature.__lenKm = turf.length(feature, { units: 'kilometers' });
+        } catch (error) {
+          feature.__lenKm = 0;
+        }
+      }
+      return { areaHa: 0, lenKm: feature.__lenKm || 0, count: 0 };
+    }
+    if (type === 'point') {
+      const geomType = feature.geometry.type;
+      if (geomType === 'MultiPoint') {
+        const coords = Array.isArray(feature.geometry.coordinates) ? feature.geometry.coordinates : [];
+        return { areaHa: 0, lenKm: 0, count: coords.length };
+      }
+      if (geomType === 'Point') {
+        return { areaHa: 0, lenKm: 0, count: 1 };
+      }
+      return { areaHa: 0, lenKm: 0, count: 0 };
+    }
+    return { areaHa: 0, lenKm: 0, count: 0 };
+  }
+
+  function prepareEntryMetrics(entry) {
+    if (!entry?.features) return;
+    const totals = { areaHa: 0, lenKm: 0, count: 0 };
+    const byCode = new Map();
+    entry.features.forEach((feature, index) => {
+      const code = assignMicroCode(feature, index);
+      const metrics = measureFeature(feature, entry.def.type);
+      totals.areaHa += metrics.areaHa;
+      totals.lenKm += metrics.lenKm;
+      totals.count += metrics.count;
+      if (!byCode.has(code)) {
+        byCode.set(code, { areaHa: 0, lenKm: 0, count: 0 });
+      }
+      const record = byCode.get(code);
+      record.areaHa += metrics.areaHa;
+      record.lenKm += metrics.lenKm;
+      record.count += metrics.count;
+    });
+    entry.metrics = { totals, byCode };
+  }
+
   async function loadFeatures(entry) {
     if (entry.features) return entry.features;
     if (entry.loadPromise) return entry.loadPromise;
@@ -552,7 +822,10 @@
       }
       entry.features = features;
       detectMicroField(entry);
+      prepareEntryMetrics(entry);
       updateLegendForKey(def.key);
+      updateMetricsRow(entry);
+      if (def.key === 'microbacias') updateMetricsSummary();
       return features;
     })().catch(error => {
       console.error(`Falha ao carregar ${def.name}:`, error);
@@ -788,36 +1061,61 @@
       cafByCode.set(code, record);
     }
 
-    const table = [];
+    const tableByCode = new Map();
     (microEntry.features || []).forEach((feature, index) => {
       const props = feature?.properties || {};
       const code = assignMicroCode(feature, index);
       const rawCode = props.Cod_man;
       const cafInfo = cafByCode.get(String(rawCode ?? ''));
-      const orgList = toCleanArray([
+      const bucket = tableByCode.get(code) || {
+        code,
+        orgSet: new Set(),
+        regionalSet: new Set(),
+        municipioSet: new Set(),
+        nomeSet: new Set(),
+        manancialSet: new Set(),
+        feature: feature
+      };
+      const orgValues = toCleanArray([
         ...(cafInfo ? Array.from(cafInfo.org) : []),
         props.Classe
       ]);
-      const regionals = toCleanArray([
+      const regionalValues = toCleanArray([
         ...(cafInfo ? Array.from(cafInfo.regionals) : []),
         props.RegIdr,
         props.Regiao,
         props.Nome_bacia
       ]);
-      const municipios = toCleanArray([
+      const municipioValues = toCleanArray([
         ...(cafInfo ? Array.from(cafInfo.municipios) : []),
         props.Municipio,
         props.municipio_,
         props.MUNICIPIO
       ]);
-      const nomeBacias = toCleanArray([
+      const nomeValues = toCleanArray([
         ...(cafInfo ? Array.from(cafInfo.nomeBacias) : []),
         props.Nome_bacia
       ]);
-      const mananciais = toCleanArray([
+      const manancialValues = toCleanArray([
         ...(cafInfo ? Array.from(cafInfo.mananciais) : []),
         props.Manancial
       ]);
+      orgValues.forEach(value => bucket.orgSet.add(value));
+      regionalValues.forEach(value => bucket.regionalSet.add(value));
+      municipioValues.forEach(value => bucket.municipioSet.add(value));
+      nomeValues.forEach(value => bucket.nomeSet.add(value));
+      manancialValues.forEach(value => bucket.manancialSet.add(value));
+      if (!bucket.feature) bucket.feature = feature;
+      tableByCode.set(code, bucket);
+    });
+
+    const table = [];
+    tableByCode.forEach(bucket => {
+      const regionals = Array.from(bucket.regionalSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const municipios = Array.from(bucket.municipioSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const nomeBacias = Array.from(bucket.nomeSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const mananciais = Array.from(bucket.manancialSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      const orgList = Array.from(bucket.orgSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
       const org = orgList[0] || '';
       const nomeBacia = nomeBacias[0] || regionals[0] || '';
       const manancial = mananciais[0] || '';
@@ -827,16 +1125,18 @@
       if (manancial) labelParts.push(manancial);
       const label = labelParts.join(' • ') || 'Microbacia sem identificação';
       table.push({
-        code,
+        code: bucket.code,
         org,
         regionals,
         municipios,
         nome_bacia: nomeBacia,
-        manancial: manancial,
+        manancial,
         label,
-        feature
+        feature: bucket.feature
       });
     });
+
+    table.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
     return table;
   }
 
@@ -866,7 +1166,6 @@
     const subset = allFeatures.filter((feature, index) => codes.has(assignMicroCode(feature, index)));
     const subsetCodes = new Set(subset.map(feature => String(feature.__microCode || '')));
     const isFull = subset.length === allFeatures.length && subset.length > 0;
-
     if (entry.filteredLayer) {
       entry.layerGroup.removeLayer(entry.filteredLayer);
       entry.filteredLayer = null;
@@ -894,6 +1193,8 @@
       activeMicroCodes = subsetCodes;
     }
 
+    updateMetricsSummary();
+    updateAllMetricsRows();
     updateLegendsForSelection();
   }
 
@@ -967,3 +1268,9 @@
       const pct = Number(opacityInput.value);
       currentOpacity = Math.max(0.2, Math.min(1, pct / 100));
       if (opacityLabel) opacityLabel.textContent = `${pct}%`;
+      updateAllStyles();
+    });
+  }
+
+  init();
+})();
