@@ -5,6 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Água Segura — filtros dinâmicos</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script>
+    (function setBaseHref() {
+      try {
+        var loc = window.location;
+        var path = loc.pathname || '/';
+        if (!path.endsWith('/')) {
+          if (path.indexOf('.') === -1) path += '/';
+          else path = path.slice(0, path.lastIndexOf('/') + 1);
+        }
+        if (!path) path = '/';
+        var baseHref = loc.origin && loc.origin !== 'null' ? loc.origin + path : loc.href.replace(/[^/]*$/, '');
+        if (!baseHref.endsWith('/')) baseHref += '/';
+        window.__APP_BASE_HREF__ = baseHref;
+        var baseEl = document.createElement('base');
+        baseEl.href = baseHref;
+        var head = document.head || document.getElementsByTagName('head')[0];
+        if (head.firstChild) head.insertBefore(baseEl, head.firstChild);
+        else head.appendChild(baseEl);
+      } catch (error) {
+        console.error('Não foi possível definir o caminho base dos assets.', error);
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
