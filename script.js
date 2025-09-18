@@ -78,284 +78,224 @@
   const USO_COLORS = {
     'Agricultura Anual': '#e6ab02',
     'Agricultura Perene': '#c98c00',
-    'Corpos d’Água': '#67a9cf',
-    'Floresta Nativa': '#1b9e77',
-    Mangue: '#0f766e',
-    'Pastagem/Campo': '#a6d854',
-    'Plantios Florestais': '#106b21',
-    Restinga: '#66c2a5',
-    'Solo Exposto/Mineração': '#bdbdbd',
-    'Várzea': '#c7e9c0',
-    'Área Construída': '#7570b3',
-    'Área Urbanizada': '#6a51a3'
+    'Água': '#7fc9f0',
+    'Áreas Abertas': '#fc8d62',
+    'Floresta Plantada': '#5e3c99',
+    'Formação Florestal': '#1b9e77',
+    'Formação Pioneira': '#66a61e',
+    'Infraestrutura Urbana': '#e7298a',
+    'Mineração': '#7570b3',
+    'Pastagem': '#d95f02',
+    'Reflorestamento': '#a6761d',
+    'Silvicultura': '#c49c94'
   };
 
-  const USO_FALLBACK_COLORS = {
-    Água: '#67a9cf',
-    'Áreas de Vegetação Natural': '#1b9e77',
-    'Áreas Antrópicas Agrícolas': '#e6ab02',
-    'Áreas Antrópicas Não Agrícolas': '#6a51a3',
-    'Áreas Antrópicas Agrícolas/Áreas de Vegetação Natural': '#8da0cb'
-  };
+  const USO_COLORS_ALT = [
+    '#fef9c3',
+    '#fde68a',
+    '#fcd34d',
+    '#fbbf24',
+    '#f59e0b',
+    '#d97706',
+    '#b45309',
+    '#92400e',
+    '#78350f'
+  ];
 
-  const SOIL_COLORS = {
-    LATOSSOLOS: '#d95f0e',
-    ARGISSOLOS: '#fdae6b',
-    'NEOSSOLOS LITÓLICOS': '#fee6ce',
-    'NEOSSOLOS REGOLÍTICOS': '#fdd0a2',
-    NITOSSOLOS: '#a6761d',
-    CAMBISSOLOS: '#e0c2a2',
-    GLEISSOLOS: '#74c476',
-    ESPODOSSOLOS: '#9ecae1',
-    ORGANOSSOLOS: '#807dba',
-    'AFLORAMENTOS DE ROCHAS': '#bdbdbd',
-    'ÁREAS URBANAS': '#756bb1',
-    'ESPELHOS DAGUA': '#67a9cf'
-  };
-
-  const POINT_COLORS = {
-    nascentes: '#0f766e',
-    construcoes: '#1f2937',
-    caf: '#16a34a'
-  };
-
-  const CODE_FIELD_CANDIDATES = ['Cod_man', 'COD_MAN', 'cod_man', 'codman'];
-  const ORIGIN_FIELD_CANDIDATES = ['Classe', 'CLASSE'];
-  const MANANCIAL_FIELD_CANDIDATES = ['Manancial', 'MANANCIAL'];
-  const NAME_FIELD_CANDIDATES = ['Nome_bacia', 'NOME_BACIA'];
-  const REGION_FIELD_CANDIDATES = ['RegIdr', 'REGIDR', 'CRegIdr', 'regiao', 'REGIAO'];
-  const MUNICIPALITY_FIELD_CANDIDATES = ['Municipio', 'MUNICIPIO', 'municipio', 'NM_MUN', 'NM_MUNIC'];
-
-  function trimString(value) {
-    if (value === undefined || value === null) return '';
-    return String(value).trim();
+  function usoColorFor(value) {
+    if (!value) return '#9ca3af';
+    if (USO_COLORS[value]) return USO_COLORS[value];
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash * 31 + value.charCodeAt(i)) % USO_COLORS_ALT.length;
+    }
+    return USO_COLORS_ALT[Math.abs(hash) % USO_COLORS_ALT.length];
   }
 
-  function normaliseCode(value) {
-    return trimString(value);
+  const POINT_COLORS = {
+    barragens: '#0284c7',
+    captações: '#2563eb',
+    construcoes: '#7c3aed',
+    escolas: '#d946ef',
+    hidrometros: '#fb7185',
+    nascentes: '#0ea5e9',
+    poços: '#0891b2'
+  };
+
+  const DEFAULT_POINT_STYLE = {
+    radius: 5,
+    color: '#2563eb',
+    weight: 1,
+    fillColor: '#2563eb',
+    fillOpacity: 0.8,
+    opacity: 0.7
+  };
+
+  const FMT_UNITS = {
+    area_ha: value => fmt.ha(value),
+    areaHa: value => fmt.ha(value),
+    area_km2: value => fmt.km(value),
+    length_km: value => fmt.km(value),
+    lengthKm: value => fmt.km(value),
+    count: value => fmt.int(value),
+    total: value => fmt.int(value),
+    percentual: value => fmt.pct(value),
+    percent: value => fmt.pct(value)
+  };
+
+  function formatMetric(key, value) {
+    const fn = FMT_UNITS[key];
+    if (fn) return fn(value);
+    if (Number.isFinite(value)) return fmt.int(value);
+    return value == null ? '—' : String(value);
   }
 
   function normaliseText(value) {
-    return trimString(value)
+    if (!value) return '';
+    return String(value)
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\p{Diacritic}/gu, '')
       .toLowerCase();
   }
 
-  function findField(props, candidates) {
-    if (!props) return null;
-    const lower = new Map();
-    Object.keys(props).forEach(key => lower.set(key.toLowerCase(), key));
+  function normaliseCode(value) {
+    if (!value) return '';
+    return String(value).trim().padStart(4, '0').replace(/^0+/, '');
+  }
+
+  function trimString(value) {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function findField(sample, candidates) {
+    if (!sample) return null;
     for (const candidate of candidates) {
-      const match = lower.get(candidate.toLowerCase());
-      if (match) return match;
+      if (candidate in sample) return candidate;
     }
     return null;
   }
 
-  function createFieldExtractor(primary, fallback) {
-    return props => {
-      const fieldPrimary = findField(props, primary);
-      const fieldFallback = fallback ? findField(props, fallback) : null;
-      return feature => {
-        const properties = feature?.properties || {};
-        const raw = fieldPrimary && properties[fieldPrimary] !== undefined && properties[fieldPrimary] !== null
-          ? properties[fieldPrimary]
-          : fieldFallback
-            ? properties[fieldFallback]
-            : undefined;
-        return trimString(raw);
-      };
-    };
-  }
+  const MANANCIAL_FIELD_CANDIDATES = ['Manancial', 'Nome', 'MANANCIAL', 'manancial', 'nome', 'NomeMananc'];
+  const NAME_FIELD_CANDIDATES = ['Nome', 'nome', 'Name', 'NOME', 'nm_micro'];
+  const REGION_FIELD_CANDIDATES = ['Regional', 'regional', 'REGIONAL', 'Região', 'REGIAO', 'nm_reg'];
+  const MUNICIPALITY_FIELD_CANDIDATES = [
+    'Municipio',
+    'municipio',
+    'MUNICIPIO',
+    'Município',
+    'MUNICÍPIO',
+    'Cidade',
+    'cidade',
+    'CIDADE',
+    'nm_mun'
+  ];
+  const CODE_FIELD_CANDIDATES = ['Cod_micro', 'cod_micro', 'COD_MICRO', 'Cod_man', 'cod_man', 'COD_MAN', 'CD_MICRO'];
+  const ORIGIN_FIELD_CANDIDATES = ['origem', 'Origem', 'ORIGEM'];
 
-  const LAYERS = [
-    {
-      key: 'microbacias',
-      name: 'Microbacias',
-      type: 'poly',
-      files: ['otto_selec__ottos_selec_lista4.geojson.gz'],
-      initiallyVisible: true,
-      popupTitleField: 'Nome_bacia'
-    },
-    {
-      key: 'declividade',
-      name: 'Declividade',
-      type: 'poly',
-      files: ['declividade__declividade_otto.geojson.gz'],
-      legendType: 'area',
-      classStrategy: {
-        title: 'Declividade (%)',
-        createExtractor: createFieldExtractor(['ClDec']),
-        colorFor: value => {
-          const idx = SLOPE_CLASSES.indexOf(value);
-          return SLOPE_COLORS[idx >= 0 ? idx : 0];
-        },
-        orderedClasses: SLOPE_CLASSES,
-        orderedLabels: SLOPE_LABELS
-      }
-    },
-    {
-      key: 'altimetria',
-      name: 'Altimetria',
-      type: 'poly',
-      files: ['altimetria__altimetria_otto.geojson.gz'],
-      legendType: 'area',
-      classStrategy: {
-        title: 'Altimetria (m)',
-        createExtractor: createFieldExtractor(['ClAlt']),
-        colorFor: value => altColorFor(value)
-      }
-    },
-    {
-      key: 'uso_solo',
-      name: 'Uso do Solo',
-      type: 'poly',
-      files: ['uso_solo__usodosolo_otto.geojson.gz'],
-      legendType: 'area',
-      classStrategy: {
-        title: 'Uso do Solo',
-        createExtractor: createFieldExtractor(['NIVEL_II', 'nivel_ii', 'Nivel_II'], ['NIVEL_I', 'nivel_i', 'Nivel_I']),
-        colorFor: value => USO_COLORS[value] || USO_FALLBACK_COLORS[value] || '#31a354'
-      }
-    },
-    {
-      key: 'solos',
-      name: 'Solos',
-      type: 'poly',
-      files: ['solos__solos_otto.geojson.gz'],
-      legendType: 'area',
-      classStrategy: {
-        title: 'Solos',
-        createExtractor: createFieldExtractor(['Cl_solos', 'cl_solos']),
-        colorFor: value => SOIL_COLORS[value] || '#dfc27d'
-      }
-    },
-    {
-      key: 'estradas',
-      name: 'Estradas',
-      type: 'line',
-      files: ['estradas__estradas_otto.geojson.gz'],
-      legendType: 'line',
-      legendTitle: 'Estradas — extensão filtrada'
-    },
-    {
-      key: 'hidrografia',
-      name: 'Hidrografia',
-      type: 'line',
-      files: ['hidrografia__hidrografia_otto.geojson.gz'],
-      legendType: 'line',
-      legendTitle: 'Hidrografia — extensão filtrada'
-    },
-    {
-      key: 'nascentes',
-      name: 'Nascentes',
-      type: 'point',
-      files: ['nascentes__nascentes_otto.geojson.gz'],
-      legendType: 'count',
-      legendTitle: 'Nascentes'
-    },
-    {
-      key: 'construcoes',
-      name: 'Construções',
-      type: 'point',
-      files: [
-        'construcoes__construcoes_otto__part1.geojson.gz',
-        'construcoes__construcoes_otto__part2.geojson.gz',
-        'construcoes__construcoes_otto__part3.geojson.gz',
-        'construcoes__construcoes_otto__part4.geojson.gz',
-        'construcoes__construcoes_otto__part5.geojson.gz',
-        'construcoes__construcoes_otto__part6.geojson.gz'
-      ],
-      legendType: 'count',
-      legendTitle: 'Construções'
-    },
-    {
-      key: 'caf',
-      name: 'CAF',
-      type: 'point',
-      files: ['caf__caf_otto.geojson.gz'],
-      legendType: 'count',
-      legendTitle: 'CAF'
-    },
-    {
-      key: 'car',
-      name: 'CAR',
-      type: 'poly',
-      files: ['car__car_otto.geojson'],
-      filterable: false,
-      legendType: null,
-      popupTitleField: 'cod_imovel'
-    }
+  const DEFAULT_POPUP_FIELDS = [
+    { key: 'Nome', label: 'Nome', formatter: value => value || '—' },
+    { key: 'Municipio', label: 'Município', formatter: value => value || '—' },
+    { key: 'Regional', label: 'Regional', formatter: value => value || '—' },
+    { key: 'Area_ha', label: 'Área (ha)', formatter: value => fmt.ha(value) },
+    { key: 'Area_km2', label: 'Área (km²)', formatter: value => fmt.km(value) },
+    { key: 'Length_km', label: 'Comprimento (km)', formatter: value => fmt.km(value) }
   ];
 
-  const baseLayers = {
-    'CARTO Light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-      attribution: '© OSM • © CARTO'
-    }),
-    'OSM Padrão': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }),
-    'Esri Imagery': L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { attribution: 'Imagery © Esri/Maxar' }
-    ),
-    'Esri Streets': L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-      { attribution: '© Esri' }
-    ),
-    'Stamen Terrain': L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg', {
-      attribution: '© Stamen'
-    })
-  };
+  function derivePopupFields(properties) {
+    if (!properties) return DEFAULT_POPUP_FIELDS;
+    const fields = [];
+    const keys = Object.keys(properties);
+    const preferredOrder = [
+      'nome',
+      'Nome',
+      'Nome_BAC',
+      'Municipio',
+      'Municipio_nome',
+      'Regional',
+      'Area_ha',
+      'Area_km2',
+      'Area_ha_m',
+      'Length_km',
+      'Area_ha',
+      'LengthKm',
+      'Total'
+    ];
+    const normalisedKeys = new Map();
+    keys.forEach(key => {
+      normalisedKeys.set(normaliseText(key), key);
+    });
+    preferredOrder.forEach(prefKey => {
+      const realKey = normalisedKeys.get(normaliseText(prefKey));
+      if (!realKey) return;
+      const value = properties[realKey];
+      if (value == null || value === '') return;
+      fields.push({
+        key: realKey,
+        label: realKey.replace(/_/g, ' '),
+        formatter: val => (Number.isFinite(val) ? formatMetric(realKey, val) : val)
+      });
+    });
+    keys
+      .filter(key => !fields.some(field => field.key === key))
+      .forEach(key => {
+        const value = properties[key];
+        if (value == null || value === '') return;
+        fields.push({
+          key,
+          label: key.replace(/_/g, ' '),
+          formatter: val => (Number.isFinite(val) ? formatMetric(key, val) : val)
+        });
+      });
+    if (!fields.length) return DEFAULT_POPUP_FIELDS;
+    return fields.slice(0, 10);
+  }
 
   const map = L.map('map', {
-    center: [-24.5, -51.5],
-    zoom: 7,
-    preferCanvas: true,
-    layers: [baseLayers['CARTO Light']]
+    zoomControl: false,
+    minZoom: 5,
+    maxZoom: 18
   });
 
-  const layerControl = L.control.layers(baseLayers, {}, { collapsed: false, position: 'topleft' }).addTo(map);
+  const baseLayers = {
+    'Mapbox Light': L.tileLayer(
+      'https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZGVtb3VzZXIiLCJhIjoiY2tzb3E5MGUwMGZ6djJucWNqY3NrbWRoMSJ9.vv8vZr2tLDlW1wBjxfsqZw',
+      {
+        tileSize: 512,
+        zoomOffset: -1,
+        maxZoom: 20,
+        attribution:
+          '© <a href="https://www.mapbox.com/">Mapbox</a> © <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      }
+    ),
+    'Mapbox Satellite': L.tileLayer(
+      'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiZGVtb3VzZXIiLCJhIjoiY2tzb3E5MGUwMGZ6djJucWNqY3NrbWRoMSJ9.vv8vZr2tLDlW1wBjxfsqZw',
+      {
+        tileSize: 512,
+        zoomOffset: -1,
+        maxZoom: 20,
+        attribution:
+          '© <a href="https://www.mapbox.com/">Mapbox</a> © <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      }
+    )
+  };
 
-  let legendContainer = null;
-  const legendElements = new Map();
+  const layerControl = L.control.layers(baseLayers, null, { collapsed: true }).addTo(map);
+  baseLayers['Mapbox Light'].addTo(map);
+
+  L.control.zoom({ position: 'topleft' }).addTo(map);
 
   const legendControl = L.control({ position: 'bottomleft' });
   legendControl.onAdd = () => {
     const div = L.DomUtil.create('div', 'legend-dock');
-    div.id = 'legendDock';
-    legendContainer = div;
-    L.DomEvent.disableScrollPropagation(div);
-    L.DomEvent.disableClickPropagation(div);
     return div;
   };
   legendControl.addTo(map);
 
-  let summaryBody = null;
-  let summaryNote = null;
-  const summaryControl = L.control({ position: 'bottomright' });
+  const summaryControl = L.control({ position: 'bottomleft' });
   summaryControl.onAdd = () => {
     const div = L.DomUtil.create('div', 'summary-panel');
-    div.innerHTML = `
-      <h3>Resumo das camadas</h3>
-      <div class="summary-note" id="summaryNote">Carregando microbacias...</div>
-      <table class="summary-table">
-        <thead>
-          <tr>
-            <th>Camada</th>
-            <th>Área (ha)</th>
-            <th>Extensão (km)</th>
-            <th>Qtd</th>
-          </tr>
-        </thead>
-        <tbody id="summaryBody"></tbody>
-      </table>
-    `;
-    summaryBody = div.querySelector('#summaryBody');
-    summaryNote = div.querySelector('#summaryNote');
-    L.DomEvent.disableScrollPropagation(div);
-    L.DomEvent.disableClickPropagation(div);
+    div.innerHTML =
+      '<h3>Visão geral</h3><div class="summary-note">Ative camadas para ver métricas agregadas.</div><table class="summary-table"><tbody><tr><td class="muted-cell">Área (ha)</td><td>—</td></tr><tr><td class="muted-cell">Comprimento (km)</td><td>—</td></tr><tr><td class="muted-cell">Itens</td><td>—</td></tr></tbody></table>';
     return div;
   };
   summaryControl.addTo(map);
@@ -363,7 +303,6 @@
   const microState = {
     container: null,
     records: [],
-    filtered: [],
     selected: new Set(),
     applied: null,
     total: 0,
@@ -489,458 +428,266 @@
       };
     }
     if (key === 'altimetria') {
-      const entry = datasetStore.get('altimetria');
-      const value = entry?.classExtractor ? entry.classExtractor(feature) : '';
+      const props = feature?.properties || {};
+      const value = props.ALT_CLASS || props.Alt_Class || props.alt_class || props.alt_classif;
       return {
-        color: '#475569',
-        weight: 0.5,
+        color: '#4b5563',
+        weight: 0.3,
         fillColor: altColorFor(value),
         fillOpacity: 0.6 * currentOpacity,
         opacity: currentOpacity
       };
     }
     if (key === 'uso_solo') {
-      const entry = datasetStore.get('uso_solo');
-      const value = entry?.classExtractor ? entry.classExtractor(feature) : '';
+      const props = feature?.properties || {};
+      const value = props.Classe || props.classe || props.Class || props.CLASS;
       return {
-        color: '#374151',
-        weight: 0.4,
-        fillColor: USO_COLORS[value] || USO_FALLBACK_COLORS[value] || '#31a354',
-        fillOpacity: 0.55 * currentOpacity,
+        color: '#111827',
+        weight: 0.25,
+        fillColor: usoColorFor(value),
+        fillOpacity: 0.7 * currentOpacity,
         opacity: currentOpacity
       };
-    }
-    if (key === 'solos') {
-      const entry = datasetStore.get('solos');
-      const value = entry?.classExtractor ? entry.classExtractor(feature) : '';
-      return {
-        color: '#4b5563',
-        weight: 0.4,
-        fillColor: SOIL_COLORS[value] || '#dfc27d',
-        fillOpacity: 0.6 * currentOpacity,
-        opacity: currentOpacity
-      };
-    }
-    if (key === 'estradas') {
-      return { color: '#737373', weight: 2, dashArray: '4,4', opacity: currentOpacity };
-    }
-    if (key === 'hidrografia') {
-      return { color: '#2b8cbe', weight: 2, opacity: currentOpacity };
     }
     if (key === 'microbacias') {
-      return { color: '#1d4ed8', weight: 2, fillColor: '#93c5fd', fillOpacity: 0.25 * currentOpacity, opacity: currentOpacity };
+      return {
+        color: '#2563eb',
+        weight: 0.8,
+        fillColor: '#93c5fd',
+        fillOpacity: 0.3 * currentOpacity,
+        opacity: currentOpacity
+      };
     }
-    if (key === 'car') {
-      return { color: '#ff7f00', weight: 1.2, fillColor: '#ffa64d', fillOpacity: 0.2 * currentOpacity, opacity: currentOpacity };
+    if (key === 'caf') {
+      return {
+        color: '#4ade80',
+        weight: 1,
+        fillColor: '#bbf7d0',
+        fillOpacity: 0.35 * currentOpacity,
+        opacity: currentOpacity
+      };
     }
-    return { color: '#4b5563', weight: 1, fillOpacity: 0.25 * currentOpacity, opacity: currentOpacity };
-  }
-
-  function popupHtml(def, feature) {
-    const props = feature?.properties;
-    if (!props) return '';
-    const entries = Object.entries(props);
-    if (!entries.length) return '';
-    const titleField = def.popupTitleField ? findField(props, [def.popupTitleField]) : null;
-    const titleValue = titleField ? props[titleField] : null;
-    const rows = entries
-      .slice(0, 20)
-      .map(([key, value]) => `<tr><th>${key}</th><td>${value}</td></tr>`)
-      .join('');
-    const title = titleValue ? `<div class="popup-title"><strong>${def.name}</strong> — ${titleValue}</div>` : `<div class="popup-title"><strong>${def.name}</strong></div>`;
-    return `${title}<table class="popup-table">${rows}</table>`;
-  }
-
-  function createGeoJson(entry) {
-    const options = {
-      style: feature => styleForFeature(entry.def.key, feature),
-      onEachFeature: (feature, layer) => {
-        const html = popupHtml(entry.def, feature);
-        if (html) layer.bindPopup(html);
-      }
+    return {
+      color: '#2563eb',
+      weight: 1,
+      fillColor: '#bfdbfe',
+      fillOpacity: 0.3 * currentOpacity,
+      opacity: currentOpacity
     };
-    if (entry.def.type === 'point') {
-      options.pointToLayer = (feature, latlng) => L.circleMarker(latlng, pointStyleFor(entry.def.key));
-      delete options.style;
-    }
-    const layer = L.geoJSON([], options);
-    layer.datasetKey = entry.def.key;
-    return layer;
   }
 
   function applyStyleToEntry(entry) {
-    if (!entry?.layer) return;
-    if (entry.def.type === 'point') {
-      const style = pointStyleFor(entry.def.key);
+    if (!entry.layer) return;
+    const { def } = entry;
+    if (def.pointToLayer) {
       entry.layer.eachLayer(layer => {
-        if (layer.setStyle) layer.setStyle(style);
-        if (typeof layer.setRadius === 'function') layer.setRadius(style.radius);
+        const style = def.pointToLayer(layer.feature, L.latLng(layer.getLatLng()));
+        if (style) layer.setStyle(style);
       });
-      return;
+    } else {
+      entry.layer.setStyle(feature => def.style ? def.style(feature, entry) : styleForFeature(def.key, feature));
     }
-    entry.layer.eachLayer(layer => {
-      if (layer.setStyle) layer.setStyle(styleForFeature(entry.def.key, layer.feature));
-    });
-  }
-
-  async function fetchMaybeGz(url) {
-    if (fetchCache.has(url)) return fetchCache.get(url);
-    const promise = (async () => {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        throw new Error(`HTTP ${response.status} ao buscar ${url}\n${text.slice(0, 160)}`);
-      }
-      if (url.toLowerCase().endsWith('.gz')) {
-        if (!window.pako || typeof window.pako.inflate !== 'function') {
-          throw new Error('Dependência pako não encontrada para descompactar dados.');
-        }
-        const buffer = await response.arrayBuffer();
-        if (!buffer.byteLength) return { type: 'FeatureCollection', features: [] };
-        const inflated = window.pako.inflate(new Uint8Array(buffer), { to: 'string' });
-        return JSON.parse(inflated);
-      }
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) return response.json();
-      const text = await response.text();
-      return JSON.parse(text);
-    })();
-    fetchCache.set(url, promise);
-    promise.catch(() => fetchCache.delete(url));
-    return promise;
-  }
-
-  function toFeatures(geojson) {
-    if (!geojson) return [];
-    if (geojson.type === 'FeatureCollection') return Array.isArray(geojson.features) ? geojson.features : [];
-    if (geojson.type === 'Feature') return [geojson];
-    return [];
-  }
-
-  function computeMetrics(feature, type) {
-    if (!feature) return { areaHa: 0, lengthKm: 0, count: 0 };
-    try {
-      if (type === 'poly') {
-        const area = turf.area(feature) / 10000;
-        return { areaHa: Number.isFinite(area) ? area : 0, lengthKm: 0, count: 0 };
-      }
-      if (type === 'line') {
-        const len = turf.length(feature, { units: 'kilometers' });
-        return { areaHa: 0, lengthKm: Number.isFinite(len) ? len : 0, count: 0 };
-      }
-      if (type === 'point') {
-        const geom = feature.geometry;
-        if (!geom) return { areaHa: 0, lengthKm: 0, count: 0 };
-        if (geom.type === 'Point') return { areaHa: 0, lengthKm: 0, count: 1 };
-        if (geom.type === 'MultiPoint') {
-          const pts = Array.isArray(geom.coordinates) ? geom.coordinates.length : 0;
-          return { areaHa: 0, lengthKm: 0, count: pts };
-        }
-        return { areaHa: 0, lengthKm: 0, count: 0 };
-      }
-    } catch (error) {
-      console.warn('Falha ao calcular métricas:', error);
-    }
-    return { areaHa: 0, lengthKm: 0, count: 0 };
-  }
-
-  function mergeMetrics(target, delta) {
-    target.areaHa += delta.areaHa || 0;
-    target.lengthKm += delta.lengthKm || 0;
-    target.count += delta.count || 0;
-  }
-
-  function prepareDataset(entry, features) {
-    entry.features = features;
-    entry.filteredFeatures = features;
-    entry.byCode = new Map();
-    entry.metricsByCode = new Map();
-    entry.classTotals = entry.def.legendType === 'area' ? new Map() : null;
-    entry.classByCode = entry.def.legendType === 'area' ? new Map() : null;
-    entry.totals = { areaHa: 0, lengthKm: 0, count: 0 };
-    entry.filteredMetrics = { areaHa: 0, lengthKm: 0, count: 0 };
-    entry.currentLegend = null;
-
-    if (!features.length) {
-      entry.codeField = null;
-      entry.classExtractor = entry.def.classStrategy ? () => '' : null;
-      return;
-    }
-
-    const sampleProps = features.find(f => f?.properties)?.properties || {};
-    entry.codeField = entry.def.filterable === false ? null : findField(sampleProps, CODE_FIELD_CANDIDATES);
-    if (entry.def.key === 'microbacias' && !entry.codeField) entry.codeField = 'Cod_man';
-    if (entry.def.classStrategy?.createExtractor) {
-      entry.classExtractor = entry.def.classStrategy.createExtractor(sampleProps);
-    }
-
-    features.forEach(feature => {
-      const metrics = computeMetrics(feature, entry.def.type);
-      mergeMetrics(entry.totals, metrics);
-
-      const code = entry.codeField ? normaliseCode(feature?.properties?.[entry.codeField]) : '';
-      if (code) {
-        if (!entry.byCode.has(code)) entry.byCode.set(code, []);
-        entry.byCode.get(code).push(feature);
-        if (!entry.metricsByCode.has(code)) entry.metricsByCode.set(code, { areaHa: 0, lengthKm: 0, count: 0 });
-        mergeMetrics(entry.metricsByCode.get(code), metrics);
-      }
-
-      if (entry.def.legendType === 'area' && metrics.areaHa > 0 && entry.classExtractor) {
-        const cls = entry.classExtractor(feature);
-        if (cls) {
-          entry.classTotals.set(cls, (entry.classTotals.get(cls) || 0) + metrics.areaHa);
-          if (code) {
-            if (!entry.classByCode.has(code)) entry.classByCode.set(code, new Map());
-            const bucket = entry.classByCode.get(code);
-            bucket.set(cls, (bucket.get(cls) || 0) + metrics.areaHa);
-          }
-        }
-      }
-    });
-
-    entry.filteredMetrics = { ...entry.totals };
-    if (entry.def.legendType === 'area') {
-      entry.currentLegend = { total: entry.totals.areaHa, map: new Map(entry.classTotals) };
-    }
-  }
-
-  async function loadDataset(entry) {
-    if (!entry) return [];
-    if (entry.features) return entry.features;
-    if (entry.loading) return entry.loading;
-    entry.loading = (async () => {
-      const files = Array.isArray(entry.def.files) ? entry.def.files : [entry.def.files];
-      const features = [];
-      for (const file of files) {
-        try {
-          const data = await fetchMaybeGz(new URL(file, DATA_BASE_URL).toString());
-          features.push(...toFeatures(data));
-        } catch (error) {
-          console.warn(`Falha ao carregar ${entry.def.name} (${file}):`, error);
-        }
-      }
-      prepareDataset(entry, features);
-      applyFilterToEntry(entry, currentSelection);
-      return entry.features;
-    })();
-    entry.loading.finally(() => {
-      entry.loading = null;
-    });
-    return entry.loading;
-  }
-  async function ensureLayerReady(entry) {
-    await loadDataset(entry);
-    if (!entry.layer) {
-      entry.layer = createGeoJson(entry);
-      entry.layerGroup.addLayer(entry.layer);
-    }
-    refreshEntryLayer(entry);
-  }
-
-  function refreshEntryLayer(entry) {
-    if (!entry?.layer) return;
-    entry.layer.clearLayers();
-    if (entry.filteredFeatures?.length) entry.layer.addData(entry.filteredFeatures);
-    applyStyleToEntry(entry);
-  }
-
-  function aggregateLegendForSelection(entry, selection) {
-    if (entry.def.legendType !== 'area') {
-      entry.currentLegend = null;
-      return;
-    }
-    if (!selection || !entry.codeField) {
-      entry.currentLegend = { total: entry.totals.areaHa, map: new Map(entry.classTotals) };
-      return;
-    }
-    if (selection.size === 0) {
-      entry.currentLegend = { total: 0, map: new Map() };
-      return;
-    }
-    const mapValues = new Map();
-    selection.forEach(code => {
-      const bucket = entry.classByCode?.get(code);
-      if (!bucket) return;
-      bucket.forEach((value, key) => {
-        mapValues.set(key, (mapValues.get(key) || 0) + value);
-      });
-    });
-    const total = Array.from(mapValues.values()).reduce((sum, value) => sum + value, 0);
-    entry.currentLegend = { total, map: mapValues };
   }
 
   function applyFilterToEntry(entry, selection) {
-    if (!entry?.features) return;
-    if (!selection || !entry.codeField) {
-      entry.filteredFeatures = entry.features;
-      entry.filteredMetrics = { ...entry.totals };
-      aggregateLegendForSelection(entry, null);
-    } else if (selection.size === 0) {
-      entry.filteredFeatures = [];
-      entry.filteredMetrics = { areaHa: 0, lengthKm: 0, count: 0 };
-      aggregateLegendForSelection(entry, selection);
-    } else {
-      const features = [];
-      const metrics = { areaHa: 0, lengthKm: 0, count: 0 };
-      selection.forEach(code => {
-        const list = entry.byCode.get(code);
-        if (!list) return;
-        features.push(...list);
-        const aggregate = entry.metricsByCode.get(code);
-        if (aggregate) mergeMetrics(metrics, aggregate);
-      });
-      entry.filteredFeatures = features;
-      entry.filteredMetrics = metrics;
-      aggregateLegendForSelection(entry, selection);
-    }
-    if (entry.layer) {
-      if (map.hasLayer(entry.layerGroup)) refreshEntryLayer(entry);
-    }
-  }
-
-  function buildDeclividadeLegend(entry) {
-    const legend = entry.currentLegend || { total: 0, map: new Map() };
-    const total = legend.total || 0;
-    const mapValues = legend.map || new Map();
-    const items = [];
-
-    entry.def.classStrategy.orderedClasses.forEach((code, idx) => {
-      const area = mapValues.get(code) || 0;
-      if (!(area > 0)) return;
-      const pct = total > 0 ? (area / total) * 100 : 0;
-      items.push({ label: entry.def.classStrategy.orderedLabels[idx], color: SLOPE_COLORS[idx], area, pct });
+    if (!entry.layer) return;
+    const { def } = entry;
+    const filtered = [];
+    entry.layer.clearLayers();
+    entry.features.forEach(feature => {
+      if (selection && entry.codeField) {
+        const code = normaliseCode(feature?.properties?.[entry.codeField]);
+        if (!selection.has(code)) return;
+      }
+      filtered.push(feature);
+      if (def.pointToLayer) {
+        entry.layer.addLayer(def.pointToLayer(feature, entry));
+      } else {
+        entry.layer.addData(feature);
+      }
     });
+    entry.filteredFeatures = filtered;
+    updateMetricsForEntry(entry);
+    applyStyleToEntry(entry);
+  }
 
-    mapValues.forEach((area, code) => {
-      if (entry.def.classStrategy.orderedClasses.includes(code) || !(area > 0)) return;
-      const pct = total > 0 ? (area / total) * 100 : 0;
-      items.push({ label: code, color: '#6b7280', area, pct });
+  function updateMetricsForEntry(entry) {
+    const totals = { areaHa: 0, lengthKm: 0, count: 0 };
+    const metricsByCode = new Map();
+    const { def, filteredFeatures } = entry;
+    filteredFeatures.forEach(feature => {
+      const props = feature?.properties || {};
+      const area = Number(props.area_ha || props.Area_ha || props.areaHa || props.AreaHa || props.Area_km2 * 100);
+      const length =
+        Number(props.length_km || props.Length_km || props.lengthKm || props.LengthKm || props.Perimeter_km);
+      const code = entry.codeField ? normaliseCode(props[entry.codeField]) : null;
+      if (Number.isFinite(area)) totals.areaHa += area;
+      if (Number.isFinite(length)) totals.lengthKm += length;
+      totals.count += 1;
+      if (code) {
+        if (!metricsByCode.has(code)) metricsByCode.set(code, { areaHa: 0, lengthKm: 0, count: 0 });
+        const metrics = metricsByCode.get(code);
+        if (Number.isFinite(area)) metrics.areaHa += area;
+        if (Number.isFinite(length)) metrics.lengthKm += length;
+        metrics.count += 1;
+      }
     });
-
-    return { title: entry.def.classStrategy.title, unit: 'area', total, items };
+    entry.filteredMetrics = totals;
+    entry.metricsByCode = metricsByCode;
   }
 
-  function buildAreaLegend(entry, colorFor, title, sortMode) {
-    const legend = entry.currentLegend || { total: 0, map: new Map() };
-    const total = legend.total || 0;
-    const mapValues = legend.map || new Map();
-    const items = Array.from(mapValues.entries())
-      .filter(([, area]) => area > 0)
-      .map(([label, area]) => ({
-        label,
-        color: colorFor(label),
-        area,
-        pct: total > 0 ? (area / total) * 100 : 0
-      }));
-    if (sortMode === 'numeric') {
-      items.sort((a, b) => {
-        const na = Number(String(a.label).match(/^(\d+)/)?.[1] || 0);
-        const nb = Number(String(b.label).match(/^(\d+)/)?.[1] || 0);
-        return na - nb;
-      });
+  function createLegendList(title, items, totals, note) {
+    const list = L.DomUtil.create('div', 'legend');
+    const header = L.DomUtil.create('div', 'legend-header', list);
+    const titleEl = L.DomUtil.create('div', 'legend-title', header);
+    titleEl.textContent = title;
+    if (totals) {
+      const totalEl = L.DomUtil.create('div', 'legend-total', header);
+      const parts = [];
+      if (Number.isFinite(totals.areaHa) && totals.areaHa > 0) parts.push(`Área: ${fmt.ha(totals.areaHa)} ha`);
+      if (Number.isFinite(totals.lengthKm) && totals.lengthKm > 0) parts.push(`Comprimento: ${fmt.km(totals.lengthKm)} km`);
+      if (Number.isFinite(totals.count)) parts.push(`Itens: ${fmt.int(totals.count)}`);
+      totalEl.textContent = parts.join(' • ') || '—';
+    }
+    const body = L.DomUtil.create('div', 'legend-body', list);
+    if (!items || !items.length) {
+      body.innerHTML = '<div class="empty-state">Nenhum item visível com os filtros atuais.</div>';
     } else {
-      items.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
-    }
-    return { title, unit: 'area', total, items };
-  }
-
-  function buildLineLegend(entry) {
-    const total = entry.filteredMetrics?.lengthKm || 0;
-    const color = styleForFeature(entry.def.key, {}).color || '#4b5563';
-    const items = total > 0 ? [{ label: 'Extensão filtrada', color, length: total }] : [];
-    return { title: entry.def.legendTitle || entry.def.name, unit: 'length', total, items };
-  }
-
-  function buildPointLegend(entry) {
-    const total = entry.filteredMetrics?.count || 0;
-    const color = pointStyleFor(entry.def.key).fillColor;
-    const items = total > 0 ? [{ label: 'Total filtrado', color, count: total }] : [];
-    return { title: entry.def.legendTitle || entry.def.name, unit: 'count', total, items };
-  }
-
-  function buildLegendData(entry) {
-    switch (entry.def.key) {
-      case 'declividade':
-        return buildDeclividadeLegend(entry);
-      case 'altimetria':
-        return buildAreaLegend(entry, altColorFor, entry.def.classStrategy.title, 'numeric');
-      case 'uso_solo':
-        return buildAreaLegend(entry, value => USO_COLORS[value] || USO_FALLBACK_COLORS[value] || '#31a354', entry.def.classStrategy.title);
-      case 'solos':
-        return buildAreaLegend(entry, value => SOIL_COLORS[value] || '#dfc27d', entry.def.classStrategy.title);
-      case 'estradas':
-      case 'hidrografia':
-        return buildLineLegend(entry);
-      case 'nascentes':
-      case 'construcoes':
-      case 'caf':
-        return buildPointLegend(entry);
-      default:
-        return null;
-    }
-  }
-
-  function renderLegend(key, data) {
-    if (!legendContainer) return;
-    if (!data) {
-      removeLegend(key);
-      return;
-    }
-    const hasContent = (data.items && data.items.length) || (data.total && data.total > 0);
-    if (!hasContent) {
-      removeLegend(key);
-      return;
-    }
-    let node = legendElements.get(key);
-    if (!node) {
-      node = document.createElement('div');
-      node.className = 'legend';
-      node.dataset.legendKey = key;
-      legendContainer.appendChild(node);
-      legendElements.set(key, node);
-    }
-
-@@ -903,469 +948,482 @@
-        textWrap.appendChild(labelEl);
-
-        const metricEl = document.createElement('div');
-        metricEl.className = 'legend-metric';
-        if (data.unit === 'length') {
-          metricEl.textContent = `${fmt.km(item.length)} km`;
-        } else if (data.unit === 'count') {
-          metricEl.textContent = `${fmt.int(item.count)} registros`;
-        } else {
-          metricEl.textContent = `${fmt.ha(item.area)} ha (${fmt.pct(item.pct)}%)`;
+      items.forEach(item => {
+        const row = L.DomUtil.create('div', 'legend-item', body);
+        const sw = L.DomUtil.create('div', 'sw', row);
+        sw.style.background = item.color;
+        if (item.stroke) {
+          sw.style.borderColor = item.stroke;
+          sw.style.borderWidth = '2px';
         }
-        textWrap.appendChild(metricEl);
-
-        row.appendChild(textWrap);
-        listEl.appendChild(row);
+        const text = L.DomUtil.create('div', 'legend-text', row);
+        const label = L.DomUtil.create('div', 'legend-label', text);
+        label.textContent = item.label;
+        if (item.metric) {
+          const metric = L.DomUtil.create('div', 'legend-metric', text);
+          metric.textContent = item.metric;
+        }
       });
-      node.appendChild(listEl);
-    } else {
-      const note = document.createElement('div');
-      note.className = 'legend-note';
-      note.textContent = 'Nenhum dado para o filtro atual.';
-      node.appendChild(note);
     }
-  }
-
-  function removeLegend(key) {
-    const node = legendElements.get(key);
-    if (!node || !legendContainer) return;
-    if (legendContainer.contains(node)) legendContainer.removeChild(node);
-    legendElements.delete(key);
+    if (note) {
+      const noteEl = L.DomUtil.create('div', 'legend-note', list);
+      noteEl.textContent = note;
+    }
+    return list;
   }
 
   function updateLegendForEntry(entry) {
-    if (!map.hasLayer(entry.layerGroup)) {
-      removeLegend(entry.def.key);
+    removeLegend(entry.def.key);
+    const { def } = entry;
+    if (def.legend) {
+      const list = def.legend(entry);
+      if (list) appendLegend(entry.def.key, list);
       return;
     }
-    const data = buildLegendData(entry);
-    renderLegend(entry.def.key, data);
+    const items = [];
+    const { filteredMetrics } = entry;
+    if (def.key === 'declividade') {
+      const counts = new Map();
+      entry.filteredFeatures.forEach(feature => {
+        const value = entry.classExtractor ? entry.classExtractor(feature) : '';
+        counts.set(value, (counts.get(value) || 0) + 1);
+      });
+      SLOPE_CLASSES.forEach((cls, idx) => {
+        const label = SLOPE_LABELS[idx];
+        const count = counts.get(cls) || 0;
+        items.push({
+          color: SLOPE_COLORS[idx],
+          label,
+          metric: `${fmt.int(count)} microbacias`
+        });
+      });
+      appendLegend(
+        def.key,
+        createLegendList(
+          'Declividade predominante',
+          items,
+          { count: entry.filteredFeatures.length },
+          'Valores calculados a partir das microbacias selecionadas.'
+        )
+      );
+      return;
+    }
+    if (def.key === 'altimetria') {
+      const counts = new Map();
+      entry.filteredFeatures.forEach(feature => {
+        const props = feature?.properties || {};
+        const value = props.ALT_CLASS || props.Alt_Class || props.alt_class || props.alt_classif || '';
+        const color = altColorFor(value);
+        const key = `${value}|${color}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      items.push(
+        ...Array.from(counts.entries()).map(([key, count]) => {
+          const [value, color] = key.split('|');
+          const match = String(value).match(/(\d+).+?(\d+)/);
+          const label = match ? `${match[1]}–${match[2]} m` : value || 'Sem informação';
+          return {
+            color,
+            label,
+            metric: `${fmt.int(count)} áreas`
+          };
+        })
+      );
+      items.sort((a, b) => normaliseText(a.label).localeCompare(normaliseText(b.label), 'pt-BR'));
+      appendLegend(
+        def.key,
+        createLegendList(
+          'Altimetria',
+          items,
+          { count: entry.filteredFeatures.length },
+          'Classes derivadas da combinação das altitudes mínima e máxima.'
+        )
+      );
+      return;
+    }
+    if (def.key === 'uso_solo') {
+      const counts = new Map();
+      entry.filteredFeatures.forEach(feature => {
+        const props = feature?.properties || {};
+        const value = props.Classe || props.classe || props.Class || props.CLASS || 'Sem informação';
+        counts.set(value, (counts.get(value) || 0) + 1);
+      });
+      counts.forEach((count, label) => {
+        items.push({
+          color: usoColorFor(label),
+          label,
+          metric: `${fmt.int(count)} áreas`
+        });
+      });
+      items.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+      appendLegend(
+        def.key,
+        createLegendList(
+          'Uso do solo',
+          items,
+          { count: entry.filteredFeatures.length },
+          'Classes resultantes da interpretação das imagens.'
+        )
+      );
+      return;
+    }
+    appendLegend(def.key, createLegendList(def.name, items, filteredMetrics));
+  }
+
+  function appendLegend(key, element) {
+    const dock = legendControl.getContainer();
+    if (!dock) return;
+    element.dataset.key = key;
+    dock.appendChild(element);
+  }
+
+  function removeLegend(key) {
+    const dock = legendControl.getContainer();
+    if (!dock) return;
+    Array.from(dock.children).forEach(child => {
+      if (child.dataset.key === key) dock.removeChild(child);
+    });
   }
 
   function updateLegendsForVisible() {
@@ -950,316 +697,108 @@
   }
 
   function updateSummary() {
-    if (!summaryBody) return;
-    summaryBody.innerHTML = '';
-    LAYERS.forEach(def => {
-      const entry = datasetStore.get(def.key);
-      const row = document.createElement('tr');
-
-      const nameCell = document.createElement('td');
-      nameCell.textContent = def.name;
-      row.appendChild(nameCell);
-
-      const areaCell = document.createElement('td');
-      const lengthCell = document.createElement('td');
-      const countCell = document.createElement('td');
-
-      if (!entry || !entry.features) {
-        areaCell.textContent = def.type === 'poly' ? '—' : '—';
-        lengthCell.textContent = def.type === 'line' ? '—' : '—';
-        countCell.textContent = def.type === 'point' ? '—' : '—';
-        [areaCell, lengthCell, countCell].forEach(cell => {
-          cell.classList.add('muted-cell');
-          cell.title = 'Ative a camada para carregar os dados';
-        });
-      } else {
-        [areaCell, lengthCell, countCell].forEach(cell => {
-          cell.classList.remove('muted-cell');
-          cell.removeAttribute('title');
-        });
-        const metrics = entry.filteredMetrics || entry.totals || { areaHa: 0, lengthKm: 0, count: 0 };
-        areaCell.textContent = def.type === 'poly' ? fmt.ha(metrics.areaHa) : '—';
-        lengthCell.textContent = def.type === 'line' ? fmt.km(metrics.lengthKm) : '—';
-        countCell.textContent = def.type === 'point' ? fmt.int(metrics.count) : '—';
-      }
-
-      row.appendChild(areaCell);
-      row.appendChild(lengthCell);
-      row.appendChild(countCell);
-      summaryBody.appendChild(row);
-    });
-
-    if (!summaryNote) return;
-    if (!microState.records.length) {
-      summaryNote.textContent = 'Microbacias não disponíveis para filtragem.';
-    } else if (!microState.applied) {
-      summaryNote.textContent = 'Sem filtro de microbacias — totais gerais.';
-    } else if (microState.applied.size === 0) {
-      summaryNote.textContent = 'Filtro aplicado sem microbacias — nenhuma feição exibida.';
-    } else if (microState.applied.size <= 3) {
-      const labels = [];
-      microState.applied.forEach(code => {
-        const item = microState.records.find(record => record.code === code);
-        labels.push(item?.label || code);
-      });
-      summaryNote.innerHTML = `Filtro ativo: <strong>${labels.join(', ')}</strong>`;
-    } else {
-      summaryNote.innerHTML = `Filtro ativo: <strong>${microState.applied.size}</strong> microbacias`;
-    }
-  }
-
-  function sameSelection(a, b) {
-    if (!a && !b) return true;
-    if (!a || !b) return false;
-    if (a.size !== b.size) return false;
-    for (const value of a) {
-      if (!b.has(value)) return false;
-    }
-    return true;
-  }
-
-  function normaliseSelection(set) {
-    if (!set) return null;
-    if (set.size === 0) return new Set();
-    if (set.size === microState.total) return null;
-    return new Set(set);
-  }
-
-  function filterMicroRecords() {
-    const origin = microState.elements.origin?.value || '';
-    const region = microState.elements.region?.value || '';
-    const municipality = microState.elements.municipality?.value || '';
-    const query = microState.elements.search?.value || '';
-    const normalizedQuery = query ? normaliseText(query) : '';
-    return microState.records.filter(item => {
-      if (origin && item.origin !== origin) return false;
-      if (region && !item.regionals.includes(region)) return false;
-      if (municipality && !item.municipalities.includes(municipality)) return false;
-      if (normalizedQuery && !item.searchText.includes(normalizedQuery)) return false;
-      return true;
-    });
-  }
-
-  function updateMicroSummary() {
-    const summaryEl = microState.elements.summary;
-    const pendingEl = microState.elements.pending;
-    const countEl = microState.elements.count;
-    const normalized = normaliseSelection(microState.selected);
-    const pending = !sameSelection(normalized, microState.applied);
-
-    if (summaryEl) {
-      summaryEl.classList.remove('filtered', 'none');
-      if (!microState.applied) {
-        summaryEl.textContent = 'Todas as microbacias ativas.';
-      } else if (microState.applied.size === 0) {
-        summaryEl.textContent = 'Nenhuma microbacia aplicada.';
-        summaryEl.classList.add('none');
-      } else if (microState.applied.size === 1) {
-        const code = Array.from(microState.applied)[0];
-        const label = microState.records.find(item => item.code === code)?.label || code;
-        summaryEl.innerHTML = `Selecionada: <strong>${label}</strong>`;
-        summaryEl.classList.add('filtered');
-      } else {
-        summaryEl.innerHTML = `<strong>${microState.applied.size}</strong> microbacias selecionadas.`;
-        summaryEl.classList.add('filtered');
-      }
-    }
-
-    if (pendingEl) pendingEl.hidden = !pending;
-    if (countEl) countEl.textContent = `Selecionadas: ${microState.selected.size} de ${microState.total}`;
-  }
-
-  function renderMicroList() {
-    const listEl = microState.elements.list;
-    if (!listEl) return;
-    const filtered = filterMicroRecords();
-    microState.filtered = filtered;
-    listEl.innerHTML = '';
-
-    if (!filtered.length) {
-      const empty = document.createElement('div');
-      empty.className = 'empty-state';
-      empty.textContent = 'Nenhuma microbacia encontrada para os filtros selecionados.';
-      listEl.appendChild(empty);
-      updateMicroSummary();
-      return;
-    }
-
-    const fragment = document.createDocumentFragment();
-    filtered.forEach(item => {
-      const row = document.createElement('label');
-      row.className = 'option-item';
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = item.code;
-      checkbox.checked = microState.selected.has(item.code);
-      checkbox.addEventListener('change', event => {
-        if (event.target.checked) microState.selected.add(item.code);
-        else microState.selected.delete(item.code);
-        updateMicroSummary();
-      });
-      row.appendChild(checkbox);
-
-      const textWrap = document.createElement('div');
-      textWrap.className = 'option-text';
-
-      const labelEl = document.createElement('div');
-      labelEl.className = 'option-label';
-      labelEl.textContent = item.label;
-      textWrap.appendChild(labelEl);
-
-      const meta = document.createElement('div');
-      meta.className = 'option-meta';
-      const parts = [];
-      if (item.origin) parts.push(item.origin);
-      if (item.regionals.length) parts.push(item.regionals.join(', '));
-      if (item.municipalities.length) {
-        if (item.municipalities.length <= 2) parts.push(item.municipalities.join(', '));
-        else parts.push(`${item.municipalities.slice(0, 2).join(', ')} +${item.municipalities.length - 2}`);
-      }
-      meta.textContent = parts.join(' • ');
-      textWrap.appendChild(meta);
-
-      row.appendChild(textWrap);
-      fragment.appendChild(row);
-    });
-
-    listEl.appendChild(fragment);
-    updateMicroSummary();
-  }
-
-  function populateSelect(selectEl, values, placeholder) {
-    if (!selectEl) return;
-    selectEl.innerHTML = '';
-    const option = document.createElement('option');
-    option.value = '';
-    option.textContent = placeholder;
-    selectEl.appendChild(option);
-    values.forEach(value => {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = value;
-      selectEl.appendChild(opt);
-    });
-  }
-
-  function setupMicroFilterUI() {
-    const container = microState.container;
+    const container = summaryControl.getContainer();
     if (!container) return;
+    const totals = { areaHa: 0, lengthKm: 0, count: 0 };
+    datasetStore.forEach(entry => {
+      if (!map.hasLayer(entry.layerGroup)) return;
+      totals.areaHa += entry.filteredMetrics.areaHa;
+      totals.lengthKm += entry.filteredMetrics.lengthKm;
+      totals.count += entry.filteredMetrics.count;
+    });
+    const rows = [
+      ['Área (ha)', fmt.ha(totals.areaHa)],
+      ['Comprimento (km)', fmt.km(totals.lengthKm)],
+      ['Itens', fmt.int(totals.count)]
+    ]
+      .map(([label, value]) => `<tr><td class="muted-cell">${label}</td><td>${value}</td></tr>`)
+      .join('');
+    container.innerHTML = `<h3>Visão geral</h3><div class="summary-note">Resultados considerando as camadas ativas e os filtros aplicados.</div><table class="summary-table"><tbody>${rows}</tbody></table>`;
+  }
 
-    if (!microState.records.length) {
-      container.innerHTML = '<h3>Microbacias</h3><div class="micro-summary">Nenhuma microbacia disponível para filtragem.</div>';
-      return;
+  const fetchTimeouts = new Map();
+
+  async function fetchWithTimeout(url, options = {}) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), options.timeout || 30000);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      if (!response.ok) throw new Error(`Falha ao carregar ${url}: ${response.status} ${response.statusText}`);
+      return response;
+    } finally {
+      clearTimeout(id);
     }
+  }
 
-    container.innerHTML = `
-      <h3>Microbacias</h3>
-      <div class="micro-summary" id="mf-summary">Todas as microbacias ativas.</div>
-      <div class="micro-pending" id="mf-pending" hidden>Aplicar seleção para atualizar o mapa.</div>
-      <label for="mf-origin">Origem</label>
-      <select id="mf-origin"></select>
-      <label for="mf-region">Regional IDR</label>
-      <select id="mf-region"></select>
-      <label for="mf-municipio">Município</label>
-      <select id="mf-municipio"></select>
-      <label for="mf-search">Pesquisar</label>
-      <input id="mf-search" type="search" placeholder="Buscar microbacia ou código" />
-      <div class="control-row">
-        <button id="mf-select-all" class="btn-sm" type="button">Marcar todos</button>
-        <button id="mf-select-none" class="btn-sm" type="button">Limpar</button>
-        <button id="mf-reset" class="btn-sm" type="button">Redefinir</button>
-        <button id="mf-apply" class="btn-sm primary" type="button">Aplicar</button>
-      </div>
-      <div class="micro-count" id="mf-count"></div>
-      <div id="mf-list" class="option-list"></div>
-    `;
-
-    microState.elements.summary = container.querySelector('#mf-summary');
-    microState.elements.pending = container.querySelector('#mf-pending');
-    microState.elements.origin = container.querySelector('#mf-origin');
-    microState.elements.region = container.querySelector('#mf-region');
-    microState.elements.municipality = container.querySelector('#mf-municipio');
-    microState.elements.search = container.querySelector('#mf-search');
-    microState.elements.list = container.querySelector('#mf-list');
-    microState.elements.count = container.querySelector('#mf-count');
-    microState.elements.selectAll = container.querySelector('#mf-select-all');
-    microState.elements.selectNone = container.querySelector('#mf-select-none');
-    microState.elements.reset = container.querySelector('#mf-reset');
-    microState.elements.apply = container.querySelector('#mf-apply');
-
-    const origins = Array.from(new Set(microState.records.map(item => item.origin).filter(Boolean))).sort((a, b) =>
-      a.localeCompare(b, 'pt-BR')
-    );
-    const regions = Array.from(new Set(microState.records.flatMap(item => item.regionals))).sort((a, b) =>
-      a.localeCompare(b, 'pt-BR')
-    );
-    const municipalities = Array.from(new Set(microState.records.flatMap(item => item.municipalities))).sort((a, b) =>
-      a.localeCompare(b, 'pt-BR')
-    );
-
-    populateSelect(microState.elements.origin, origins, '(todas)');
-    populateSelect(microState.elements.region, regions, '(todas)');
-    populateSelect(microState.elements.municipality, municipalities, '(todos)');
-
-    const rerender = () => renderMicroList();
-
-    microState.elements.origin?.addEventListener('change', rerender);
-    microState.elements.region?.addEventListener('change', rerender);
-    microState.elements.municipality?.addEventListener('change', rerender);
-    microState.elements.search?.addEventListener('input', () => {
-      window.clearTimeout(microState.searchTimer);
-      microState.searchTimer = window.setTimeout(rerender, 120);
-    });
-
-    microState.elements.selectAll?.addEventListener('click', () => {
-      const filtered = microState.filtered.length ? microState.filtered : filterMicroRecords();
-      filtered.forEach(item => microState.selected.add(item.code));
-      renderMicroList();
-    });
-
-    microState.elements.selectNone?.addEventListener('click', () => {
-      const filtered = microState.filtered.length ? microState.filtered : filterMicroRecords();
-      filtered.forEach(item => microState.selected.delete(item.code));
-      renderMicroList();
-    });
-
-    microState.elements.reset?.addEventListener('click', () => {
-      if (microState.elements.origin) microState.elements.origin.value = '';
-      if (microState.elements.region) microState.elements.region.value = '';
-      if (microState.elements.municipality) microState.elements.municipality.value = '';
-      if (microState.elements.search) microState.elements.search.value = '';
-      microState.selected = new Set(microState.records.map(item => item.code));
-      microState.applied = null;
-      applySelection(null);
-      renderMicroList();
-    });
-
-    microState.elements.apply?.addEventListener('click', () => {
-      const normalized = normaliseSelection(microState.selected);
-      if (sameSelection(normalized, microState.applied)) {
-        updateMicroSummary();
-        return;
+  async function loadDataset(entry) {
+    if (!entry || entry.loading) return entry?.loading;
+    const url = new URL(entry.def.path, DATA_BASE_URL);
+    const cacheKey = url.href;
+    if (fetchCache.has(cacheKey)) {
+      entry.loading = fetchCache.get(cacheKey);
+      return entry.loading;
+    }
+    const promise = (async () => {
+      const response = await fetchWithTimeout(url, { timeout: 60000 });
+      const buffer = await response.arrayBuffer();
+      let data;
+      if (entry.def.compressed) {
+        data = JSON.parse(new TextDecoder().decode(pako.inflate(new Uint8Array(buffer))));
+      } else {
+        data = JSON.parse(new TextDecoder().decode(buffer));
       }
-      microState.applied = normalized ? new Set(normalized) : null;
-      applySelection(microState.applied);
-      renderMicroList();
+      entry.features = data.features || [];
+      if (!entry.layer) {
+        if (entry.def.pointToLayer) {
+          entry.layer = L.geoJSON(undefined, { pointToLayer: (feature, latlng) => entry.def.pointToLayer(feature, latlng, entry) });
+        } else {
+          entry.layer = L.geoJSON(undefined, {
+            style: feature => (entry.def.style ? entry.def.style(feature, entry) : styleForFeature(entry.def.key, feature)),
+            onEachFeature: (feature, layer) => {
+              if (!feature?.properties) return;
+              const fields = entry.def.popupFields ? entry.def.popupFields(feature.properties) : derivePopupFields(feature.properties);
+              const rows = fields
+                .map(field => {
+                  const value = field.formatter ? field.formatter(feature.properties[field.key], feature, entry) : feature.properties[field.key];
+                  return `<tr><th>${field.label}</th><td>${value == null || value === '' ? '—' : value}</td></tr>`;
+                })
+                .join('');
+              layer.bindPopup(
+                `<div class="popup"><div class="popup-title">${feature.properties.nome || feature.properties.Nome || 'Detalhes'}</div><table class="popup-table">${rows}</table></div>`
+              );
+            }
+          });
+        }
+      }
+      entry.layerGroup.addLayer(entry.layer);
+      entry.layerGroup.datasetKey = entry.def.key;
+      applyFilterToEntry(entry, currentSelection);
+      if (entry.def.setup) entry.def.setup(entry);
+      return entry;
+    })();
+    entry.loading = promise;
+    fetchCache.set(cacheKey, promise);
+    entry.loading.finally(() => {
+      fetchCache.delete(cacheKey);
+      entry.loading = null;
     });
+    return promise;
+  }
 
-    renderMicroList();
+  async function ensureLayerReady(entry) {
+    if (!entry) return;
+    if (!entry.features) await loadDataset(entry);
+    if (entry.layer && entry.layer.getLayers().length === 0 && entry.features?.length) {
+      applyFilterToEntry(entry, currentSelection);
+    }
   }
 
   function buildMicroRecords(microEntry, cafEntry) {
-    if (!microEntry?.features?.length) {
-      microState.records = [];
-      microState.selected = new Set();
-      microState.applied = null;
-      microState.total = 0;
-      return;
-    }
-
+    if (!microEntry?.features?.length) return;
     const sample = microEntry.features.find(f => f?.properties)?.properties || {};
-    const codeField = microEntry.codeField || findField(sample, CODE_FIELD_CANDIDATES) || 'Cod_man';
+    const codeField = findField(sample, CODE_FIELD_CANDIDATES) || 'cod_micro';
+    microEntry.codeField = codeField;
+
     const originField = findField(sample, ORIGIN_FIELD_CANDIDATES);
     const manancialField = findField(sample, MANANCIAL_FIELD_CANDIDATES);
     const nomeField = findField(sample, NAME_FIELD_CANDIDATES);
