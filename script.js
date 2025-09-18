@@ -20,12 +20,13 @@ L.control.layers(baseMaps, {}, { position: 'topright', collapsed: true }).addTo(
 // Camadas disponíveis (relacione nomes dos arquivos, campos e cores)
 const camadas = [
   { nome: 'baciasselecionadas.geojson_part-001.gz', chave: 'bacias', cor: '#2b8a3e' },
-  { nome: 'altimetria.geojson_part-001.gz', chave: 'altimetria', cor: '#5e81ac', classe: 'ClAlt', area: 'AreaHa', unidade: 'ha' },
-  { nome: 'declividade.geojson_part-001.gz', chave: 'declividade', cor: '#d08770', classe: 'ClDec', area: 'AreaHa', unidade: 'ha' },
-  { nome: 'usodosolo.geojson_part-001.gz', chave: 'usodosolo', cor: '#b48ead', classe: 'NIVEL_II', area: 'Area_ha_1', unidade: 'ha' },
-  { nome: 'solos.geojson_part-001.gz', chave: 'solos', cor: '#ebcb8b', classe: 'Cl_solos', area: null, unidade: 'ha' },
-  { nome: 'construcoes.geojson_part-001.gz', chave: 'construcoes', cor: '#bf616a', classe: null, area: 'area_in_meters', unidade: 'm²' }
+  { nome: 'altimetria__altimetria_otto.geojson_part-001.gz', chave: 'altimetria', cor: '#5e81ac', classe: 'ClAlt', area: 'AreaHa', unidade: 'ha' },
+  { nome: 'declividade__declividade_otto.geojson_part-001.gz', chave: 'declividade', cor: '#d08770', classe: 'ClDec', area: 'AreaHa', unidade: 'ha' },
+  { nome: 'uso_solo__usodosolo_otto.geojson_part-001.gz', chave: 'usodosolo', cor: '#b48ead', classe: 'NIVEL_II', area: 'Area_ha_1', unidade: 'ha' },
+  { nome: 'solos__solos_otto.geojson_part-001.gz', chave: 'solos', cor: '#ebcb8b', classe: 'Cl_solos', area: null, unidade: 'ha' },
+  { nome: 'construcoes__construcoes_otto.geojson_part-001.gz', chave: 'construcoes', cor: '#bf616a', classe: null, area: 'area_in_meters', unidade: 'm²' }
 ];
+
 
 const layers = {};
 const allFeatures = {};
