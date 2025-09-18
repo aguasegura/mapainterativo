@@ -5,25 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Água Segura — filtros dinâmicos</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script>
-    (function ensureBaseHref() {
-      try {
-        const url = new URL(document.currentScript?.src || window.location.href, window.location.href);
-        const base = new URL('./', url.href);
-        const baseEl = document.createElement('base');
-        baseEl.href = base.href;
-        document.head.appendChild(baseEl);
-        window.__APP_BASE_URL__ = base.href;
-      } catch (error) {
-        console.error('Não foi possível definir a base dos assets.', error);
-      }
-    })();
-  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <button id="fitAll" class="btn" type="button">Ajustar visão</button>
+    <button id="fitAll" class="btn">Ajustar visão</button>
     <div class="slider-row">
       <span class="muted">Opacidade</span>
       <input id="opacity" type="range" min="20" max="100" value="70" />
@@ -31,7 +17,28 @@
     </div>
     <span class="version">v32 — microbacias filtradas + legendas dinâmicas</span>
   </header>
+
   <div id="map"></div>
+
+  <!-- Filtro lateral -->
+  <div class="leaflet-control micro-filter leaflet-bar">
+    <div class="micro-header">
+      <h2>Filtro por Cod_man</h2>
+    </div>
+    <input type="text" placeholder="Buscar..." class="micro-search" id="searchBox" />
+    <div class="micro-actions">
+      <div class="micro-buttons" id="filterButtons"></div>
+    </div>
+    <div class="micro-list" id="filteredList"></div>
+  </div>
+
+  <!-- Legenda -->
+  <div class="legend-dock" id="legendDock">
+    <div class="legend-block">
+      <h4>Legenda</h4>
+      <ul class="legend-list" id="legendList"></ul>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
