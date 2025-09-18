@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Água Segura — filtros dinâmicos</title>
+  <title>Água Segura — Filtros Dinâmicos</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -15,24 +15,27 @@
       <input id="opacity" type="range" min="20" max="100" value="70" />
       <span id="opacityVal" class="muted">70%</span>
     </div>
-    <span class="version">v32 — microbacias filtradas + legendas dinâmicas</span>
+    <span class="version">v1.0 — filtros por bacia</span>
   </header>
 
   <div id="map"></div>
 
-  <!-- Filtro lateral -->
   <div class="leaflet-control micro-filter leaflet-bar">
     <div class="micro-header">
-      <h2>Filtro por Cod_man</h2>
+      <h2>Filtro por Bacias</h2>
     </div>
-    <input type="text" placeholder="Buscar..." class="micro-search" id="searchBox" />
-    <div class="micro-actions">
-      <div class="micro-buttons" id="filterButtons"></div>
-    </div>
-    <div class="micro-list" id="filteredList"></div>
+    <select id="filtroRegiao" class="micro-search">
+      <option value="">Região IDR</option>
+    </select>
+    <select id="filtroMunicipio" class="micro-search">
+      <option value="">Município</option>
+    </select>
+    <select id="filtroManancial" class="micro-search">
+      <option value="">Manancial</option>
+    </select>
+    <button id="limparFiltros" class="btn">Limpar filtros</button>
   </div>
 
-  <!-- Legenda -->
   <div class="legend-dock" id="legendDock">
     <div class="legend-block">
       <h4>Legenda</h4>
@@ -42,7 +45,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
-  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
   <script src="script.js" defer></script>
 </body>
 </html>
