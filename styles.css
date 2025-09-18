@@ -1,5 +1,5 @@
 :root {
-  --topbar-height: 52px;
+  --topbar-height: 60px;
   --panel-width: 360px;
   --font-family: 'Inter', 'Segoe UI', sans-serif;
   --border: #e5e7eb;
@@ -27,16 +27,29 @@ html, body {
 
 .topbar {
   position: fixed;
-  inset: 0 0 auto 0;
+  top: 0;
+  left: 0;
+  right:0;
   height: var(--topbar-height);
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 1rem;
   padding: 0 1.25rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.14);
   z-index: 1000;
+}
+
+.header-logos {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo-small {
+  height: 40px;
+  width: auto;
 }
 
 .btn {
@@ -65,10 +78,9 @@ html, body {
   color: var(--muted);
 }
 
-/* Painel lateral */
 .leaflet-control.micro-filter {
   position: absolute;
-  top: 60px;
+  top: calc(var(--topbar-height) + 10px);
   left: 10px;
   z-index: 1001;
   background: #fff;
@@ -96,9 +108,9 @@ html, body {
 .micro-list {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fdfdfd;
+  background: #fafafa;
   padding: 0.5rem;
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
   font-size: 0.85rem;
 }
@@ -115,7 +127,6 @@ html, body {
   accent-color: #2563eb;
 }
 
-/* Legenda */
 .legend-dock {
   position: absolute;
   right: 10px;
@@ -124,7 +135,7 @@ html, body {
   border-radius: 16px;
   border: 1px solid var(--border);
   padding: 1rem;
-  max-width: 300px;
+  max-width: 320px;
   max-height: 50vh;
   overflow-y: auto;
   font-size: 0.85rem;
