@@ -51,9 +51,9 @@ function ativarCamada(meta) {
     allFeatures[meta.chave] = geo.features;
 
     const camada = L.geoJSON(geo, {
-      style: { color: meta.cor, weight: 2, opacity: 0.7 },
-      onEachFeature: (f, lyr) => {
-        lyr.bindPopup(`<strong>${meta.chave}</strong><br>Cod_man: ${f.properties?.Cod_man ?? 'N/A'}`);
+     style: { color: meta.cor, weight: 2, opacity: 0.7 },
+     onEachFeature: (f, lyr) => {
+       lyr.bindPopup(`<strong>${meta.chave}</strong><br>Cod_man: ${f.properties?.Cod_man ?? 'N/A'}`);
       }
     });
 
