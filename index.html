@@ -1,36 +1,56 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Água Segura — microbacias filtradas</title>
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha512-sA+e2at1E3NvNtKla0dsKrR6NWZdB9UjC2G6sS22w6C8X1sC3yRyvCb4s46HoPazTAp3f1DG+7O6XQm5QpG8Ug=="
-      crossorigin=""
-    />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <header class="topbar">
-      <button id="fitAll" class="btn" type="button">Ajustar visão</button>
-      <div class="slider-row">
-        <label class="muted" for="opacity">Opacidade</label>
-        <input id="opacity" type="range" min="30" max="100" value="70" />
-        <span id="opacityVal" class="muted">70%</span>
-      </div>
-      <span class="version">v41 — filtros otimizados e legendas dinâmicas</span>
-    </header>
-    <div id="map" role="presentation"></div>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Água Segura — Camadas e Filtros</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button id="fitAll" class="btn">Ajustar visão</button>
+    <div class="slider-row">
+      <span class="muted">Opacidade</span>
+      <input id="opacity" type="range" min="20" max="100" value="70" />
+      <span id="opacityVal" class="muted">70%</span>
+    </div>
+    <span class="version">v2.0 — múltiplas camadas e legendas</span>
+  </header>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha512-VjB6zG8FN2+T8nS9KuX3sI5OGucs5cjox96D65V6pZeRAEIJ5zsxFrqOe5zjuGc4xXHzkwmo7aXqe4n+s+AAQ=="
-      crossorigin=""
-    ></script>
-    <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
-    <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-    <script src="./script.js" defer></script>
-  </body>
+  <div id="map"></div>
+
+  <!-- Painel lateral: filtros -->
+  <div class="leaflet-control micro-filter leaflet-bar">
+    <div class="micro-header">
+      <h2>Filtrar Bacias</h2>
+    </div>
+    <select id="filtroRegiao" class="micro-search">
+      <option value="">Região IDR</option>
+    </select>
+    <select id="filtroMunicipio" class="micro-search">
+      <option value="">Município</option>
+    </select>
+    <select id="filtroManancial" class="micro-search">
+      <option value="">Manancial</option>
+    </select>
+    <button id="limparFiltros" class="btn">Limpar filtros</button>
+    <hr />
+    <h3>Camadas Disponíveis</h3>
+    <div id="layerList" class="micro-list"></div>
+  </div>
+
+  <!-- Legenda dinâmica -->
+  <div class="legend-dock" id="legendDock">
+    <div class="legend-block">
+      <h4>Legenda</h4>
+      <ul class="legend-list" id="legendList"></ul>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="script.js" defer></script>
+</body>
 </html>
