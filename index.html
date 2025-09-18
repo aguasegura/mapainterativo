@@ -3,20 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Água Segura — classes, filtros e legendas dinâmicas</title>
+  <title>Água Segura — filtros dinâmicos</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script>
+    (function ensureBaseHref() {
+      try {
+        const url = new URL(document.currentScript?.src || window.location.href, window.location.href);
+        const base = new URL('./', url.href);
+        const baseEl = document.createElement('base');
+        baseEl.href = base.href;
+        document.head.appendChild(baseEl);
+        window.__APP_BASE_URL__ = base.href;
+      } catch (error) {
+        console.error('Não foi possível definir a base dos assets.', error);
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="topbar">
-    <button id="fitAll" class="btn">Ajustar visão</button>
+  <header class="topbar">
+    <button id="fitAll" class="btn" type="button">Ajustar visão</button>
     <div class="slider-row">
       <span class="muted">Opacidade</span>
       <input id="opacity" type="range" min="20" max="100" value="70" />
       <span id="opacityVal" class="muted">70%</span>
     </div>
-    <div class="version">v9 — filtros, legendas e métricas</div>
-  </div>
+    <span class="version">v32 — microbacias filtradas + legendas dinâmicas</span>
+  </header>
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
