@@ -2,7 +2,7 @@
 
 Repositório do **Programa Água Segura** (IDR-Paraná) para organização de dados geoespaciais, notebooks, scripts e produtos cartográficos relacionados a **conservação de solo e água em microbacias**. O repositório integra camadas temáticas (altimetria, declividade, uso do solo, hidrografia, estradas, CAR), análises por **ottobacias**, e fluxos de trabalho de monitoramento com imagens de satélite.
 
-> Parceiros institucionais: **IDR-Paraná, SANEPAR, SEAB, IAT, ADAPAR, Embrapa, IBGE, IPARDES, Itaipu**.
+> Parceiros institucionais: **IDR-Paraná, SANEPAR, ADAPAR, IAT**.
 
 ---
 
