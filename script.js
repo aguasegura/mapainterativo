@@ -996,20 +996,7 @@
         getColor: value => getUsoColor(value)
       }
     },
-    {
-      key: 'conflitos_uso',
-      name: 'Conflitos de Uso',
-      type: 'polygon',
-      files: ['conflitosdeuso__conflitodeuso_otto.geojson_part-001.gz'],
-      codeFields: ['Cod_otto'],
-      legend: {
-        type: 'area-classes',
-        title: 'Conflitos de Uso do Solo',
-        getClass: (_, props) => getUsoClass(props),
-        getColor: value => getUsoColor(value)
-      }
-    },
-    {
+     {
       key: 'solos',
       name: 'Solos',
       type: 'polygon',
