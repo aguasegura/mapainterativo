@@ -922,7 +922,7 @@
       key: 'microbacias',
       name: 'Microbacias',
       type: 'polygon',
-      files: ['baciasselecionadas.geojson_part-001.gz'],
+      files: ['baciasselecionadas.geojson'],
       legend: {
         type: 'area-total',
         title: 'Microbacias',
