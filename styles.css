@@ -289,6 +289,24 @@ body {
   font-size: 0.78rem;
   color: var(--muted);
 }
+.micro-option-area {
+  font-size: 0.76rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.micro-option.active {
+  background: #eef2ff;
+  border-color: #6366f1;
+}
+
+.micro-option.active .micro-option-title {
+  color: #312e81;
+}
+
+.micro-option.active .micro-option-area {
+  color: #4338ca;
+}
 
 .micro-empty {
   padding: 1.25rem 0.5rem;
