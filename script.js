@@ -53,18 +53,76 @@
     'Área Construída': '#7570b3',
     'Área Urbanizada': '#6a51a3'
   };
-
-@@ -101,62 +122,75 @@
+  const DATASET_CONFIG = [
+    {
+      id: 'bacias',
+      name: 'Bacias Selecionadas',
+      files: ['baciasselecionadas.geojson'],
+      geom: 'polygon',
+      defaultVisible: true,
+      classField: 'Classe',
+      autoPalette: true,
+      visualHints: 'Use os filtros para focar em um município ou manancial específico.'
     },
-    { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], metric: 'count' },
-    { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], metric: 'count' },
-    { id: 'bovinos', name: 'Bovinos', files: ['bovinos__bovinos.geojson_part-001.gz'], metric: 'count' },
-    { id: 'bubalinos', name: 'Bubalinos', files: ['bubalinos__bubalinos.geojson_part-001.gz'], metric: 'count' },
-    { id: 'caf', name: 'CAF', files: ['caf.geojson_part-001.gz'], metric: 'count' },
-    { id: 'car', name: 'Cadastro Ambiental Rural (CAR)', files: ['car.geojson_part-001.gz'] },
-    { id: 'conflitodeuso', name: 'Conflitos de Uso', files: ['conflitosdeuso__conflitodeuso.geojson_part-001.gz'] },
-    { id: 'conflitodeuso_otto', name: 'Conflitos de Uso (Otto)', files: ['conflitosdeuso__conflitodeuso_otto.geojson_part-001.gz'] },
-    { id: 'uso_app', name: 'Uso do Solo em APP', files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'] },
+    {
+      id: 'altimetria',
+      name: 'Altimetria',
+      files: ['altimetria__altimetria_otto.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'ClAlt',
+      autoPalette: true,
+      visualHints: 'Caso a leitura fique confusa, combine com o mapa base "ESRI Topográfico" e ajuste a opacidade.'
+    },
+    {
+      id: 'declividade',
+      name: 'Declividade (classes)',
+      files: [
+        'declividade__declividade_otto.geojson_part-001.gz',
+        'declividade__declividade_otto.geojson_part-002.gz'
+      ],
+      geom: 'polygon',
+      classField: 'ClDec',
+      palette: SLOPE_PALETTE,
+      visualHints: 'Camada detalhada; reduza a opacidade ou utilize a alternativa de altimetria para visão geral.'
+    },
+    {
+      id: 'solos',
+      name: 'Solos',
+      files: ['solos__solos_otto.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'Cl_solos',
+      autoPalette: true
+    },
+    {
+      id: 'uso_solo',
+      name: 'Uso do Solo',
+      files: [
+        'uso_solo__usodosolo_otto.geojson_part-001.gz',
+        'uso_solo__usodosolo_otto.geojson_part-002.gz',
+        'uso_solo__usodosolo_otto.geojson_part-003.gz',
+        'uso_solo__usodosolo_otto.geojson_part-004.gz'
+      ],
+      geom: 'polygon',
+      classField: 'NIVEL_III',
+      palette: USO_COLORS,
+      visualHints: 'Para áreas extensas utilize esta camada em conjunto com "Bacias Selecionadas" para destacar prioridades.'
+    },
+    {
+      id: 'uso_app',
+      name: 'Uso do Solo em APP',
+      files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'Classe',
+      autoPalette: true,
+      visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
+    },
+    {
+      id: 'car',
+      name: 'Cadastro Ambiental Rural (CAR)',
+      files: ['car.geojson_part-001.gz'],
+      geom: 'polygon',
+      visualHints: 'Camada com geometrias complexas; aproxime para evitar sobreposições excessivas.'
+    },
     {
       id: 'construcoes',
       name: 'Construções',
@@ -72,11 +130,51 @@
         'construcoes__construcoes_otto.geojson_part-001.gz',
         'construcoes__construcoes_otto.geojson_part-002.gz',
         'construcoes__construcoes_otto.geojson_part-003.gz'
-      ]
+      ],
+      geom: 'polygon',
+      minZoom: 12,
+      visualHints: 'Muito densa. Aproxime (zoom ≥ 12) ou utilize "Uso do Solo" como alternativa para visão macro.'
     },
-    { id: 'educacao', name: 'Educação Ambiental', files: ['educacao__educacao_otto.geojson_part-001.gz'], metric: 'count' },
-    { id: 'sigarh', name: 'SIGARH', files: ['sigarh.geojson_part-001.gz'], metric: 'count' },
-    { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], metric: 'count' }
+    {
+      id: 'curvasdenivel',
+      name: 'Curvas de Nível',
+      files: [
+        'curvasdenivel__curvas_otto.geojson_part-001.gz',
+        'curvasdenivel__curvas_otto.geojson_part-002.gz',
+        'curvasdenivel__curvas_otto.geojson_part-003.gz',
+        'curvasdenivel__curvas_otto.geojson_part-004.gz'
+      ],
+      geom: 'line',
+      metric: 'length',
+      visualHints: 'Para melhor contraste utilize o mapa base "ESRI Topográfico".'
+    },
+    {
+      id: 'hidrografia',
+      name: 'Hidrografia',
+      files: ['hidrografia__hidrografia_otto.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      classField: 'Regime',
+      autoPalette: true,
+      visualHints: 'Combine com "Nascentes" ou "Uso do Solo em APP" para identificar áreas críticas.'
+    },
+    {
+      id: 'estradas',
+      name: 'Infraestrutura Viária',
+      files: ['estradas__estradas_otto.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      classField: 'fclass',
+      autoPalette: true
+    },
+    { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'bovinos', name: 'Bovinos', files: ['bovinos__bovinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'bubalinos', name: 'Bubalinos', files: ['bubalinos__bubalinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'caf', name: 'CAF', files: ['caf.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'educacao', name: 'Educação Ambiental', files: ['educacao__educacao_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'sigarh', name: 'SIGARH', files: ['sigarh.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' }
   ];
 
   const state = {
@@ -87,6 +185,7 @@
     layerStore: new Map(),
     orderedEntries: [],
     legendEl: null,
+    hintsEl: null,
     filter: {
       region: selectedRegion,
       municipality: '',
@@ -120,17 +219,74 @@
 
   async function loadGeoJSON(input) {
     const files = Array.isArray(input) ? input : [input];
-    const collections = [];
-    for (const file of files) {
-      const url = `data/${file}`;
-      collections.push(await fetchGeoJSON(url));
+    if (!files.length) {
+      return { type: 'FeatureCollection', features: [] };
     }
+
+    const collections = await Promise.all(
+      files.map(async file => {
+        const url = `data/${file}`;
+        return fetchGeoJSON(url);
+      })
+    );
+
     if (collections.length === 1) {
       return collections[0];
     }
+
     const merged = { ...collections[0], features: [] };
-    for (const fc of collections) {
-@@ -202,404 +236,476 @@
+    merged.features = collections.flatMap(fc => (Array.isArray(fc.features) ? fc.features : []));
+    return merged;
+  }
+
+  function geometryTypeFromFeature(feature) {
+    if (!feature) return null;
+    const geometry = feature.geometry;
+    if (!geometry) return null;
+    if (geometry.type === 'GeometryCollection') {
+      for (const inner of geometry.geometries || []) {
+        const resolved = geometryTypeFromFeature({ geometry: inner });
+        if (resolved) return resolved;
+      }
+      return null;
+    }
+    return geometry.type || null;
+  }
+
+  function inferGeometryKind(collection) {
+    const features = collection?.features;
+    if (!Array.isArray(features) || !features.length) {
+      return 'polygon';
+    }
+    for (const feature of features) {
+      const type = geometryTypeFromFeature(feature);
+      if (!type) continue;
+      if (type.includes('Polygon')) return 'polygon';
+      if (type.includes('Line')) return 'line';
+      if (type.includes('Point')) return 'point';
+    }
+    return 'polygon';
+  }
+
+  function metricFromGeometry(kind) {
+    if (kind === 'line') return 'length';
+    if (kind === 'point') return 'count';
+    return 'area';
+  }
+
+  function hasFilterAttributes(feature) {
+    if (!feature || !feature.properties) return false;
+    const props = feature.properties;
+    return (
+      FILTER_FIELDS.region in props ||
+      FILTER_FIELDS.municipality in props ||
+      FILTER_FIELDS.manancial in props
+    );
+  }
+
+  function normalizePalette(palette) {
+    if (!palette) return null;
+    const normalized = {};
     Object.entries(palette).forEach(([key, value]) => {
       if (!value) return;
       const trimmed = typeof key === 'string' ? key.trim() : key;
@@ -199,6 +355,43 @@
     });
   }
 
+  function shouldRenderEntry(entry) {
+    if (!entry || !entry.layer) return false;
+    if (!state.map) return true;
+    if (entry.minZoom !== undefined) {
+      return state.map.getZoom() >= entry.minZoom;
+    }
+    return true;
+  }
+
+  function syncEntryLayer(entry, { force = false } = {}) {
+    if (!entry || !entry.layer) return;
+    const canRender = shouldRenderEntry(entry);
+    if (!canRender) {
+      if (entry.zoomVisible || force) {
+        entry.layer.clearLayers();
+        entry.zoomVisible = false;
+      }
+      return;
+    }
+
+    if (!entry.zoomVisible || force) {
+      entry.layer.clearLayers();
+      if (entry.currentFeatures && entry.currentFeatures.length) {
+        entry.layer.addData({ type: 'FeatureCollection', features: entry.currentFeatures });
+      }
+      entry.zoomVisible = true;
+    }
+  }
+
+  function enforceZoomVisibility() {
+    state.orderedEntries.forEach(entry => {
+      if (!entry.loaded || entry.minZoom === undefined) return;
+      syncEntryLayer(entry);
+    });
+    refreshLayerStyles();
+  }
+
   function formatNumber(value, digits = 2) {
     return new Intl.NumberFormat('pt-BR', {
       minimumFractionDigits: digits,
@@ -222,6 +415,12 @@
     state.orderedEntries.forEach(entry => {
       const layer = entry.layer;
       if (!layer || !entry.loaded || !state.map.hasLayer(layer)) return;
+      if (!shouldRenderEntry(entry)) {
+        if (entry.minZoom !== undefined) {
+          rows.push(`<div><b>${entry.name}</b>: Aproxime (zoom ≥ ${entry.minZoom})</div>`);
+        }
+        return;
+      }
       const features = entry.currentFeatures || [];
       if (!features.length) return;
       let total = 0;
@@ -247,6 +446,27 @@
       rows.push(`<div><b>${entry.name}</b>: ${formatMetric(total, entry.metric)}</div>`);
     });
     state.legendEl.innerHTML = rows.join('') || '<i>Nenhuma camada ativa</i>';
+    updateLayerHints();
+  }
+
+  function updateLayerHints() {
+    if (!state.hintsEl) return;
+    const rows = [];
+    state.orderedEntries.forEach(entry => {
+      const layer = entry.layer;
+      if (!layer || !entry.loaded || !state.map || !state.map.hasLayer(layer)) return;
+      const notes = [];
+      if (!shouldRenderEntry(entry) && entry.minZoom !== undefined) {
+        notes.push(`Aproxime o mapa (zoom ≥ ${entry.minZoom}) para renderizar os dados.`);
+      }
+      if (entry.visualHints) {
+        notes.push(entry.visualHints);
+      }
+      if (notes.length) {
+        rows.push(`<div><b>${entry.name}</b><ul>${notes.map(note => `<li>${note}</li>`).join('')}</ul></div>`);
+      }
+    });
+    state.hintsEl.innerHTML = rows.length ? `<h4>Dicas de visualização</h4>${rows.join('')}` : '';
   }
 
   function passesFilter(properties) {
@@ -262,12 +482,12 @@
       if (!entry.loaded) return;
       if (!entry.filterable) {
         entry.currentFeatures = entry.originalFeatures;
+        syncEntryLayer(entry, { force: true });
         return;
       }
       const filtered = entry.originalFeatures.filter(feature => passesFilter(feature.properties));
       entry.currentFeatures = filtered;
-      entry.layer.clearLayers();
-      entry.layer.addData({ type: 'FeatureCollection', features: filtered });
+      syncEntryLayer(entry, { force: true });
     });
     refreshLayerStyles();
     updateLegend();
@@ -465,13 +685,16 @@
       classField: config.classField,
       palette: normalizePalette(config.palette),
       autoPalette: config.autoPalette,
+      visualHints: config.visualHints || '',
+      minZoom: Number.isFinite(config.minZoom) ? Number(config.minZoom) : undefined,
       filterable: false,
       originalFeatures: [],
       currentFeatures: [],
       layer: null,
       loaded: false,
       loadingPromise: null,
-      ensureLoaded: null
+      ensureLoaded: null,
+      zoomVisible: true
     };
 
     const layer = L.geoJSON(null, {
@@ -513,8 +736,7 @@
 
         entry.originalFeatures = features;
         entry.currentFeatures = features;
-        entry.layer.clearLayers();
-        entry.layer.addData({ type: 'FeatureCollection', features });
+        syncEntryLayer(entry, { force: true });
         entry.loaded = true;
       })().catch(error => {
         console.error(`Erro ao carregar a camada "${config.name}"`, error);
@@ -558,6 +780,7 @@
     state.map = L.map('map', {
       center: [-24.5, -51],
       zoom: 7,
+      preferCanvas: true,
       layers: [baseLayers['CARTO Light']]
     });
 
@@ -585,6 +808,15 @@
       ensureLayerLoaded(entry).catch(error => console.error(error));
     });
 
+    state.map.on('zoomend', () => {
+      enforceZoomVisibility();
+      updateLegend();
+    });
+
+    state.map.on('overlayremove', () => {
+      updateLegend();
+    });
+
     await Promise.all(defaultLoads);
 
     await setupFilters();
@@ -597,7 +829,15 @@
       return state.legendEl;
     };
     legendControl.addTo(state.map);
-    state.map.on('overlayadd overlayremove moveend', updateLegend);
+
+    const hintsControl = L.control({ position: 'bottomleft' });
+    hintsControl.onAdd = () => {
+      state.hintsEl = L.DomUtil.create('div', 'layer-hints');
+      return state.hintsEl;
+    };
+    hintsControl.addTo(state.map);
+
+    enforceZoomVisibility();
     updateLegend();
   }
 
