@@ -3,54 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Água Segura — Camadas, Filtros & Logos</title>
+  <title>Água Segura — filtros, legendas e métricas dinâmicas</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script>
+    (function ensureBaseHref() {
+      try {
+        const current = new URL(document.currentScript?.src || window.location.href, window.location.href);
+        const base = new URL('./', current.href);
+        const baseEl = document.createElement('base');
+        baseEl.href = base.href;
+        document.head.appendChild(baseEl);
+        window.__APP_BASE_URL__ = base.href;
+      } catch (error) {
+        console.error('Não foi possível definir a base dos assets.', error);
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="header-logos">
-      <img src="data/aguaseguralogo1.png" alt="Água Segura Logo 1" class="logo-small" />
-      <img src="data/aguaseguralogo2.png" alt="Água Segura Logo 2" class="logo-small" />
-      <img src="data/logo_IDR-SEAB.png" alt="IDR‑SEAB Logo" class="logo-small" />
-      <img src="data/logo_sanepar.jpg" alt="Sanepar Logo" class="logo-small" />
+      <img src="data/aguaseguralogo1.png" alt="Água Segura" class="logo-small" />
+      <img src="data/aguaseguralogo2.png" alt="Água Segura alternativa" class="logo-small" />
+      <img src="data/logo_IDR-SEAB.png" alt="IDR-SEAB" class="logo-small" />
+      <img src="data/logo_sanepar.jpg" alt="Sanepar" class="logo-small" />
     </div>
-    <button id="fitAll" class="btn">Ajustar visão</button>
+    <button id="fitAll" class="btn" type="button">Ajustar visão</button>
     <div class="slider-row">
       <span class="muted">Opacidade</span>
       <input id="opacity" type="range" min="20" max="100" value="70" />
       <span id="opacityVal" class="muted">70%</span>
     </div>
-    <span class="version">v3.0 — todas as camadas + legendas condicionais</span>
+    <span class="version">v4.0 — filtros avançados & legendas dinâmicas</span>
   </header>
 
   <div id="map"></div>
-
-  <div class="leaflet-control micro-filter leaflet-bar">
-    <div class="micro-header">
-      <h2>Filtrar Bacias</h2>
-    </div>
-    <select id="filtroRegiao" class="micro-search">
-      <option value="">Região IDR</option>
-    </select>
-    <select id="filtroMunicipio" class="micro-search">
-      <option value="">Município</option>
-    </select>
-    <select id="filtroManancial" class="micro-search">
-      <option value="">Manancial</option>
-    </select>
-    <button id="limparFiltros" class="btn">Limpar filtros</button>
-    <hr />
-    <h3>Camadas Disponíveis</h3>
-    <div id="layerList" class="micro-list"></div>
-  </div>
-
-  <div class="legend-dock" id="legendDock">
-    <div class="legend-block">
-      <h4>Legenda</h4>
-      <ul class="legend-list" id="legendList"></ul>
-    </div>
-  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
@@ -58,4 +46,3 @@
   <script src="script.js" defer></script>
 </body>
 </html>
-
