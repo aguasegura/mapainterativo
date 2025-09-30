@@ -53,18 +53,76 @@
     'Área Construída': '#7570b3',
     'Área Urbanizada': '#6a51a3'
   };
-
-@@ -101,62 +122,75 @@
+  const DATASET_CONFIG = [
+    {
+      id: 'bacias',
+      name: 'Bacias Selecionadas',
+      files: ['baciasselecionadas.geojson'],
+      geom: 'polygon',
+      defaultVisible: true,
+      classField: 'Classe',
+      autoPalette: true,
+      visualHints: 'Use os filtros para focar em um município ou manancial específico.'
     },
-    { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], metric: 'count' },
-    { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], metric: 'count' },
-    { id: 'bovinos', name: 'Bovinos', files: ['bovinos__bovinos.geojson_part-001.gz'], metric: 'count' },
-    { id: 'bubalinos', name: 'Bubalinos', files: ['bubalinos__bubalinos.geojson_part-001.gz'], metric: 'count' },
-    { id: 'caf', name: 'CAF', files: ['caf.geojson_part-001.gz'], metric: 'count' },
-    { id: 'car', name: 'Cadastro Ambiental Rural (CAR)', files: ['car.geojson_part-001.gz'] },
-    { id: 'conflitodeuso', name: 'Conflitos de Uso', files: ['conflitosdeuso__conflitodeuso.geojson_part-001.gz'] },
-    { id: 'conflitodeuso_otto', name: 'Conflitos de Uso (Otto)', files: ['conflitosdeuso__conflitodeuso_otto.geojson_part-001.gz'] },
-    { id: 'uso_app', name: 'Uso do Solo em APP', files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'] },
+    {
+      id: 'altimetria',
+      name: 'Altimetria',
+      files: ['altimetria__altimetria_otto.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'ClAlt',
+      autoPalette: true,
+      visualHints: 'Caso a leitura fique confusa, combine com o mapa base "ESRI Topográfico" e ajuste a opacidade.'
+    },
+    {
+      id: 'declividade',
+      name: 'Declividade (classes)',
+      files: [
+        'declividade__declividade_otto.geojson_part-001.gz',
+        'declividade__declividade_otto.geojson_part-002.gz'
+      ],
+      geom: 'polygon',
+      classField: 'ClDec',
+      palette: SLOPE_PALETTE,
+      visualHints: 'Camada detalhada; reduza a opacidade ou utilize a alternativa de altimetria para visão geral.'
+    },
+    {
+      id: 'solos',
+      name: 'Solos',
+      files: ['solos__solos_otto.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'Cl_solos',
+      autoPalette: true
+    },
+    {
+      id: 'uso_solo',
+      name: 'Uso do Solo',
+      files: [
+        'uso_solo__usodosolo_otto.geojson_part-001.gz',
+        'uso_solo__usodosolo_otto.geojson_part-002.gz',
+        'uso_solo__usodosolo_otto.geojson_part-003.gz',
+        'uso_solo__usodosolo_otto.geojson_part-004.gz'
+      ],
+      geom: 'polygon',
+      classField: 'NIVEL_III',
+      palette: USO_COLORS,
+      visualHints: 'Para áreas extensas utilize esta camada em conjunto com "Bacias Selecionadas" para destacar prioridades.'
+    },
+    {
+      id: 'uso_app',
+      name: 'Uso do Solo em APP',
+      files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'Classe',
+      autoPalette: true,
+      visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
+    },
+    {
+      id: 'car',
+      name: 'Cadastro Ambiental Rural (CAR)',
+      files: ['car.geojson_part-001.gz'],
+      geom: 'polygon',
+      visualHints: 'Camada com geometrias complexas; aproxime para evitar sobreposições excessivas.'
+    },
     {
       id: 'construcoes',
       name: 'Construções',
@@ -72,11 +130,51 @@
         'construcoes__construcoes_otto.geojson_part-001.gz',
         'construcoes__construcoes_otto.geojson_part-002.gz',
         'construcoes__construcoes_otto.geojson_part-003.gz'
-      ]
+      ],
+      geom: 'polygon',
+      minZoom: 12,
+      visualHints: 'Muito densa. Aproxime (zoom ≥ 12) ou utilize "Uso do Solo" como alternativa para visão macro.'
     },
-    { id: 'educacao', name: 'Educação Ambiental', files: ['educacao__educacao_otto.geojson_part-001.gz'], metric: 'count' },
-    { id: 'sigarh', name: 'SIGARH', files: ['sigarh.geojson_part-001.gz'], metric: 'count' },
-    { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], metric: 'count' }
+    {
+      id: 'curvasdenivel',
+      name: 'Curvas de Nível',
+      files: [
+        'curvasdenivel__curvas_otto.geojson_part-001.gz',
+        'curvasdenivel__curvas_otto.geojson_part-002.gz',
+        'curvasdenivel__curvas_otto.geojson_part-003.gz',
+        'curvasdenivel__curvas_otto.geojson_part-004.gz'
+      ],
+      geom: 'line',
+      metric: 'length',
+      visualHints: 'Para melhor contraste utilize o mapa base "ESRI Topográfico".'
+    },
+    {
+      id: 'hidrografia',
+      name: 'Hidrografia',
+      files: ['hidrografia__hidrografia_otto.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      classField: 'Regime',
+      autoPalette: true,
+      visualHints: 'Combine com "Nascentes" ou "Uso do Solo em APP" para identificar áreas críticas.'
+    },
+    {
+      id: 'estradas',
+      name: 'Infraestrutura Viária',
+      files: ['estradas__estradas_otto.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      classField: 'fclass',
+      autoPalette: true
+    },
+    { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'bovinos', name: 'Bovinos', files: ['bovinos__bovinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'bubalinos', name: 'Bubalinos', files: ['bubalinos__bubalinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'caf', name: 'CAF', files: ['caf.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'educacao', name: 'Educação Ambiental', files: ['educacao__educacao_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'sigarh', name: 'SIGARH', files: ['sigarh.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' }
   ];
 
   const state = {
@@ -87,6 +185,7 @@
     layerStore: new Map(),
     orderedEntries: [],
     legendEl: null,
+    hintsEl: null,
     filter: {
       region: selectedRegion,
       municipality: '',
@@ -120,17 +219,74 @@
 
   async function loadGeoJSON(input) {
     const files = Array.isArray(input) ? input : [input];
-    const collections = [];
-    for (const file of files) {
-      const url = `data/${file}`;
-      collections.push(await fetchGeoJSON(url));
+    if (!files.length) {
+      return { type: 'FeatureCollection', features: [] };
     }
+
+    const collections = await Promise.all(
+      files.map(async file => {
+        const url = `data/${file}`;
+        return fetchGeoJSON(url);
+      })
+    );
+
     if (collections.length === 1) {
       return collections[0];
     }
+
     const merged = { ...collections[0], features: [] };
-    for (const fc of collections) {
-@@ -202,404 +236,476 @@
+    merged.features = collections.flatMap(fc => (Array.isArray(fc.features) ? fc.features : []));
+    return merged;
+  }
+
+  function geometryTypeFromFeature(feature) {
+    if (!feature) return null;
+    const geometry = feature.geometry;
+    if (!geometry) return null;
+    if (geometry.type === 'GeometryCollection') {
+      for (const inner of geometry.geometries || []) {
+        const resolved = geometryTypeFromFeature({ geometry: inner });
+        if (resolved) return resolved;
+      }
+      return null;
+    }
+    return geometry.type || null;
+  }
+
+  function inferGeometryKind(collection) {
+    const features = collection?.features;
+    if (!Array.isArray(features) || !features.length) {
+      return 'polygon';
+    }
+    for (const feature of features) {
+      const type = geometryTypeFromFeature(feature);
+      if (!type) continue;
+      if (type.includes('Polygon')) return 'polygon';
+      if (type.includes('Line')) return 'line';
+      if (type.includes('Point')) return 'point';
+    }
+    return 'polygon';
+  }
+
+  function metricFromGeometry(kind) {
+    if (kind === 'line') return 'length';
+    if (kind === 'point') return 'count';
+    return 'area';
+  }
+
+  function hasFilterAttributes(feature) {
+    if (!feature || !feature.properties) return false;
+    const props = feature.properties;
+    return (
+      FILTER_FIELDS.region in props ||
+      FILTER_FIELDS.municipality in props ||
+      FILTER_FIELDS.manancial in props
+    );
+  }
+
+  function normalizePalette(palette) {
+    if (!palette) return null;
+    const normalized = {};
     Object.entries(palette).forEach(([key, value]) => {
       if (!value) return;
       const trimmed = typeof key === 'string' ? key.trim() : key;
@@ -163,6 +319,13 @@
         ? { radius: 6, color: '#222', weight: 1, fillColor: '#e31a1c', fillOpacity: 0.85 * state.opacity, opacity: 1 }
         : { color: '#1f78b4', weight: 1, fillColor: '#1f78b4', fillOpacity: 0.4 * state.opacity, opacity: 0.8 * state.opacity };
 
+    if (entry.id === 'bacias' && geom === 'polygon') {
+      style.color = '#0f172a';
+      style.weight = 2.5;
+      style.fillOpacity = 0.3 * state.opacity;
+      style.opacity = 0.95;
+    }
+
     if (entry.classField && entry.palette) {
       const raw = properties[entry.classField];
       if (raw !== undefined && raw !== null) {
@@ -174,7 +337,7 @@
             style.color = '#202020';
           } else {
             style.fillColor = paletteColor;
-            style.color = '#333333';
+            style.color = entry.id === 'bacias' ? '#0f172a' : '#333333';
           }
         }
       }
@@ -199,6 +362,43 @@
     });
   }
 
+  function shouldRenderEntry(entry) {
+    if (!entry || !entry.layer) return false;
+    if (!state.map) return true;
+    if (entry.minZoom !== undefined) {
+      return state.map.getZoom() >= entry.minZoom;
+    }
+    return true;
+  }
+
+  function syncEntryLayer(entry, { force = false } = {}) {
+    if (!entry || !entry.layer) return;
+    const canRender = shouldRenderEntry(entry);
+    if (!canRender) {
+      if (entry.zoomVisible || force) {
+        entry.layer.clearLayers();
+        entry.zoomVisible = false;
+      }
+      return;
+    }
+
+    if (!entry.zoomVisible || force) {
+      entry.layer.clearLayers();
+      if (entry.currentFeatures && entry.currentFeatures.length) {
+        entry.layer.addData({ type: 'FeatureCollection', features: entry.currentFeatures });
+      }
+      entry.zoomVisible = true;
+    }
+  }
+
+  function enforceZoomVisibility() {
+    state.orderedEntries.forEach(entry => {
+      if (!entry.loaded || entry.minZoom === undefined) return;
+      syncEntryLayer(entry);
+    });
+    refreshLayerStyles();
+  }
+
   function formatNumber(value, digits = 2) {
     return new Intl.NumberFormat('pt-BR', {
       minimumFractionDigits: digits,
@@ -216,37 +416,118 @@
     return new Intl.NumberFormat('pt-BR').format(total);
   }
 
+  function colorForClass(entry, value) {
+    if (!entry || !entry.palette) return null;
+    const key = typeof value === 'string' ? value.trim() : value;
+    return entry.palette[key] || (typeof key === 'string' ? entry.palette[key.toUpperCase()] : null);
+  }
+
+  function aggregateMetrics(entry, features) {
+    let total = 0;
+    const breakdown = new Map();
+
+    features.forEach(feature => {
+      let value = 0;
+      try {
+        if (entry.metric === 'area') {
+          value = turf.area(feature);
+        } else if (entry.metric === 'length') {
+          value = turf.length(feature, { units: 'kilometers' });
+        } else {
+          value = 1;
+        }
+      } catch (error) {
+        console.error('Erro ao calcular métrica da legenda', error);
+        value = 0;
+      }
+
+      total += entry.metric === 'count' ? 1 : value;
+
+      if (entry.classField) {
+        const rawClass = feature.properties?.[entry.classField];
+        const hasValue = rawClass !== undefined && rawClass !== null && `${rawClass}`.trim() !== '';
+        const classKey = hasValue ? `${rawClass}`.trim() : 'Sem classificação';
+        const previous = breakdown.get(classKey) || 0;
+        breakdown.set(classKey, previous + (entry.metric === 'count' ? 1 : value));
+      }
+    });
+
+    return { total, breakdown };
+  }
+
   function updateLegend() {
     if (!state.legendEl || !state.map) return;
     const rows = [];
     state.orderedEntries.forEach(entry => {
       const layer = entry.layer;
       if (!layer || !entry.loaded || !state.map.hasLayer(layer)) return;
+      const block = ['<div class="legend-block">'];
+
       const features = entry.currentFeatures || [];
-      if (!features.length) return;
-      let total = 0;
-      if (entry.metric === 'area') {
-        features.forEach(feature => {
-          try {
-            total += turf.area(feature);
-          } catch (error) {
-            console.error('Erro ao calcular área', error);
-          }
-        });
-      } else if (entry.metric === 'length') {
-        features.forEach(feature => {
-          try {
-            total += turf.length(feature, { units: 'kilometers' });
-          } catch (error) {
-            console.error('Erro ao calcular comprimento', error);
-          }
-        });
-      } else {
-        total = features.length;
+
+      if (!shouldRenderEntry(entry)) {
+        block.push(`<h4>${entry.name}</h4>`);
+        if (entry.minZoom !== undefined) {
+          block.push(`<div class="legend-note">Aproxime o mapa (zoom ≥ ${entry.minZoom}) para visualizar os dados.</div>`);
+        }
+        block.push('</div>');
+        rows.push(block.join(''));
+        return;
       }
-      rows.push(`<div><b>${entry.name}</b>: ${formatMetric(total, entry.metric)}</div>`);
+
+      if (!features.length) {
+        block.push(`<h4>${entry.name}</h4>`);
+        block.push('<div class="legend-note">Sem registros para o filtro aplicado.</div>');
+        block.push('</div>');
+        rows.push(block.join(''));
+        return;
+      }
+
+      const { total, breakdown } = aggregateMetrics(entry, features);
+      block.push(`<div class="legend-header"><h4>${entry.name}</h4><span class="legend-total">Total: ${formatMetric(total, entry.metric)}</span></div>`);
+
+      if (breakdown.size) {
+        const items = Array.from(breakdown.entries()).sort((a, b) => b[1] - a[1]);
+        block.push('<ul class="legend-list">');
+        items.forEach(([className, value]) => {
+          if (value === 0) return;
+          const color = colorForClass(entry, className) || '#d1d5db';
+          const swatchClass = entry.geom === 'line' ? 'legend-swatch line' : 'legend-swatch';
+          const styleAttr = color
+            ? entry.geom === 'line'
+              ? `style="background:${color}; border-color:${color};"`
+              : `style="background:${color};"`
+            : '';
+          block.push(`<li class="legend-item"><span class="${swatchClass}" ${styleAttr}></span><span class="legend-label">${className}</span><span class="legend-value">${formatMetric(value, entry.metric)}</span></li>`);
+        });
+        block.push('</ul>');
+      }
+
+      block.push('</div>');
+      rows.push(block.join(''));
     });
-    state.legendEl.innerHTML = rows.join('') || '<i>Nenhuma camada ativa</i>';
+    state.legendEl.innerHTML = rows.join('') || '<div class="legend-empty">Nenhuma camada ativa</div>';
+    updateLayerHints();
+  }
+
+  function updateLayerHints() {
+    if (!state.hintsEl) return;
+    const rows = [];
+    state.orderedEntries.forEach(entry => {
+      const layer = entry.layer;
+      if (!layer || !entry.loaded || !state.map || !state.map.hasLayer(layer)) return;
+      const notes = [];
+      if (!shouldRenderEntry(entry) && entry.minZoom !== undefined) {
+        notes.push(`Aproxime o mapa (zoom ≥ ${entry.minZoom}) para renderizar os dados.`);
+      }
+      if (entry.visualHints) {
+        notes.push(entry.visualHints);
+      }
+      if (notes.length) {
+        rows.push(`<div><b>${entry.name}</b><ul>${notes.map(note => `<li>${note}</li>`).join('')}</ul></div>`);
+      }
+    });
+    state.hintsEl.innerHTML = rows.length ? `<h4>Dicas de visualização</h4>${rows.join('')}` : '';
   }
 
   function passesFilter(properties) {
@@ -257,20 +538,46 @@
     return true;
   }
 
-  function applyFilter() {
+  function fitMapToFeatures(features) {
+    if (!state.map || !Array.isArray(features) || !features.length) return;
+    try {
+      const bbox = turf.bbox({ type: 'FeatureCollection', features });
+      const bounds = L.latLngBounds(
+        [bbox[1], bbox[0]],
+        [bbox[3], bbox[2]]
+      );
+      if (bounds.isValid()) {
+        state.map.fitBounds(bounds, { padding: [24, 24] });
+      }
+    } catch (error) {
+      console.error('Erro ao ajustar o zoom para o filtro', error);
+    }
+  }
+
+  function fitToFilteredSelection() {
+    const baciasEntry = state.layerStore.get('bacias');
+    if (!baciasEntry || !baciasEntry.currentFeatures?.length) return;
+    fitMapToFeatures(baciasEntry.currentFeatures);
+  }
+
+  function applyFilter({ fit = false } = {}) {
     state.orderedEntries.forEach(entry => {
       if (!entry.loaded) return;
       if (!entry.filterable) {
         entry.currentFeatures = entry.originalFeatures;
+        syncEntryLayer(entry, { force: true });
         return;
       }
       const filtered = entry.originalFeatures.filter(feature => passesFilter(feature.properties));
       entry.currentFeatures = filtered;
-      entry.layer.clearLayers();
-      entry.layer.addData({ type: 'FeatureCollection', features: filtered });
+      syncEntryLayer(entry, { force: true });
     });
     refreshLayerStyles();
     updateLegend();
+
+    if (fit) {
+      fitToFilteredSelection();
+    }
   }
 
   function populateSelect(selectEl, values, placeholder) {
@@ -375,14 +682,14 @@
         state.filter.municipality = event.target.value;
         state.filter.manancial = '';
         updateMananciais();
-        applyFilter();
+        applyFilter({ fit: true });
       });
     }
 
     if (manancialSelect) {
       manancialSelect.addEventListener('change', event => {
         state.filter.manancial = event.target.value;
-        applyFilter();
+        applyFilter({ fit: true });
       });
     }
 
@@ -392,7 +699,7 @@
         state.filter.manancial = '';
         if (municipalitySelect) municipalitySelect.value = '';
         updateMananciais();
-        applyFilter();
+        applyFilter({ fit: true });
       });
     }
 
@@ -465,13 +772,16 @@
       classField: config.classField,
       palette: normalizePalette(config.palette),
       autoPalette: config.autoPalette,
+      visualHints: config.visualHints || '',
+      minZoom: Number.isFinite(config.minZoom) ? Number(config.minZoom) : undefined,
       filterable: false,
       originalFeatures: [],
       currentFeatures: [],
       layer: null,
       loaded: false,
       loadingPromise: null,
-      ensureLoaded: null
+      ensureLoaded: null,
+      zoomVisible: true
     };
 
     const layer = L.geoJSON(null, {
@@ -513,8 +823,7 @@
 
         entry.originalFeatures = features;
         entry.currentFeatures = features;
-        entry.layer.clearLayers();
-        entry.layer.addData({ type: 'FeatureCollection', features });
+        syncEntryLayer(entry, { force: true });
         entry.loaded = true;
       })().catch(error => {
         console.error(`Erro ao carregar a camada "${config.name}"`, error);
@@ -558,6 +867,7 @@
     state.map = L.map('map', {
       center: [-24.5, -51],
       zoom: 7,
+      preferCanvas: true,
       layers: [baseLayers['CARTO Light']]
     });
 
@@ -585,6 +895,15 @@
       ensureLayerLoaded(entry).catch(error => console.error(error));
     });
 
+    state.map.on('zoomend', () => {
+      enforceZoomVisibility();
+      updateLegend();
+    });
+
+    state.map.on('overlayremove', () => {
+      updateLegend();
+    });
+
     await Promise.all(defaultLoads);
 
     await setupFilters();
@@ -597,7 +916,15 @@
       return state.legendEl;
     };
     legendControl.addTo(state.map);
-    state.map.on('overlayadd overlayremove moveend', updateLegend);
+
+    const hintsControl = L.control({ position: 'bottomleft' });
+    hintsControl.onAdd = () => {
+      state.hintsEl = L.DomUtil.create('div', 'layer-hints');
+      return state.hintsEl;
+    };
+    hintsControl.addTo(state.map);
+
+    enforceZoomVisibility();
     updateLegend();
   }
 
