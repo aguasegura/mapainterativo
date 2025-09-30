@@ -157,6 +157,7 @@
       classField: 'Regime',
       autoPalette: true,
       visualHints: 'Combine com "Nascentes" ou "Uso do Solo em APP" para identificar áreas críticas.'
+
     },
     {
       id: 'estradas',
@@ -167,6 +168,7 @@
       classField: 'fclass',
       autoPalette: true
     },
+
     { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'bovinos', name: 'Bovinos', files: ['bovinos__bovinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
@@ -461,7 +463,9 @@
     state.orderedEntries.forEach(entry => {
       const layer = entry.layer;
       if (!layer || !entry.loaded || !state.map.hasLayer(layer)) return;
+
       const block = ['<div class="legend-block">'];
+
 
       const features = entry.currentFeatures || [];
 
@@ -527,6 +531,8 @@
         rows.push(`<div><b>${entry.name}</b><ul>${notes.map(note => `<li>${note}</li>`).join('')}</ul></div>`);
       }
     });
+
+
     state.hintsEl.innerHTML = rows.length ? `<h4>Dicas de visualização</h4>${rows.join('')}` : '';
   }
 
