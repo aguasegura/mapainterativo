@@ -1,52 +1,85 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pré-Diagnóstico - Programa Água Segura</title>
-  <meta name="description" content="Mapa interativo do Programa Água Segura" />
-  <link rel="icon" type="image/x-icon" href="data/aguasegura_ico.ico">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script>
-    (function ensureBaseHref() {
-      try {
-        const current = new URL(document.currentScript?.src || window.location.href, window.location.href);
-        const base = new URL('./', current.href);
-        const baseEl = document.createElement('base');
-        baseEl.href = base.href;
-        document.head.appendChild(baseEl);
-        window.__APP_BASE_URL__ = base.href;
-      } catch (error) {
-        console.error('Não foi possível definir a base dos assets.', error);
-      }
-    })();
-  </script>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="header-logos">
-     <img src="data/aguaseguralogo1.png" alt="Água Segura Logo 1" class="logo-small" />
-      <img src="data/logo_sanepar.jpg" alt="Sanepar Logo" class="logo-small" />
-      <img src="data/Logo_IAT_PR.png" alt="IAT Logo" class="logo-small" />
-      <img src="data/adapar.png" alt="ADAPAR Logo" class="logo-small" />
-      <img src="data/logo_IDR-SEAB.png" alt="IDR‑SEAB Logo" class="logo-small" />
-    </div>
-    <button id="fitAll" class="btn" type="button">Ajustar visão</button>
-    <div class="slider-row">
-      <span class="muted">Opacidade</span>
-      <input id="opacity" type="range" min="20" max="100" value="70" />
-      <span id="opacityVal" class="muted">70%</span>
-    </div>
-    <span class="version">v4.1 — IDR-Paraná © 2025</span>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Programa Água Segura — Seleção de Regional</title>
+    <link rel="icon" type="image/x-icon" href="data/aguasegura_ico.ico" />
+    <script>
+      (function ensureBaseHref() {
+        try {
+          const current = new URL(document.currentScript?.src || window.location.href, window.location.href);
+          const base = new URL('./', current);
+          let baseEl = document.querySelector('base[data-auto-base]');
+          if (!baseEl) {
+            baseEl = document.createElement('base');
+            baseEl.setAttribute('data-auto-base', 'true');
+            if (document.head.firstChild) {
+              document.head.insertBefore(baseEl, document.head.firstChild);
+            } else {
+              document.head.appendChild(baseEl);
+            }
+          }
+          baseEl.href = base.href;
+          window.__APP_BASE_URL__ = base.href;
+        } catch (error) {
+          console.error('Não foi possível definir a base dos assets.', error);
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="landing">
+    <header class="landing-header">
+      <div class="header-logos">
+        <img src="data/aguaseguralogo1.png" alt="Programa Água Segura" class="logo-small" />
+        <img src="data/logo_sanepar.jpg" alt="Sanepar" class="logo-small" />
+        <img src="data/Logo_IAT_PR.png" alt="IAT-Paraná" class="logo-small" />
+        <img src="data/adapar (2).png" alt="ADAPAR" class="logo-small" />
+        <img src="data/logo_IDR-SEAB.png" alt="IDR-SEAB" class="logo-small" />
+      </div>
+      <span class="version">v4.2 — IDR-Paraná © 2025</span>
+    </header>
 
-  <div id="map"></div>
+    <main class="landing-main">
+      <section class="landing-panel">
+        <h1>Pré-Diagnóstico Programa Água Segura</h1>
+        <p>
+          Selecione a regional do IDR-Paraná para acessar o painel interativo com os dados das
+          microbacias e demais camadas temáticas disponíveis.
+        </p>
+        <form id="regionForm" class="landing-form">
+          <label class="landing-label" for="regionSelect">Regional do IDR-Paraná</label>
+          <select id="regionSelect" class="landing-select" required></select>
+          <p id="regionStatus" class="landing-status" aria-live="polite"></p>
+          <button id="enterMap" class="btn landing-submit" type="submit" disabled>
+            Carregando…
+          </button>
+        </form>
+      </section>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
-  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
-  <script src="script.js" defer></script>
-</body>
+      <section class="landing-sidebar">
+        <div class="landing-card">
+          <h2>Sobre o painel</h2>
+          <p>
+            Após escolher a regional, o mapa será carregado com foco apenas nas microbacias e
+            indicadores daquela área, garantindo carregamento mais rápido e navegação fluida.
+          </p>
+        </div>
+        <div class="landing-card">
+          <h2>Dica</h2>
+          <p>
+            Você pode salvar o link do mapa já filtrado pela regional para acessar diretamente as
+            informações em visitas futuras.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      <p>Programa Água Segura — Integração IDR-Paraná, Sanepar, IAT, ADAPAR e SEAB.</p>
+    </footer>
+
+    <script src="home.js" defer></script>
+  </body>
 </html>
-
