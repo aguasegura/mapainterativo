@@ -31,6 +31,12 @@
     manancial: 'Manancial'
   };
 
+  const FILTER_ALIASES = {
+    region: ['Regional', 'regional', 'regional i', 'Regional_I', 'RegionalI', 'regional_i'],
+    municipality: ['municipio'],
+    manancial: ['manancial']
+  };
+
   const DEFAULT_CATEGORY_COLORS = [
     '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
     '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', '#3182bd', '#31a354',
@@ -236,6 +242,8 @@
     orderedEntries: [],
     legendEl: null,
     hintsEl: null,
+    allowedMunicipalities: new Set(),
+    allowedMananciais: new Set(),
     filter: {
       region: selectedRegion,
       municipality: '',
@@ -292,6 +300,37 @@
 
   function normalizeText(value) {
     return `${value ?? ''}`.trim().toLowerCase();
+  }
+
+  function getFilterFields(kind) {
+    const fields = [];
+    const canonical = FILTER_FIELDS[kind];
+    if (canonical) fields.push(canonical);
+    const aliases = FILTER_ALIASES[kind];
+    if (Array.isArray(aliases)) {
+      aliases.forEach(alias => {
+        if (alias && !fields.includes(alias)) fields.push(alias);
+      });
+    }
+    return fields;
+  }
+
+  function getFilterValue(properties, kind, { normalized = false } = {}) {
+    if (!properties) return '';
+    const candidates = getFilterFields(kind);
+    for (const field of candidates) {
+      if (!field) continue;
+      if (Object.prototype.hasOwnProperty.call(properties, field)) {
+        const raw = properties[field];
+        if (raw !== undefined && raw !== null) {
+          const text = `${raw}`.trim();
+          if (text) {
+            return normalized ? normalizeText(text) : text;
+          }
+        }
+      }
+    }
+    return '';
   }
 
   async function fetchGeoJSON(url) {
@@ -366,11 +405,10 @@
 
   function hasFilterAttributes(feature) {
     if (!feature || !feature.properties) return false;
-    const props = feature.properties;
     return (
-      FILTER_FIELDS.region in props ||
-      FILTER_FIELDS.municipality in props ||
-      FILTER_FIELDS.manancial in props
+      getFilterValue(feature.properties, 'region') ||
+      getFilterValue(feature.properties, 'municipality') ||
+      getFilterValue(feature.properties, 'manancial')
     );
   }
 
@@ -631,9 +669,39 @@
 
   function passesFilter(properties) {
     if (!properties) return true;
-    if (state.filter.region && normalizeText(properties[FILTER_FIELDS.region]) !== state.normalizedRegion) return false;
-    if (state.filter.municipality && properties[FILTER_FIELDS.municipality] !== state.filter.municipality) return false;
-    if (state.filter.manancial && properties[FILTER_FIELDS.manancial] !== state.filter.manancial) return false;
+
+    const regionValueNorm = getFilterValue(properties, 'region', { normalized: true });
+    const municipalityValue = getFilterValue(properties, 'municipality');
+    const municipalityValueNorm = normalizeText(municipalityValue);
+    const manancialValue = getFilterValue(properties, 'manancial');
+    const manancialValueNorm = normalizeText(manancialValue);
+
+    if (state.filter.region) {
+      if (regionValueNorm) {
+        if (regionValueNorm !== state.normalizedRegion) return false;
+      } else {
+        const hasUniverse = state.allowedMunicipalities.size || state.allowedMananciais.size;
+        if (hasUniverse) {
+          let matches = false;
+          if (!matches && municipalityValueNorm && state.allowedMunicipalities.size) {
+            matches = state.allowedMunicipalities.has(municipalityValueNorm);
+          }
+          if (!matches && manancialValueNorm && state.allowedMananciais.size) {
+            matches = state.allowedMananciais.has(manancialValueNorm);
+          }
+          if (!matches) return false;
+        }
+      }
+    }
+
+    if (state.filter.municipality) {
+      if (!municipalityValue || municipalityValue !== state.filter.municipality) return false;
+    }
+
+    if (state.filter.manancial) {
+      if (!manancialValue || manancialValue !== state.filter.manancial) return false;
+    }
+
     return true;
   }
 
@@ -657,6 +725,27 @@
     const baciasEntry = state.layerStore.get('bacias');
     if (!baciasEntry || !baciasEntry.currentFeatures?.length) return;
     fitMapToFeatures(baciasEntry.currentFeatures);
+  }
+
+  function collectFilterUniverse() {
+    const allowedMunicipalities = new Set();
+    const allowedMananciais = new Set();
+    const baciasEntry = state.layerStore.get('bacias');
+    if (baciasEntry && Array.isArray(baciasEntry.originalFeatures)) {
+      baciasEntry.originalFeatures.forEach(feature => {
+        const props = feature?.properties;
+        const municipality = getFilterValue(props, 'municipality');
+        if (municipality) {
+          allowedMunicipalities.add(normalizeText(municipality));
+        }
+        const manancial = getFilterValue(props, 'manancial');
+        if (manancial) {
+          allowedMananciais.add(normalizeText(manancial));
+        }
+      });
+    }
+    state.allowedMunicipalities = allowedMunicipalities;
+    state.allowedMananciais = allowedMananciais;
   }
 
   function applyFilter({ fit = false } = {}) {
@@ -727,12 +816,13 @@
     }
 
     await baciasEntry.ensureLoaded();
+    collectFilterUniverse();
+    applyFilter();
 
     const regions = Array.from(new Set(
       baciasEntry.originalFeatures
-        .map(feature => feature.properties?.[FILTER_FIELDS.region])
+        .map(feature => getFilterValue(feature.properties, 'region'))
         .filter(Boolean)
-        .map(value => `${value}`.trim())
     )).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     populateSelect(regionSelect, regions, '— Região —');
@@ -746,10 +836,9 @@
     const updateMunicipalities = () => {
       const municipalities = Array.from(new Set(
         baciasEntry.originalFeatures
-          .filter(feature => normalizeText(feature.properties?.[FILTER_FIELDS.region]) === state.normalizedRegion)
-          .map(feature => feature.properties?.[FILTER_FIELDS.municipality])
+          .filter(feature => getFilterValue(feature.properties, 'region', { normalized: true }) === state.normalizedRegion)
+          .map(feature => getFilterValue(feature.properties, 'municipality'))
           .filter(Boolean)
-          .map(value => `${value}`.trim())
       )).sort((a, b) => a.localeCompare(b, 'pt-BR'));
       populateSelect(municipalitySelect, municipalities, '— Município —');
       if (state.filter.municipality) {
@@ -762,13 +851,15 @@
         baciasEntry.originalFeatures
           .filter(feature => {
             const props = feature.properties || {};
-            if (normalizeText(props[FILTER_FIELDS.region]) !== state.normalizedRegion) return false;
-            if (state.filter.municipality && props[FILTER_FIELDS.municipality] !== state.filter.municipality) return false;
+            if (getFilterValue(props, 'region', { normalized: true }) !== state.normalizedRegion) return false;
+            if (state.filter.municipality) {
+              const municipality = getFilterValue(props, 'municipality');
+              if (!municipality || municipality !== state.filter.municipality) return false;
+            }
             return true;
           })
-          .map(feature => feature.properties?.[FILTER_FIELDS.manancial])
+          .map(feature => getFilterValue(feature.properties, 'manancial'))
           .filter(Boolean)
-          .map(value => `${value}`.trim())
       )).sort((a, b) => a.localeCompare(b, 'pt-BR'));
       populateSelect(manancialSelect, mananciais, '— Manancial —');
       if (state.filter.manancial) {
@@ -778,7 +869,7 @@
 
     if (municipalitySelect) {
       municipalitySelect.addEventListener('change', event => {
-        state.filter.municipality = event.target.value;
+        state.filter.municipality = (event.target.value || '').trim();
         state.filter.manancial = '';
         updateMananciais();
         applyFilter({ fit: true });
@@ -787,7 +878,7 @@
 
     if (manancialSelect) {
       manancialSelect.addEventListener('change', event => {
-        state.filter.manancial = event.target.value;
+        state.filter.manancial = (event.target.value || '').trim();
         applyFilter({ fit: true });
       });
     }
@@ -830,6 +921,8 @@
       const bounds = computeVisibleBounds();
       if (bounds && bounds.isValid()) {
         state.map.fitBounds(bounds, { padding: [24, 24] });
+      } else {
+        fitToFilteredSelection();
       }
     });
   }
@@ -904,8 +997,24 @@
         entry.filterable = allFeatures.some(hasFilterAttributes);
 
         let features = allFeatures;
-        if (state.normalizedRegion && entry.filterable) {
-          features = allFeatures.filter(feature => normalizeText(feature?.properties?.[FILTER_FIELDS.region]) === state.normalizedRegion);
+        if (state.normalizedRegion) {
+          features = allFeatures.filter(feature => {
+            const props = feature?.properties;
+            if (!props) return false;
+            const regionValue = getFilterValue(props, 'region', { normalized: true });
+            if (regionValue) {
+              return regionValue === state.normalizedRegion;
+            }
+            const municipalityNorm = normalizeText(getFilterValue(props, 'municipality'));
+            if (municipalityNorm && state.allowedMunicipalities.size) {
+              return state.allowedMunicipalities.has(municipalityNorm);
+            }
+            const manancialNorm = normalizeText(getFilterValue(props, 'manancial'));
+            if (manancialNorm && state.allowedMananciais.size) {
+              return state.allowedMananciais.has(manancialNorm);
+            }
+            return true;
+          });
         }
 
         if (entry.classField) {
@@ -922,6 +1031,9 @@
 
         entry.originalFeatures = features;
         entry.currentFeatures = features;
+        if (entry.id === 'bacias') {
+          collectFilterUniverse();
+        }
         syncEntryLayer(entry, { force: true });
         entry.loaded = true;
       })().catch(error => {
