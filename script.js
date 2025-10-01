@@ -346,6 +346,80 @@
     return await response.json();
   }
 
+  function normalizeCrsName(value) {
+    if (!value) return '';
+    const text = `${value}`.trim().toUpperCase();
+    return text.replace(/^URN:OGC:DEF:CRS:/, '').replace(/::/g, ':');
+  }
+
+  function mercatorToLatLng([x, y]) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return [x, y];
+    const R = 6378137;
+    const lon = (x / R) * (180 / Math.PI);
+    const lat = (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * (180 / Math.PI);
+    const clampedLat = Math.max(Math.min(lat, 85.0511287798066), -85.0511287798066);
+    return [lon, clampedLat];
+  }
+
+  function getCrsTransform(collection) {
+    const name = normalizeCrsName(collection?.crs?.properties?.name);
+    if (!name) return null;
+    if (name.includes('3857')) {
+      return { transform: mercatorToLatLng, needsTransform: true };
+    }
+    if (name.includes('4326') || name.includes('4674') || name.includes('4736')) {
+      return { transform: coord => coord, needsTransform: false };
+    }
+    return null;
+  }
+
+  function transformCoordinates(coordinates, transformFn) {
+    if (!Array.isArray(coordinates)) return coordinates;
+    if (coordinates.length && typeof coordinates[0] === 'number') {
+      const [x, y, ...rest] = coordinates;
+      const [nx, ny] = transformFn([x, y]);
+      return [nx, ny, ...rest];
+    }
+    return coordinates.map(child => transformCoordinates(child, transformFn));
+  }
+
+  function reprojectGeometry(geometry, transformFn) {
+    if (!geometry || typeof transformFn !== 'function') return geometry;
+    if (geometry.type === 'GeometryCollection') {
+      const geometries = (geometry.geometries || []).map(inner =>
+        reprojectGeometry(inner, transformFn)
+      );
+      return { ...geometry, geometries };
+    }
+    const coords = geometry.coordinates;
+    if (!coords) return geometry;
+    return { ...geometry, coordinates: transformCoordinates(coords, transformFn) };
+  }
+
+  function normalizeFeatureCollection(collection) {
+    if (!collection || typeof collection !== 'object') {
+      return { type: 'FeatureCollection', features: [] };
+    }
+    const transformInfo = getCrsTransform(collection);
+    if (!transformInfo) {
+      const clone = { ...collection };
+      if ('crs' in clone) delete clone.crs;
+      return clone;
+    }
+    const { transform, needsTransform } = transformInfo;
+    const features = Array.isArray(collection.features) ? collection.features : [];
+    const normalizedFeatures = needsTransform
+      ? features.map(feature => {
+          if (!feature || typeof feature !== 'object') return feature;
+          const geometry = reprojectGeometry(feature.geometry, transform);
+          return { ...feature, geometry };
+        })
+      : features.slice();
+    const normalized = { ...collection, features: normalizedFeatures };
+    if ('crs' in normalized) delete normalized.crs;
+    return normalized;
+  }
+
   async function loadGeoJSON(input) {
     const files = Array.isArray(input) ? input : [input];
     if (!files.length) {
@@ -355,7 +429,8 @@
     const collections = await Promise.all(
       files.map(async file => {
         const url = `data/${file}`;
-        return fetchGeoJSON(url);
+        const collection = await fetchGeoJSON(url);
+        return normalizeFeatureCollection(collection);
       })
     );
 
@@ -1003,6 +1078,7 @@
     };
 
     slider.addEventListener('input', update);
+    slider.addEventListener('change', update);
     update();
   }
 
