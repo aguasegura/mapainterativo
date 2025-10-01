@@ -39,19 +39,73 @@
   ];
 
   const SLOPE_CLASSES = ['000a003', '003a008', '008a015', '015a025', '025a045', '045a100', '>100'];
-  const SLOPE_COLORS = ['#edf8e9', '#c7e9c0', '#7fcdbb', '#41b6c4', '#1d91c0', '#225ea8', '#0c2c84'];
+  const SLOPE_COLORS = ['#f7fcfd', '#ccece6', '#66c2a4', '#41ae76', '#238b45', '#006d2c', '#00441b'];
   const SLOPE_PALETTE = Object.fromEntries(SLOPE_CLASSES.map((cls, idx) => [cls, SLOPE_COLORS[idx] || '#444444']));
 
+  const ALTIMETRY_CLASSES = [
+    '0 a 100 m',
+    '100 a 200 m',
+    '200 a 300 m',
+    '300a 400 m',
+    '400 a 500 m',
+    '500 a 600 m',
+    '600 a 700 m',
+    '700 a 800 m',
+    '800 a 900 m',
+    '900 a 1000 m',
+    '1000 a 1100 m',
+    '1100 a 1200 m',
+    '1200 a 1300 m',
+    '1300 a 1400 m'
+  ];
+  const ALTIMETRY_COLORS = [
+    '#1d4f91',
+    '#2763a5',
+    '#2f79b3',
+    '#3b90b7',
+    '#4aa7b3',
+    '#66bfa8',
+    '#85d090',
+    '#a9dd7f',
+    '#cde87a',
+    '#e8f07c',
+    '#f6d776',
+    '#f3b555',
+    '#ed8a3b',
+    '#e85c28'
+  ];
+  const ALTIMETRY_PALETTE = Object.fromEntries(
+    ALTIMETRY_CLASSES.map((cls, idx) => [cls, ALTIMETRY_COLORS[idx] || '#6b7280'])
+  );
+
+  const SOIL_COLORS = {
+    'AFLORAMENTOS DE ROCHAS': '#593411',
+    'ARGISSOLOS': '#bc7434',
+    'CAMBISSOLOS': '#d89c63',
+    'ESPELHOS DAGUA': '#4f9ed9',
+    'ESPODOSSOLOS': '#6db5a6',
+    'GLEISSOLOS': '#2b7da0',
+    'LATOSSOLOS': '#f4d6a0',
+    'NEOSSOLOS LITÓLICOS': '#8d5035',
+    'NEOSSOLOS REGOLÍTICOS': '#c1784c',
+    'NITOSSOLOS': '#f8b26a',
+    'ORGANOSSOLOS': '#1f8b4d',
+    'ÁREAS URBANAS': '#9f3a38'
+  };
+
   const USO_COLORS = {
-    'Agricultura Anual': '#e6ab02',
-    'Agricultura Perene': '#c98c00',
-    "Corpos d'Água": '#67a9cf',
-    'Floresta Nativa': '#1b9e77',
-    'Pastagem/Campo': '#a6d854',
-    'Plantios Florestais': '#106b21',
-    'Solo Exposto/Mineração': '#bdbdbd',
-    'Área Construída': '#7570b3',
-    'Área Urbanizada': '#6a51a3'
+    'Agricultura Anual': '#f6d55c',
+    'Agricultura Perene': '#ed9c44',
+    'Área Construída': '#b13f3c',
+    'Área Urbanizada': '#e34a33',
+    'Corpos d’Água': '#4c78a8',
+    "Corpos d'Água": '#4c78a8',
+    'Floresta Nativa': '#1a7f3b',
+    'Mangue': '#3b9d5d',
+    'Pastagem/Campo': '#a3d47c',
+    'Plantios Florestais': '#175c3c',
+    'Solo Exposto/Mineração': '#f0b67f',
+    'Várzea': '#7fc6bc'
   };
   const DATASET_CONFIG = [
     {
@@ -70,7 +124,7 @@
       files: ['altimetria__altimetria_otto.geojson_part-001.gz'],
       geom: 'polygon',
       classField: 'ClAlt',
-      autoPalette: true,
+      palette: ALTIMETRY_PALETTE,
       visualHints: 'Caso a leitura fique confusa, combine com o mapa base "ESRI Topográfico" e ajuste a opacidade.'
     },
     {
@@ -91,7 +145,7 @@
       files: ['solos__solos_otto.geojson_part-001.gz'],
       geom: 'polygon',
       classField: 'Cl_solos',
-      autoPalette: true
+      palette: SOIL_COLORS
     },
     {
       id: 'uso_solo',
@@ -103,7 +157,7 @@
         'uso_solo__usodosolo_otto.geojson_part-004.gz'
       ],
       geom: 'polygon',
-      classField: 'NIVEL_III',
+      classField: 'NIVEL_II',
       palette: USO_COLORS,
       visualHints: 'Para áreas extensas utilize esta camada em conjunto com "Bacias Selecionadas" para destacar prioridades.'
     },
@@ -112,8 +166,6 @@
       name: 'Uso do Solo em APP',
       files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
       geom: 'polygon',
-      classField: 'Classe',
-      autoPalette: true,
       visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
     },
     {
@@ -154,8 +206,6 @@
       files: ['hidrografia__hidrografia_otto.geojson_part-001.gz'],
       geom: 'line',
       metric: 'length',
-      classField: 'Regime',
-      autoPalette: true,
       visualHints: 'Combine com "Nascentes" ou "Uso do Solo em APP" para identificar áreas críticas.'
 
     },
@@ -164,9 +214,7 @@
       name: 'Infraestrutura Viária',
       files: ['estradas__estradas_otto.geojson_part-001.gz'],
       geom: 'line',
-      metric: 'length',
-      classField: 'fclass',
-      autoPalette: true
+      metric: 'length'
     },
 
     { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
@@ -192,6 +240,46 @@
       region: selectedRegion,
       municipality: '',
       manancial: ''
+    }
+  };
+
+  const LAYER_STYLE_OVERRIDES = {
+    car(style, entry) {
+      return {
+        ...style,
+        color: '#0f3d1f',
+        weight: 1.4,
+        fillColor: '#2bb24c',
+        fillOpacity: (entry.geom === 'polygon' ? 0.55 : style.fillOpacity || 0) * state.opacity,
+        opacity: 0.95 * state.opacity
+      };
+    },
+    uso_app(style, entry) {
+      const baseFillOpacity = entry.geom === 'polygon' ? 0.6 : style.fillOpacity || 0;
+      return {
+        ...style,
+        color: '#641919',
+        weight: 1.1,
+        fillColor: '#b91c1c',
+        fillOpacity: baseFillOpacity * state.opacity,
+        opacity: 0.85 * state.opacity
+      };
+    },
+    hidrografia(style) {
+      return {
+        ...style,
+        color: '#2b8cbe',
+        weight: 2,
+        opacity: 0.9 * state.opacity
+      };
+    },
+    estradas(style) {
+      return {
+        ...style,
+        color: '#d1495b',
+        weight: 1.6,
+        opacity: 0.85 * state.opacity
+      };
     }
   };
 
@@ -343,6 +431,11 @@
           }
         }
       }
+    }
+
+    const override = LAYER_STYLE_OVERRIDES[entry.id];
+    if (typeof override === 'function') {
+      return override(style, entry, properties);
     }
 
     return style;
