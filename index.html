@@ -35,7 +35,7 @@
         <img src="data/aguaseguralogo1.png" alt="Programa Água Segura" class="logo-small" />
         <img src="data/logo_sanepar.jpg" alt="Sanepar" class="logo-small" />
         <img src="data/Logo_IAT_PR.png" alt="IAT-Paraná" class="logo-small" />
-        <img src="data/adapar (2).png" alt="ADAPAR" class="logo-small" />
+        <img src="data/adapar.png" alt="ADAPAR" class="logo-small" />
         <img src="data/logo_IDR-SEAB.png" alt="IDR-SEAB" class="logo-small" />
       </div>
       <span class="version">v4.2 — IDR-Paraná © 2025</span>
@@ -43,34 +43,59 @@
 
     <main class="landing-main">
       <section class="landing-panel">
-        <h1>Pré-Diagnóstico Programa Água Segura</h1>
+        <h1>Programa Água Segura</h1>
+        <h2>Pré-diagnóstico das Microbacias Selecionadas</h2>
         <p>
-          Selecione a regional do IDR-Paraná para acessar o painel interativo com os dados das
-          microbacias e demais camadas temáticas disponíveis.
+          O Programa Água Segura é uma iniciativa do Governo do Estado do Paraná, coordenada pelo
+          Instituto de Desenvolvimento Rural do Paraná – IAPAR-EMATER (IDR-Paraná) em parceria com a
+          Companhia de Saneamento do Paraná (Sanepar).
         </p>
-        <form id="regionForm" class="landing-form">
-          <label class="landing-label" for="regionSelect">Regional do IDR-Paraná</label>
-          <select id="regionSelect" class="landing-select" required></select>
-          <p id="regionStatus" class="landing-status" aria-live="polite"></p>
-          <button id="enterMap" class="btn landing-submit" type="submit" disabled>
-            Carregando…
-          </button>
-        </form>
+        <p>
+          A proposta integra esforços de IDR-Paraná, Sanepar, IAT, ADAPAR e SEAB para garantir
+          segurança hídrica aos mananciais, priorizar microbacias estratégicas e direcionar recursos
+          para conservação de solo e água em consonância com os planos de bacia e de saneamento
+          básico.
+        </p>
+        <p>
+          O pré-diagnóstico reúne indicadores ambientais, produtivos e socioeconômicos que
+          subsidiem a tomada de decisão técnica, orientando as melhores práticas em cada propriedade
+          atendida e o planejamento integrado dos parceiros locais.
+        </p>
+        <p>
+          Utilize o painel para explorar camadas temáticas, cadastros e registros de campo da
+          regional selecionada, com filtros que facilitam a identificação de microbacias e
+          mananciais prioritários.
+        </p>
       </section>
 
       <section class="landing-sidebar">
+        <div class="landing-card highlight">
+          <h2>Escolha a regional</h2>
+          <p>
+            Selecione a regional do IDR-Paraná para carregar apenas as microbacias, camadas e
+            indicadores daquele território.
+          </p>
+          <form id="regionForm" class="landing-form">
+            <label class="landing-label" for="regionSelect">Regional do IDR-Paraná</label>
+            <select id="regionSelect" class="landing-select" required></select>
+            <p id="regionStatus" class="landing-status" aria-live="polite"></p>
+            <button id="enterMap" class="btn landing-submit" type="submit" disabled>
+              Carregando…
+            </button>
+          </form>
+        </div>
         <div class="landing-card">
           <h2>Sobre o painel</h2>
           <p>
-            Após escolher a regional, o mapa será carregado com foco apenas nas microbacias e
-            indicadores daquela área, garantindo carregamento mais rápido e navegação fluida.
+            Os dados apresentados permitem comparar situação fundiária, uso do solo, infraestrutura
+            hídrica e iniciativas produtivas mapeadas pelo IDR-Paraná e parceiros.
           </p>
         </div>
         <div class="landing-card">
           <h2>Dica</h2>
           <p>
-            Você pode salvar o link do mapa já filtrado pela regional para acessar diretamente as
-            informações em visitas futuras.
+            Salve o link do mapa já filtrado pela regional para acessar diretamente as informações
+            em visitas futuras ou compartilhar com sua equipe.
           </p>
         </div>
       </section>

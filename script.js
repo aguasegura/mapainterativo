@@ -31,6 +31,12 @@
     manancial: 'Manancial'
   };
 
+  const FILTER_ALIASES = {
+    region: ['Regional', 'regional', 'regional i', 'Regional_I', 'RegionalI', 'regional_i'],
+    municipality: ['municipio'],
+    manancial: ['manancial']
+  };
+
   const DEFAULT_CATEGORY_COLORS = [
     '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b',
     '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', '#3182bd', '#31a354',
@@ -39,19 +45,73 @@
   ];
 
   const SLOPE_CLASSES = ['000a003', '003a008', '008a015', '015a025', '025a045', '045a100', '>100'];
-  const SLOPE_COLORS = ['#edf8e9', '#c7e9c0', '#7fcdbb', '#41b6c4', '#1d91c0', '#225ea8', '#0c2c84'];
+  const SLOPE_COLORS = ['#f7fcfd', '#ccece6', '#66c2a4', '#41ae76', '#238b45', '#006d2c', '#00441b'];
   const SLOPE_PALETTE = Object.fromEntries(SLOPE_CLASSES.map((cls, idx) => [cls, SLOPE_COLORS[idx] || '#444444']));
 
+  const ALTIMETRY_CLASSES = [
+    '0 a 100 m',
+    '100 a 200 m',
+    '200 a 300 m',
+    '300a 400 m',
+    '400 a 500 m',
+    '500 a 600 m',
+    '600 a 700 m',
+    '700 a 800 m',
+    '800 a 900 m',
+    '900 a 1000 m',
+    '1000 a 1100 m',
+    '1100 a 1200 m',
+    '1200 a 1300 m',
+    '1300 a 1400 m'
+  ];
+  const ALTIMETRY_COLORS = [
+    '#1d4f91',
+    '#2763a5',
+    '#2f79b3',
+    '#3b90b7',
+    '#4aa7b3',
+    '#66bfa8',
+    '#85d090',
+    '#a9dd7f',
+    '#cde87a',
+    '#e8f07c',
+    '#f6d776',
+    '#f3b555',
+    '#ed8a3b',
+    '#e85c28'
+  ];
+  const ALTIMETRY_PALETTE = Object.fromEntries(
+    ALTIMETRY_CLASSES.map((cls, idx) => [cls, ALTIMETRY_COLORS[idx] || '#6b7280'])
+  );
+
+  const SOIL_COLORS = {
+    'AFLORAMENTOS DE ROCHAS': '#593411',
+    'ARGISSOLOS': '#bc7434',
+    'CAMBISSOLOS': '#d89c63',
+    'ESPELHOS DAGUA': '#4f9ed9',
+    'ESPODOSSOLOS': '#6db5a6',
+    'GLEISSOLOS': '#2b7da0',
+    'LATOSSOLOS': '#f4d6a0',
+    'NEOSSOLOS LITÓLICOS': '#8d5035',
+    'NEOSSOLOS REGOLÍTICOS': '#c1784c',
+    'NITOSSOLOS': '#f8b26a',
+    'ORGANOSSOLOS': '#1f8b4d',
+    'ÁREAS URBANAS': '#9f3a38'
+  };
+
   const USO_COLORS = {
-    'Agricultura Anual': '#e6ab02',
-    'Agricultura Perene': '#c98c00',
-    "Corpos d'Água": '#67a9cf',
-    'Floresta Nativa': '#1b9e77',
-    'Pastagem/Campo': '#a6d854',
-    'Plantios Florestais': '#106b21',
-    'Solo Exposto/Mineração': '#bdbdbd',
-    'Área Construída': '#7570b3',
-    'Área Urbanizada': '#6a51a3'
+    'Agricultura Anual': '#f6d55c',
+    'Agricultura Perene': '#ed9c44',
+    'Área Construída': '#b13f3c',
+    'Área Urbanizada': '#e34a33',
+    'Corpos d’Água': '#4c78a8',
+    "Corpos d'Água": '#4c78a8',
+    'Floresta Nativa': '#1a7f3b',
+    'Mangue': '#3b9d5d',
+    'Pastagem/Campo': '#a3d47c',
+    'Plantios Florestais': '#175c3c',
+    'Solo Exposto/Mineração': '#f0b67f',
+    'Várzea': '#7fc6bc'
   };
   const DATASET_CONFIG = [
     {
@@ -70,7 +130,7 @@
       files: ['altimetria__altimetria_otto.geojson_part-001.gz'],
       geom: 'polygon',
       classField: 'ClAlt',
-      autoPalette: true,
+      palette: ALTIMETRY_PALETTE,
       visualHints: 'Caso a leitura fique confusa, combine com o mapa base "ESRI Topográfico" e ajuste a opacidade.'
     },
     {
@@ -91,7 +151,7 @@
       files: ['solos__solos_otto.geojson_part-001.gz'],
       geom: 'polygon',
       classField: 'Cl_solos',
-      autoPalette: true
+      palette: SOIL_COLORS
     },
     {
       id: 'uso_solo',
@@ -103,7 +163,7 @@
         'uso_solo__usodosolo_otto.geojson_part-004.gz'
       ],
       geom: 'polygon',
-      classField: 'NIVEL_III',
+      classField: 'NIVEL_II',
       palette: USO_COLORS,
       visualHints: 'Para áreas extensas utilize esta camada em conjunto com "Bacias Selecionadas" para destacar prioridades.'
     },
@@ -112,8 +172,6 @@
       name: 'Uso do Solo em APP',
       files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
       geom: 'polygon',
-      classField: 'Classe',
-      autoPalette: true,
       visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
     },
     {
@@ -154,8 +212,6 @@
       files: ['hidrografia__hidrografia_otto.geojson_part-001.gz'],
       geom: 'line',
       metric: 'length',
-      classField: 'Regime',
-      autoPalette: true,
       visualHints: 'Combine com "Nascentes" ou "Uso do Solo em APP" para identificar áreas críticas.'
 
     },
@@ -164,9 +220,7 @@
       name: 'Infraestrutura Viária',
       files: ['estradas__estradas_otto.geojson_part-001.gz'],
       geom: 'line',
-      metric: 'length',
-      classField: 'fclass',
-      autoPalette: true
+      metric: 'length'
     },
 
     { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
@@ -188,10 +242,52 @@
     orderedEntries: [],
     legendEl: null,
     hintsEl: null,
+    allowedMunicipalities: new Set(),
+    allowedMananciais: new Set(),
     filter: {
       region: selectedRegion,
-      municipality: '',
-      manancial: ''
+      municipalities: new Set(),
+      mananciais: new Set()
+    }
+  };
+
+  const LAYER_STYLE_OVERRIDES = {
+    car(style, entry) {
+      return {
+        ...style,
+        color: '#0f3d1f',
+        weight: 1.4,
+        fillColor: '#2bb24c',
+        fillOpacity: (entry.geom === 'polygon' ? 0.55 : style.fillOpacity || 0) * state.opacity,
+        opacity: 0.95 * state.opacity
+      };
+    },
+    uso_app(style, entry) {
+      const baseFillOpacity = entry.geom === 'polygon' ? 0.6 : style.fillOpacity || 0;
+      return {
+        ...style,
+        color: '#641919',
+        weight: 1.1,
+        fillColor: '#b91c1c',
+        fillOpacity: baseFillOpacity * state.opacity,
+        opacity: 0.85 * state.opacity
+      };
+    },
+    hidrografia(style) {
+      return {
+        ...style,
+        color: '#2b8cbe',
+        weight: 2,
+        opacity: 0.9 * state.opacity
+      };
+    },
+    estradas(style) {
+      return {
+        ...style,
+        color: '#d1495b',
+        weight: 1.6,
+        opacity: 0.85 * state.opacity
+      };
     }
   };
 
@@ -204,6 +300,37 @@
 
   function normalizeText(value) {
     return `${value ?? ''}`.trim().toLowerCase();
+  }
+
+  function getFilterFields(kind) {
+    const fields = [];
+    const canonical = FILTER_FIELDS[kind];
+    if (canonical) fields.push(canonical);
+    const aliases = FILTER_ALIASES[kind];
+    if (Array.isArray(aliases)) {
+      aliases.forEach(alias => {
+        if (alias && !fields.includes(alias)) fields.push(alias);
+      });
+    }
+    return fields;
+  }
+
+  function getFilterValue(properties, kind, { normalized = false } = {}) {
+    if (!properties) return '';
+    const candidates = getFilterFields(kind);
+    for (const field of candidates) {
+      if (!field) continue;
+      if (Object.prototype.hasOwnProperty.call(properties, field)) {
+        const raw = properties[field];
+        if (raw !== undefined && raw !== null) {
+          const text = `${raw}`.trim();
+          if (text) {
+            return normalized ? normalizeText(text) : text;
+          }
+        }
+      }
+    }
+    return '';
   }
 
   async function fetchGeoJSON(url) {
@@ -278,11 +405,10 @@
 
   function hasFilterAttributes(feature) {
     if (!feature || !feature.properties) return false;
-    const props = feature.properties;
     return (
-      FILTER_FIELDS.region in props ||
-      FILTER_FIELDS.municipality in props ||
-      FILTER_FIELDS.manancial in props
+      getFilterValue(feature.properties, 'region') ||
+      getFilterValue(feature.properties, 'municipality') ||
+      getFilterValue(feature.properties, 'manancial')
     );
   }
 
@@ -343,6 +469,11 @@
           }
         }
       }
+    }
+
+    const override = LAYER_STYLE_OVERRIDES[entry.id];
+    if (typeof override === 'function') {
+      return override(style, entry, properties);
     }
 
     return style;
@@ -538,9 +669,44 @@
 
   function passesFilter(properties) {
     if (!properties) return true;
-    if (state.filter.region && normalizeText(properties[FILTER_FIELDS.region]) !== state.normalizedRegion) return false;
-    if (state.filter.municipality && properties[FILTER_FIELDS.municipality] !== state.filter.municipality) return false;
-    if (state.filter.manancial && properties[FILTER_FIELDS.manancial] !== state.filter.manancial) return false;
+
+    const regionValueNorm = getFilterValue(properties, 'region', { normalized: true });
+    const municipalityValue = getFilterValue(properties, 'municipality');
+    const municipalityValueNorm = normalizeText(municipalityValue);
+    const manancialValue = getFilterValue(properties, 'manancial');
+    const manancialValueNorm = normalizeText(manancialValue);
+
+    const municipalityFilters = state.filter.municipalities;
+    const manancialFilters = state.filter.mananciais;
+    const hasMunicipalityFilter = municipalityFilters instanceof Set && municipalityFilters.size > 0;
+    const hasManancialFilter = manancialFilters instanceof Set && manancialFilters.size > 0;
+
+    if (state.filter.region) {
+      if (regionValueNorm) {
+        if (regionValueNorm !== state.normalizedRegion) return false;
+      } else {
+        const hasUniverse = state.allowedMunicipalities.size || state.allowedMananciais.size;
+        if (hasUniverse) {
+          let matches = false;
+          if (!matches && municipalityValueNorm && state.allowedMunicipalities.size) {
+            matches = state.allowedMunicipalities.has(municipalityValueNorm);
+          }
+          if (!matches && manancialValueNorm && state.allowedMananciais.size) {
+            matches = state.allowedMananciais.has(manancialValueNorm);
+          }
+          if (!matches) return false;
+        }
+      }
+    }
+
+    if (hasMunicipalityFilter) {
+      if (!municipalityValue || !municipalityFilters.has(municipalityValue)) return false;
+    }
+
+    if (hasManancialFilter) {
+      if (!manancialValue || !manancialFilters.has(manancialValue)) return false;
+    }
+
     return true;
   }
 
@@ -566,6 +732,27 @@
     fitMapToFeatures(baciasEntry.currentFeatures);
   }
 
+  function collectFilterUniverse() {
+    const allowedMunicipalities = new Set();
+    const allowedMananciais = new Set();
+    const baciasEntry = state.layerStore.get('bacias');
+    if (baciasEntry && Array.isArray(baciasEntry.originalFeatures)) {
+      baciasEntry.originalFeatures.forEach(feature => {
+        const props = feature?.properties;
+        const municipality = getFilterValue(props, 'municipality');
+        if (municipality) {
+          allowedMunicipalities.add(normalizeText(municipality));
+        }
+        const manancial = getFilterValue(props, 'manancial');
+        if (manancial) {
+          allowedMananciais.add(normalizeText(manancial));
+        }
+      });
+    }
+    state.allowedMunicipalities = allowedMunicipalities;
+    state.allowedMananciais = allowedMananciais;
+  }
+
   function applyFilter({ fit = false } = {}) {
     state.orderedEntries.forEach(entry => {
       if (!entry.loaded) return;
@@ -586,18 +773,60 @@
     }
   }
 
-  function populateSelect(selectEl, values, placeholder) {
-    if (!selectEl) return;
-    selectEl.innerHTML = '';
-    const firstOption = document.createElement('option');
-    firstOption.value = '';
-    firstOption.textContent = placeholder;
-    selectEl.appendChild(firstOption);
-    values.forEach(value => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = value;
-      selectEl.appendChild(option);
+  function renderCheckboxList(container, values, filtersSet, { group, emptyMessage, onChange } = {}) {
+    if (!container) return;
+    const activeSet = filtersSet instanceof Set ? filtersSet : new Set();
+    const groupPrefix = group || `grp-${Math.random().toString(16).slice(2)}`;
+
+    container.innerHTML = '';
+
+    if (!values.length) {
+      const empty = document.createElement('div');
+      empty.className = 'micro-empty';
+      empty.textContent = emptyMessage || 'Nenhuma opção disponível para esta regional.';
+      container.appendChild(empty);
+      return;
+    }
+
+    values.forEach((value, index) => {
+      const id = `${groupPrefix}-${index}`;
+      const wrapper = document.createElement('label');
+      wrapper.className = 'micro-option';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = id;
+      checkbox.value = value;
+      checkbox.checked = activeSet.has(value);
+      if (checkbox.checked) {
+        wrapper.classList.add('active');
+      }
+
+      const textWrapper = document.createElement('span');
+      textWrapper.className = 'micro-option-text';
+
+      const title = document.createElement('span');
+      title.className = 'micro-option-title';
+      title.textContent = value;
+
+      textWrapper.appendChild(title);
+      wrapper.appendChild(checkbox);
+      wrapper.appendChild(textWrapper);
+
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          activeSet.add(value);
+          wrapper.classList.add('active');
+        } else {
+          activeSet.delete(value);
+          wrapper.classList.remove('active');
+        }
+        if (typeof onChange === 'function') {
+          onChange();
+        }
+      });
+
+      container.appendChild(wrapper);
     });
   }
 
@@ -608,11 +837,29 @@
     control.onAdd = () => {
       const container = L.DomUtil.create('div', 'leaflet-control micro-filter');
       container.innerHTML = `
-        <h4>Filtro</h4>
-        <select id="fReg"><option value="">— Região —</option></select>
-        <select id="fMun"><option value="">— Município —</option></select>
-        <select id="fMan"><option value="">— Manancial —</option></select>
-        <button id="fClear" type="button">Limpar filtros</button>
+        <div class="micro-header">
+          <div>
+            <h2>Filtro de microbacias</h2>
+            <p class="micro-summary">Selecione municípios e mananciais para refinar a visualização.</p>
+          </div>
+        </div>
+        <div class="micro-filters">
+          <div class="micro-filter-field">
+            <span class="micro-filter-label">Regional selecionada</span>
+            <span class="micro-region-pill">${selectedRegion}</span>
+          </div>
+          <div class="micro-filter-field">
+            <span class="micro-filter-label">Municípios</span>
+            <div id="fMun" class="micro-list" role="group" aria-label="Filtrar por município"></div>
+          </div>
+          <div class="micro-filter-field">
+            <span class="micro-filter-label">Mananciais</span>
+            <div id="fMan" class="micro-list" role="group" aria-label="Filtrar por manancial"></div>
+          </div>
+        </div>
+        <div class="micro-buttons">
+          <button id="fClear" class="btn" type="button">Limpar filtros</button>
+        </div>
       `;
       L.DomEvent.disableClickPropagation(container);
       L.DomEvent.disableScrollPropagation(container);
@@ -620,48 +867,47 @@
     };
     control.addTo(state.map);
 
-    const regionSelect = document.getElementById('fReg');
-    const municipalitySelect = document.getElementById('fMun');
-    const manancialSelect = document.getElementById('fMan');
+    const municipalityContainer = document.getElementById('fMun');
+    const manancialContainer = document.getElementById('fMan');
     const clearButton = document.getElementById('fClear');
 
     const baciasEntry = state.layerStore.get('bacias');
     if (!baciasEntry) {
-      [regionSelect, municipalitySelect, manancialSelect, clearButton].forEach(el => {
+      [municipalityContainer, manancialContainer, clearButton].forEach(el => {
         if (el) el.disabled = true;
       });
       return;
     }
 
     await baciasEntry.ensureLoaded();
-
-    const regions = Array.from(new Set(
-      baciasEntry.originalFeatures
-        .map(feature => feature.properties?.[FILTER_FIELDS.region])
-        .filter(Boolean)
-        .map(value => `${value}`.trim())
-    )).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-    populateSelect(regionSelect, regions, '— Região —');
-
-    if (regionSelect) {
-      regionSelect.value = selectedRegion;
-      regionSelect.disabled = true;
-      regionSelect.title = 'Para alterar a regional utilize o botão "Trocar regional" no topo.';
-    }
+    collectFilterUniverse();
+    applyFilter({ fit: true });
 
     const updateMunicipalities = () => {
       const municipalities = Array.from(new Set(
         baciasEntry.originalFeatures
-          .filter(feature => normalizeText(feature.properties?.[FILTER_FIELDS.region]) === state.normalizedRegion)
-          .map(feature => feature.properties?.[FILTER_FIELDS.municipality])
+          .filter(feature => getFilterValue(feature.properties, 'region', { normalized: true }) === state.normalizedRegion)
+          .map(feature => getFilterValue(feature.properties, 'municipality'))
           .filter(Boolean)
-          .map(value => `${value}`.trim())
       )).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-      populateSelect(municipalitySelect, municipalities, '— Município —');
-      if (state.filter.municipality) {
-        municipalitySelect.value = state.filter.municipality;
+      const available = new Set(municipalities);
+      const activeMunicipalities = state.filter.municipalities;
+      if (activeMunicipalities instanceof Set) {
+        Array.from(activeMunicipalities).forEach(value => {
+          if (!available.has(value)) {
+            activeMunicipalities.delete(value);
+          }
+        });
       }
+      renderCheckboxList(municipalityContainer, municipalities, state.filter.municipalities, {
+        group: 'municipios',
+        emptyMessage: 'Nenhum município encontrado para esta regional.',
+        onChange: () => {
+          state.filter.mananciais.clear();
+          updateMananciais();
+          applyFilter({ fit: true });
+        }
+      });
     };
 
     const updateMananciais = () => {
@@ -669,41 +915,41 @@
         baciasEntry.originalFeatures
           .filter(feature => {
             const props = feature.properties || {};
-            if (normalizeText(props[FILTER_FIELDS.region]) !== state.normalizedRegion) return false;
-            if (state.filter.municipality && props[FILTER_FIELDS.municipality] !== state.filter.municipality) return false;
+            if (getFilterValue(props, 'region', { normalized: true }) !== state.normalizedRegion) return false;
+            if (state.filter.municipalities.size) {
+              const municipality = getFilterValue(props, 'municipality');
+              if (!municipality || !state.filter.municipalities.has(municipality)) return false;
+            }
             return true;
           })
-          .map(feature => feature.properties?.[FILTER_FIELDS.manancial])
+          .map(feature => getFilterValue(feature.properties, 'manancial'))
           .filter(Boolean)
-          .map(value => `${value}`.trim())
       )).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-      populateSelect(manancialSelect, mananciais, '— Manancial —');
-      if (state.filter.manancial) {
-        manancialSelect.value = state.filter.manancial;
+      const available = new Set(mananciais);
+      const activeMananciais = state.filter.mananciais;
+      if (activeMananciais instanceof Set) {
+        Array.from(activeMananciais).forEach(value => {
+          if (!available.has(value)) {
+            activeMananciais.delete(value);
+          }
+        });
       }
+      renderCheckboxList(manancialContainer, mananciais, state.filter.mananciais, {
+        group: 'mananciais',
+        emptyMessage: state.filter.municipalities.size
+          ? 'Nenhum manancial associado à seleção atual.'
+          : 'Nenhum manancial encontrado para esta regional.',
+        onChange: () => {
+          applyFilter({ fit: true });
+        }
+      });
     };
-
-    if (municipalitySelect) {
-      municipalitySelect.addEventListener('change', event => {
-        state.filter.municipality = event.target.value;
-        state.filter.manancial = '';
-        updateMananciais();
-        applyFilter({ fit: true });
-      });
-    }
-
-    if (manancialSelect) {
-      manancialSelect.addEventListener('change', event => {
-        state.filter.manancial = event.target.value;
-        applyFilter({ fit: true });
-      });
-    }
 
     if (clearButton) {
       clearButton.addEventListener('click', () => {
-        state.filter.municipality = '';
-        state.filter.manancial = '';
-        if (municipalitySelect) municipalitySelect.value = '';
+        state.filter.municipalities.clear();
+        state.filter.mananciais.clear();
+        updateMunicipalities();
         updateMananciais();
         applyFilter({ fit: true });
       });
@@ -737,6 +983,8 @@
       const bounds = computeVisibleBounds();
       if (bounds && bounds.isValid()) {
         state.map.fitBounds(bounds, { padding: [24, 24] });
+      } else {
+        fitToFilteredSelection();
       }
     });
   }
@@ -812,7 +1060,23 @@
 
         let features = allFeatures;
         if (state.normalizedRegion && entry.filterable) {
-          features = allFeatures.filter(feature => normalizeText(feature?.properties?.[FILTER_FIELDS.region]) === state.normalizedRegion);
+          features = allFeatures.filter(feature => {
+            const props = feature?.properties;
+            if (!props) return false;
+            const regionValue = getFilterValue(props, 'region', { normalized: true });
+            if (regionValue) {
+              return regionValue === state.normalizedRegion;
+            }
+            const municipalityNorm = normalizeText(getFilterValue(props, 'municipality'));
+            if (municipalityNorm && state.allowedMunicipalities.size) {
+              return state.allowedMunicipalities.has(municipalityNorm);
+            }
+            const manancialNorm = normalizeText(getFilterValue(props, 'manancial'));
+            if (manancialNorm && state.allowedMananciais.size) {
+              return state.allowedMananciais.has(manancialNorm);
+            }
+            return true;
+          });
         }
 
         if (entry.classField) {
@@ -829,6 +1093,9 @@
 
         entry.originalFeatures = features;
         entry.currentFeatures = features;
+        if (entry.id === 'bacias') {
+          collectFilterUniverse();
+        }
         syncEntryLayer(entry, { force: true });
         entry.loaded = true;
       })().catch(error => {
