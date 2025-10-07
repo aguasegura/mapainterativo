@@ -842,7 +842,14 @@
   }
 
   function filterByRegionMask(features) {
-    if (!state.normalizedRegion || !state.regionMask || !Array.isArray(features)) {
+    if (!Array.isArray(features) || !features.length) {
+      return Array.isArray(features) ? features : [];
+    }
+
+    if (!state.normalizedRegion) return features;
+
+    const mask = state.regionMask;
+    if (!mask || !mask.length) {
       return features;
     }
 
@@ -851,7 +858,7 @@
       if (!bboxIntersectsRegion(feature)) return false;
       try {
         const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
-        return state.regionMask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
+        return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
       } catch (error) {
         console.warn('Falha ao verificar interseção espacial; mantendo a feição.', error);
         return true;
@@ -863,11 +870,13 @@
     state.orderedEntries.forEach(entry => {
       if (!entry.loaded) return;
       if (!entry.filterable) {
-        entry.currentFeatures = entry.originalFeatures;
+        entry.currentFeatures = filterByRegionMask(entry.originalFeatures);
         syncEntryLayer(entry, { force: true });
         return;
       }
-      const filtered = entry.originalFeatures.filter(feature => passesFilter(feature.properties));
+      const filtered = filterByRegionMask(
+        entry.originalFeatures.filter(feature => passesFilter(feature.properties))
+      );
       entry.currentFeatures = filtered;
       syncEntryLayer(entry, { force: true });
     });
@@ -1130,11 +1139,26 @@
               if (manancialNorm && state.allowedMananciais.size) {
                 return state.allowedMananciais.has(manancialNorm);
               }
-              return false;
+              if (entry.id === 'bacias') {
+                return false;
+              }
+              const mask = state.regionMask;
+              if (!mask || !mask.length) return false;
+              try {
+                const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
+                return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
+              } catch (error) {
+                console.warn('Falha ao usar a máscara regional como fallback de filtro.', error);
+                return false;
+              }
             });
           } else {
             features = filterByRegionMask(allFeatures);
           }
+        }
+
+        if (state.normalizedRegion) {
+          features = filterByRegionMask(features);
         }
 
         if (entry.classField) {
