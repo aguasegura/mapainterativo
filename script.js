@@ -44,9 +44,31 @@
     '#843c39', '#7b4173'
   ];
 
+  const POINT_LAYER_PRESETS = {
+    nascentes: { fill: '#0ea5e9', stroke: '#0369a1', label: 'N', fontSize: 11, legendFontSize: 10 },
+    aves: { fill: '#facc15', stroke: '#b45309', label: 'Av', fontSize: 10, legendFontSize: 9 },
+    bovinos: { fill: '#22c55e', stroke: '#15803d', label: 'Bo', fontSize: 10, legendFontSize: 9 },
+    bubalinos: { fill: '#a855f7', stroke: '#5b21b6', label: 'Bu', fontSize: 10, legendFontSize: 9 },
+    caf: { fill: '#6366f1', stroke: '#3730a3', label: 'CAF', fontSize: 8, legendFontSize: 7 },
+    educacao: { fill: '#06b6d4', stroke: '#0e7490', label: 'Ed', fontSize: 10, legendFontSize: 9 },
+    sigarh: { fill: '#fb7185', stroke: '#be123c', label: 'SG', fontSize: 9, legendFontSize: 8 },
+    suinos: { fill: '#ef4444', stroke: '#991b1b', label: 'Su', fontSize: 10, legendFontSize: 9 }
+  };
+
+  const pointIconCache = new Map();
+
   const SLOPE_CLASSES = ['000a003', '003a008', '008a015', '015a025', '025a045', '045a100', '>100'];
   const SLOPE_COLORS = ['#f7fcfd', '#ccece6', '#66c2a4', '#41ae76', '#238b45', '#006d2c', '#00441b'];
   const SLOPE_PALETTE = Object.fromEntries(SLOPE_CLASSES.map((cls, idx) => [cls, SLOPE_COLORS[idx] || '#444444']));
+  const SLOPE_LABELS = {
+    '000a003': '0% a 3%',
+    '003a008': '3% a 8%',
+    '008a015': '8% a 15%',
+    '015a025': '15% a 25%',
+    '025a045': '25% a 45%',
+    '045a100': '45% a 100%',
+    '>100': '> 100%'
+  };
 
   const ALTIMETRY_CLASSES = [
     '0 a 100 m',
@@ -83,6 +105,190 @@
   const ALTIMETRY_PALETTE = Object.fromEntries(
     ALTIMETRY_CLASSES.map((cls, idx) => [cls, ALTIMETRY_COLORS[idx] || '#6b7280'])
   );
+
+  function escapeHtml(value) {
+    return `${value ?? ''}`
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function findNumericCoordinate(node) {
+    if (!node) return null;
+    if (Array.isArray(node)) {
+      if (typeof node[0] === 'number' && typeof node[1] === 'number') {
+        return node;
+      }
+      for (const item of node) {
+        const match = findNumericCoordinate(item);
+        if (match) return match;
+      }
+    }
+    return null;
+  }
+
+  function extractSampleCoordinate(geometry) {
+    if (!geometry) return null;
+    if (geometry.type === 'GeometryCollection') {
+      for (const inner of geometry.geometries || []) {
+        const match = extractSampleCoordinate(inner);
+        if (match) return match;
+      }
+      return null;
+    }
+    return findNumericCoordinate(geometry.coordinates);
+  }
+
+  function geometryIsProjected(geometry) {
+    const sample = extractSampleCoordinate(geometry);
+    if (!sample) return false;
+    const [x, y] = sample;
+    return Math.abs(x) > 200 || Math.abs(y) > 90;
+  }
+
+  function planarRingArea(ring) {
+    if (!Array.isArray(ring) || ring.length < 4) return 0;
+    let sum = 0;
+    for (let i = 1; i < ring.length; i += 1) {
+      const [x1, y1] = ring[i - 1];
+      const [x2, y2] = ring[i];
+      sum += x1 * y2 - x2 * y1;
+    }
+    return Math.abs(sum) / 2;
+  }
+
+  function planarPolygonArea(coordinates) {
+    if (!Array.isArray(coordinates)) return 0;
+    return coordinates.reduce((total, ring, index) => {
+      const area = planarRingArea(ring);
+      return index === 0 ? total + area : total - area;
+    }, 0);
+  }
+
+  function planarGeometryArea(geometry) {
+    if (!geometry) return 0;
+    const { type } = geometry;
+    if (type === 'Polygon') {
+      return planarPolygonArea(geometry.coordinates);
+    }
+    if (type === 'MultiPolygon') {
+      return (geometry.coordinates || []).reduce((total, polygon) => total + planarPolygonArea(polygon), 0);
+    }
+    if (type === 'GeometryCollection') {
+      return (geometry.geometries || []).reduce((total, inner) => total + planarGeometryArea(inner), 0);
+    }
+    return 0;
+  }
+
+  function planarLineLength(line) {
+    if (!Array.isArray(line) || line.length < 2) return 0;
+    let total = 0;
+    for (let i = 1; i < line.length; i += 1) {
+      const [x1, y1] = line[i - 1];
+      const [x2, y2] = line[i];
+      total += Math.hypot(x2 - x1, y2 - y1);
+    }
+    return total;
+  }
+
+  function planarGeometryLength(geometry) {
+    if (!geometry) return 0;
+    const { type } = geometry;
+    if (type === 'LineString') {
+      return planarLineLength(geometry.coordinates);
+    }
+    if (type === 'MultiLineString') {
+      return (geometry.coordinates || []).reduce((total, line) => total + planarLineLength(line), 0);
+    }
+    if (type === 'GeometryCollection') {
+      return (geometry.geometries || []).reduce((total, inner) => total + planarGeometryLength(inner), 0);
+    }
+    return 0;
+  }
+
+  function detectProjected(features) {
+    if (!Array.isArray(features)) return false;
+    return features.some(feature => geometryIsProjected(feature?.geometry));
+  }
+
+  function computeFeatureArea(feature, entry) {
+    const geometry = feature?.geometry || null;
+    if (!geometry) return 0;
+    const usePlanar = entry?.isProjected ?? geometryIsProjected(geometry);
+    if (usePlanar) {
+      return planarGeometryArea(geometry);
+    }
+    try {
+      return turf.area(feature);
+    } catch (error) {
+      console.warn('Falha ao calcular área com turf.area; retornando 0.', error);
+      return 0;
+    }
+  }
+
+  function computeFeatureLength(feature, entry) {
+    const geometry = feature?.geometry || null;
+    if (!geometry) return 0;
+    const usePlanar = entry?.isProjected ?? geometryIsProjected(geometry);
+    if (usePlanar) {
+      return planarGeometryLength(geometry) / 1000;
+    }
+    try {
+      return turf.length(feature, { units: 'kilometers' });
+    } catch (error) {
+      console.warn('Falha ao calcular comprimento com turf.length; retornando 0.', error);
+      return 0;
+    }
+  }
+
+  function getPointPreset(id) {
+    const fallbackLabel = (id || '•').slice(0, 2).toUpperCase();
+    return {
+      fill: '#ef4444',
+      stroke: '#7f1d1d',
+      label: fallbackLabel,
+      fontSize: 10,
+      legendFontSize: 9,
+      textColor: '#ffffff',
+      ...POINT_LAYER_PRESETS[id]
+    };
+  }
+
+  function buildPointSVG(preset, { size = 26, strokeWidth, fontSize } = {}) {
+    const resolvedFontSize = fontSize ?? preset.fontSize ?? 10;
+    const resolvedStroke = strokeWidth ?? 2;
+    const label = escapeHtml(preset.label || '');
+    const hasLabel = label.trim().length > 0;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">` +
+      `<circle cx="12" cy="12" r="9" fill="${preset.fill}" stroke="${preset.stroke}" stroke-width="${resolvedStroke}" />` +
+      (hasLabel
+        ? `<text x="12" y="12" text-anchor="middle" dominant-baseline="middle" font-family="Inter, 'Segoe UI', sans-serif" font-size="${resolvedFontSize}" font-weight="700" fill="${preset.textColor || '#ffffff'}">${label}</text>`
+        : '') +
+      '</svg>';
+  }
+
+  function getPointIcon(entry, { size = 28 } = {}) {
+    const key = `${entry.id}:${size}`;
+    if (!pointIconCache.has(key)) {
+      const preset = getPointPreset(entry.id);
+      const svg = buildPointSVG(preset, { size });
+      const icon = L.divIcon({
+        className: `point-marker point-marker-${entry.id}`,
+        html: svg,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2) + 4]
+      });
+      pointIconCache.set(key, icon);
+    }
+    return pointIconCache.get(key);
+  }
+
+  function getPointLegendSVG(entry) {
+    const preset = getPointPreset(entry.id);
+    const fontSize = preset.legendFontSize ?? Math.max((preset.fontSize || 10) - 1, 7);
+    return buildPointSVG(preset, { size: 18, strokeWidth: 1.8, fontSize });
+  }
 
   const SOIL_COLORS = {
     'AFLORAMENTOS DE ROCHAS': '#593411',
@@ -143,6 +349,7 @@
       geom: 'polygon',
       classField: 'ClDec',
       palette: SLOPE_PALETTE,
+      classLabels: SLOPE_LABELS,
       visualHints: 'Camada detalhada; reduza a opacidade ou utilize a alternativa de altimetria para visão geral.'
     },
     {
@@ -244,6 +451,8 @@
     hintsEl: null,
     allowedMunicipalities: new Set(),
     allowedMananciais: new Set(),
+    regionMask: null,
+    regionBBox: null,
     filter: {
       region: selectedRegion,
       municipality: '',
@@ -426,6 +635,20 @@
     return normalized;
   }
 
+  function normalizeClassLabels(labels) {
+    if (!labels) return null;
+    const normalized = {};
+    Object.entries(labels).forEach(([key, value]) => {
+      if (!key || !value) return;
+      const trimmed = typeof key === 'string' ? key.trim() : key;
+      normalized[trimmed] = value;
+      if (typeof trimmed === 'string') {
+        normalized[trimmed.toUpperCase()] = value;
+      }
+    });
+    return normalized;
+  }
+
   function buildAutoPalette(values) {
     const palette = {};
     values.forEach((value, index) => {
@@ -444,13 +667,24 @@
     const style = geom === 'line'
       ? { color: '#1f78b4', weight: 1.5, opacity: 0.8 * state.opacity }
       : geom === 'point'
-        ? { radius: 6, color: '#222', weight: 1, fillColor: '#e31a1c', fillOpacity: 0.85 * state.opacity, opacity: 1 }
+        ? (() => {
+            const preset = getPointPreset(entry.id);
+            return {
+              radius: 7,
+              color: preset.stroke,
+              weight: 2,
+              fillColor: preset.fill,
+              fillOpacity: state.opacity,
+              opacity: state.opacity
+            };
+          })()
         : { color: '#1f78b4', weight: 1, fillColor: '#1f78b4', fillOpacity: 0.4 * state.opacity, opacity: 0.8 * state.opacity };
 
     if (entry.id === 'bacias' && geom === 'polygon') {
-      style.color = '#0f172a';
-      style.weight = 2.5;
-      style.fillOpacity = 0.3 * state.opacity;
+      style.color = '#1d4ed8';
+      style.weight = 2.6;
+      style.fillColor = '#bfdbfe';
+      style.fillOpacity = 0.22 * state.opacity;
       style.opacity = 0.95;
     }
 
@@ -482,6 +716,19 @@
   function refreshLayerStyles() {
     state.orderedEntries.forEach(entry => {
       if (!entry.layer || !entry.loaded) return;
+      if (entry.geom === 'point') {
+        const icon = getPointIcon(entry);
+        entry.layer.eachLayer(featureLayer => {
+          if (!featureLayer) return;
+          if (typeof featureLayer.setIcon === 'function') {
+            featureLayer.setIcon(icon);
+          }
+          if (typeof featureLayer.setOpacity === 'function') {
+            featureLayer.setOpacity(state.opacity);
+          }
+        });
+        return;
+      }
       entry.layer.eachLayer(featureLayer => {
         if (!featureLayer || !featureLayer.feature) return;
         const style = styleForEntry(entry, featureLayer.feature.properties || {});
@@ -519,6 +766,9 @@
       entry.layer.clearLayers();
       if (entry.currentFeatures && entry.currentFeatures.length) {
         entry.layer.addData({ type: 'FeatureCollection', features: entry.currentFeatures });
+        if (entry.id === 'bacias' && state.map && state.map.hasLayer(entry.layer)) {
+          entry.layer.bringToFront();
+        }
       }
       entry.zoomVisible = true;
     }
@@ -555,6 +805,16 @@
     return entry.palette[key] || (typeof key === 'string' ? entry.palette[key.toUpperCase()] : null);
   }
 
+  function labelForClass(entry, value) {
+    if (!entry || !entry.classLabels) return value;
+    const key = typeof value === 'string' ? value.trim() : value;
+    return (
+      entry.classLabels[key] ||
+      (typeof key === 'string' ? entry.classLabels[key.toUpperCase()] : undefined) ||
+      value
+    );
+  }
+
   function aggregateMetrics(entry, features) {
     let total = 0;
     const breakdown = new Map();
@@ -563,9 +823,9 @@
       let value = 0;
       try {
         if (entry.metric === 'area') {
-          value = turf.area(feature);
+          value = computeFeatureArea(feature, entry);
         } else if (entry.metric === 'length') {
-          value = turf.length(feature, { units: 'kilometers' });
+          value = computeFeatureLength(feature, entry);
         } else {
           value = 1;
         }
@@ -574,14 +834,18 @@
         value = 0;
       }
 
-      total += entry.metric === 'count' ? 1 : value;
+      if (!Number.isFinite(value)) {
+        value = 0;
+      }
+
+      total += value;
 
       if (entry.classField) {
         const rawClass = feature.properties?.[entry.classField];
         const hasValue = rawClass !== undefined && rawClass !== null && `${rawClass}`.trim() !== '';
         const classKey = hasValue ? `${rawClass}`.trim() : 'Sem classificação';
         const previous = breakdown.get(classKey) || 0;
-        breakdown.set(classKey, previous + (entry.metric === 'count' ? 1 : value));
+        breakdown.set(classKey, previous + value);
       }
     });
 
@@ -627,14 +891,24 @@
         items.forEach(([className, value]) => {
           if (value === 0) return;
           const color = colorForClass(entry, className) || '#d1d5db';
-          const swatchClass = entry.geom === 'line' ? 'legend-swatch line' : 'legend-swatch';
-          const styleAttr = color
+          const swatchClass = entry.geom === 'line'
+            ? 'legend-swatch line'
+            : entry.geom === 'point'
+              ? 'legend-swatch point'
+              : 'legend-swatch';
+          const styleAttr = color && entry.geom !== 'point'
             ? entry.geom === 'line'
               ? `style="background:${color}; border-color:${color};"`
               : `style="background:${color};"`
             : '';
-          block.push(`<li class="legend-item"><span class="${swatchClass}" ${styleAttr}></span><span class="legend-label">${className}</span><span class="legend-value">${formatMetric(value, entry.metric)}</span></li>`);
+          const swatchContent = entry.geom === 'point' ? getPointLegendSVG(entry) : '';
+          const label = labelForClass(entry, className);
+          block.push(`<li class="legend-item"><span class="${swatchClass}" ${styleAttr}>${swatchContent}</span><span class="legend-label">${label}</span><span class="legend-value">${formatMetric(value, entry.metric)}</span></li>`);
         });
+        block.push('</ul>');
+      } else if (entry.geom === 'point') {
+        block.push('<ul class="legend-list">');
+        block.push(`<li class="legend-item"><span class="legend-swatch point">${getPointLegendSVG(entry)}</span><span class="legend-label">Registros</span><span class="legend-value">${formatMetric(total, entry.metric)}</span></li>`);
         block.push('</ul>');
       }
 
@@ -746,17 +1020,100 @@
     }
     state.allowedMunicipalities = allowedMunicipalities;
     state.allowedMananciais = allowedMananciais;
+    updateRegionMask();
+  }
+
+  function updateRegionMask() {
+    const baciasEntry = state.layerStore.get('bacias');
+    if (!baciasEntry || !Array.isArray(baciasEntry.originalFeatures)) {
+      state.regionMask = null;
+      state.regionBBox = null;
+      return;
+    }
+
+    const features = baciasEntry.originalFeatures
+      .filter(feature => feature && feature.geometry)
+      .map(feature => ({ type: 'Feature', geometry: feature.geometry }));
+
+    if (!features.length) {
+      state.regionMask = null;
+      state.regionBBox = null;
+      return;
+    }
+
+    state.regionMask = features;
+    try {
+      state.regionBBox = turf.bbox({ type: 'FeatureCollection', features });
+    } catch (error) {
+      console.warn('Não foi possível calcular a extensão da regional selecionada.', error);
+      state.regionBBox = null;
+    }
+  }
+
+  async function ensureRegionMask() {
+    if (!state.normalizedRegion) return null;
+    if (state.regionMask) return state.regionMask;
+    const baciasEntry = state.layerStore.get('bacias');
+    if (!baciasEntry) return null;
+    if (!baciasEntry.loaded) {
+      await baciasEntry.ensureLoaded();
+    }
+    updateRegionMask();
+    return state.regionMask;
+  }
+
+  function bboxIntersectsRegion(feature) {
+    if (!state.regionBBox) return true;
+    try {
+      const featureBBox = turf.bbox(feature);
+      const [minX, minY, maxX, maxY] = state.regionBBox;
+      return !(
+        featureBBox[2] < minX ||
+        featureBBox[0] > maxX ||
+        featureBBox[3] < minY ||
+        featureBBox[1] > maxY
+      );
+    } catch (error) {
+      return true;
+    }
+  }
+
+  function filterByRegionMask(features) {
+    if (!Array.isArray(features) || !features.length) {
+      return Array.isArray(features) ? features : [];
+    }
+
+    if (!state.normalizedRegion) return features;
+
+    const mask = state.regionMask;
+    if (!mask || !mask.length) {
+      return features;
+    }
+
+    return features.filter(feature => {
+      if (!feature || !feature.geometry) return false;
+      if (!bboxIntersectsRegion(feature)) return false;
+      try {
+        const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
+        return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
+      } catch (error) {
+        console.warn('Falha ao verificar interseção espacial; mantendo a feição.', error);
+        return true;
+      }
+    });
   }
 
   function applyFilter({ fit = false } = {}) {
     state.orderedEntries.forEach(entry => {
       if (!entry.loaded) return;
       if (!entry.filterable) {
-        entry.currentFeatures = entry.originalFeatures;
+        entry.currentFeatures = filterByRegionMask(entry.originalFeatures);
         syncEntryLayer(entry, { force: true });
         return;
       }
-      const filtered = entry.originalFeatures.filter(feature => passesFilter(feature.properties));
+      const filtered = filterByRegionMask(
+        entry.originalFeatures.filter(feature => passesFilter(feature.properties))
+      );
       entry.currentFeatures = filtered;
       syncEntryLayer(entry, { force: true });
     });
@@ -963,6 +1320,7 @@
       metric: config.metric || 'area',
       classField: config.classField,
       palette: normalizePalette(config.palette),
+      classLabels: normalizeClassLabels(config.classLabels),
       autoPalette: config.autoPalette,
       visualHints: config.visualHints || '',
       minZoom: Number.isFinite(config.minZoom) ? Number(config.minZoom) : undefined,
@@ -973,12 +1331,18 @@
       loaded: false,
       loadingPromise: null,
       ensureLoaded: null,
-      zoomVisible: true
+      zoomVisible: true,
+      isProjected: false
     };
 
     const layer = L.geoJSON(null, {
       style: feature => styleForEntry(entry, feature.properties || {}),
-      pointToLayer: (feature, latlng) => L.circleMarker(latlng, styleForEntry(entry, feature.properties || {})),
+      pointToLayer: (feature, latlng) => {
+        if (entry.geom === 'point') {
+          return L.marker(latlng, { icon: getPointIcon(entry) });
+        }
+        return L.circleMarker(latlng, styleForEntry(entry, feature.properties || {}));
+      },
       onEachFeature
     });
 
@@ -996,25 +1360,48 @@
         const allFeatures = Array.isArray(fc.features) ? fc.features : [];
         entry.filterable = allFeatures.some(hasFilterAttributes);
 
+        if (state.normalizedRegion && entry.id !== 'bacias') {
+          await ensureRegionMask();
+        }
+
         let features = allFeatures;
         if (state.normalizedRegion) {
-          features = allFeatures.filter(feature => {
-            const props = feature?.properties;
-            if (!props) return false;
-            const regionValue = getFilterValue(props, 'region', { normalized: true });
-            if (regionValue) {
-              return regionValue === state.normalizedRegion;
-            }
-            const municipalityNorm = normalizeText(getFilterValue(props, 'municipality'));
-            if (municipalityNorm && state.allowedMunicipalities.size) {
-              return state.allowedMunicipalities.has(municipalityNorm);
-            }
-            const manancialNorm = normalizeText(getFilterValue(props, 'manancial'));
-            if (manancialNorm && state.allowedMananciais.size) {
-              return state.allowedMananciais.has(manancialNorm);
-            }
-            return true;
-          });
+          if (entry.filterable) {
+            features = allFeatures.filter(feature => {
+              const props = feature?.properties;
+              if (!props) return false;
+              const regionValue = getFilterValue(props, 'region', { normalized: true });
+              if (regionValue) {
+                return regionValue === state.normalizedRegion;
+              }
+              const municipalityNorm = normalizeText(getFilterValue(props, 'municipality'));
+              if (municipalityNorm && state.allowedMunicipalities.size) {
+                return state.allowedMunicipalities.has(municipalityNorm);
+              }
+              const manancialNorm = normalizeText(getFilterValue(props, 'manancial'));
+              if (manancialNorm && state.allowedMananciais.size) {
+                return state.allowedMananciais.has(manancialNorm);
+              }
+              if (entry.id === 'bacias') {
+                return false;
+              }
+              const mask = state.regionMask;
+              if (!mask || !mask.length) return false;
+              try {
+                const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
+                return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
+              } catch (error) {
+                console.warn('Falha ao usar a máscara regional como fallback de filtro.', error);
+                return false;
+              }
+            });
+          } else {
+            features = filterByRegionMask(allFeatures);
+          }
+        }
+
+        if (state.normalizedRegion) {
+          features = filterByRegionMask(features);
         }
 
         if (entry.classField) {
@@ -1031,6 +1418,7 @@
 
         entry.originalFeatures = features;
         entry.currentFeatures = features;
+        entry.isProjected = detectProjected(features);
         if (entry.id === 'bacias') {
           collectFilterUniverse();
         }
