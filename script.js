@@ -47,6 +47,15 @@
   const SLOPE_CLASSES = ['000a003', '003a008', '008a015', '015a025', '025a045', '045a100', '>100'];
   const SLOPE_COLORS = ['#f7fcfd', '#ccece6', '#66c2a4', '#41ae76', '#238b45', '#006d2c', '#00441b'];
   const SLOPE_PALETTE = Object.fromEntries(SLOPE_CLASSES.map((cls, idx) => [cls, SLOPE_COLORS[idx] || '#444444']));
+  const SLOPE_LABELS = {
+    '000a003': '0% a 3%',
+    '003a008': '3% a 8%',
+    '008a015': '8% a 15%',
+    '015a025': '15% a 25%',
+    '025a045': '25% a 45%',
+    '045a100': '45% a 100%',
+    '>100': '> 100%'
+  };
 
   const ALTIMETRY_CLASSES = [
     '0 a 100 m',
@@ -143,6 +152,7 @@
       geom: 'polygon',
       classField: 'ClDec',
       palette: SLOPE_PALETTE,
+      classLabels: SLOPE_LABELS,
       visualHints: 'Camada detalhada; reduza a opacidade ou utilize a alternativa de altimetria para visão geral.'
     },
     {
@@ -244,6 +254,8 @@
     hintsEl: null,
     allowedMunicipalities: new Set(),
     allowedMananciais: new Set(),
+    regionMask: null,
+    regionBBox: null,
     filter: {
       region: selectedRegion,
       municipality: '',
@@ -426,6 +438,20 @@
     return normalized;
   }
 
+  function normalizeClassLabels(labels) {
+    if (!labels) return null;
+    const normalized = {};
+    Object.entries(labels).forEach(([key, value]) => {
+      if (!key || !value) return;
+      const trimmed = typeof key === 'string' ? key.trim() : key;
+      normalized[trimmed] = value;
+      if (typeof trimmed === 'string') {
+        normalized[trimmed.toUpperCase()] = value;
+      }
+    });
+    return normalized;
+  }
+
   function buildAutoPalette(values) {
     const palette = {};
     values.forEach((value, index) => {
@@ -555,6 +581,16 @@
     return entry.palette[key] || (typeof key === 'string' ? entry.palette[key.toUpperCase()] : null);
   }
 
+  function labelForClass(entry, value) {
+    if (!entry || !entry.classLabels) return value;
+    const key = typeof value === 'string' ? value.trim() : value;
+    return (
+      entry.classLabels[key] ||
+      (typeof key === 'string' ? entry.classLabels[key.toUpperCase()] : undefined) ||
+      value
+    );
+  }
+
   function aggregateMetrics(entry, features) {
     let total = 0;
     const breakdown = new Map();
@@ -633,7 +669,8 @@
               ? `style="background:${color}; border-color:${color};"`
               : `style="background:${color};"`
             : '';
-          block.push(`<li class="legend-item"><span class="${swatchClass}" ${styleAttr}></span><span class="legend-label">${className}</span><span class="legend-value">${formatMetric(value, entry.metric)}</span></li>`);
+          const label = labelForClass(entry, className);
+          block.push(`<li class="legend-item"><span class="${swatchClass}" ${styleAttr}></span><span class="legend-label">${label}</span><span class="legend-value">${formatMetric(value, entry.metric)}</span></li>`);
         });
         block.push('</ul>');
       }
@@ -746,17 +783,100 @@
     }
     state.allowedMunicipalities = allowedMunicipalities;
     state.allowedMananciais = allowedMananciais;
+    updateRegionMask();
+  }
+
+  function updateRegionMask() {
+    const baciasEntry = state.layerStore.get('bacias');
+    if (!baciasEntry || !Array.isArray(baciasEntry.originalFeatures)) {
+      state.regionMask = null;
+      state.regionBBox = null;
+      return;
+    }
+
+    const features = baciasEntry.originalFeatures
+      .filter(feature => feature && feature.geometry)
+      .map(feature => ({ type: 'Feature', geometry: feature.geometry }));
+
+    if (!features.length) {
+      state.regionMask = null;
+      state.regionBBox = null;
+      return;
+    }
+
+    state.regionMask = features;
+    try {
+      state.regionBBox = turf.bbox({ type: 'FeatureCollection', features });
+    } catch (error) {
+      console.warn('Não foi possível calcular a extensão da regional selecionada.', error);
+      state.regionBBox = null;
+    }
+  }
+
+  async function ensureRegionMask() {
+    if (!state.normalizedRegion) return null;
+    if (state.regionMask) return state.regionMask;
+    const baciasEntry = state.layerStore.get('bacias');
+    if (!baciasEntry) return null;
+    if (!baciasEntry.loaded) {
+      await baciasEntry.ensureLoaded();
+    }
+    updateRegionMask();
+    return state.regionMask;
+  }
+
+  function bboxIntersectsRegion(feature) {
+    if (!state.regionBBox) return true;
+    try {
+      const featureBBox = turf.bbox(feature);
+      const [minX, minY, maxX, maxY] = state.regionBBox;
+      return !(
+        featureBBox[2] < minX ||
+        featureBBox[0] > maxX ||
+        featureBBox[3] < minY ||
+        featureBBox[1] > maxY
+      );
+    } catch (error) {
+      return true;
+    }
+  }
+
+  function filterByRegionMask(features) {
+    if (!Array.isArray(features) || !features.length) {
+      return Array.isArray(features) ? features : [];
+    }
+
+    if (!state.normalizedRegion) return features;
+
+    const mask = state.regionMask;
+    if (!mask || !mask.length) {
+      return features;
+    }
+
+    return features.filter(feature => {
+      if (!feature || !feature.geometry) return false;
+      if (!bboxIntersectsRegion(feature)) return false;
+      try {
+        const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
+        return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
+      } catch (error) {
+        console.warn('Falha ao verificar interseção espacial; mantendo a feição.', error);
+        return true;
+      }
+    });
   }
 
   function applyFilter({ fit = false } = {}) {
     state.orderedEntries.forEach(entry => {
       if (!entry.loaded) return;
       if (!entry.filterable) {
-        entry.currentFeatures = entry.originalFeatures;
+        entry.currentFeatures = filterByRegionMask(entry.originalFeatures);
         syncEntryLayer(entry, { force: true });
         return;
       }
-      const filtered = entry.originalFeatures.filter(feature => passesFilter(feature.properties));
+      const filtered = filterByRegionMask(
+        entry.originalFeatures.filter(feature => passesFilter(feature.properties))
+      );
       entry.currentFeatures = filtered;
       syncEntryLayer(entry, { force: true });
     });
@@ -963,6 +1083,7 @@
       metric: config.metric || 'area',
       classField: config.classField,
       palette: normalizePalette(config.palette),
+      classLabels: normalizeClassLabels(config.classLabels),
       autoPalette: config.autoPalette,
       visualHints: config.visualHints || '',
       minZoom: Number.isFinite(config.minZoom) ? Number(config.minZoom) : undefined,
@@ -996,25 +1117,48 @@
         const allFeatures = Array.isArray(fc.features) ? fc.features : [];
         entry.filterable = allFeatures.some(hasFilterAttributes);
 
+        if (state.normalizedRegion && entry.id !== 'bacias') {
+          await ensureRegionMask();
+        }
+
         let features = allFeatures;
         if (state.normalizedRegion) {
-          features = allFeatures.filter(feature => {
-            const props = feature?.properties;
-            if (!props) return false;
-            const regionValue = getFilterValue(props, 'region', { normalized: true });
-            if (regionValue) {
-              return regionValue === state.normalizedRegion;
-            }
-            const municipalityNorm = normalizeText(getFilterValue(props, 'municipality'));
-            if (municipalityNorm && state.allowedMunicipalities.size) {
-              return state.allowedMunicipalities.has(municipalityNorm);
-            }
-            const manancialNorm = normalizeText(getFilterValue(props, 'manancial'));
-            if (manancialNorm && state.allowedMananciais.size) {
-              return state.allowedMananciais.has(manancialNorm);
-            }
-            return true;
-          });
+          if (entry.filterable) {
+            features = allFeatures.filter(feature => {
+              const props = feature?.properties;
+              if (!props) return false;
+              const regionValue = getFilterValue(props, 'region', { normalized: true });
+              if (regionValue) {
+                return regionValue === state.normalizedRegion;
+              }
+              const municipalityNorm = normalizeText(getFilterValue(props, 'municipality'));
+              if (municipalityNorm && state.allowedMunicipalities.size) {
+                return state.allowedMunicipalities.has(municipalityNorm);
+              }
+              const manancialNorm = normalizeText(getFilterValue(props, 'manancial'));
+              if (manancialNorm && state.allowedMananciais.size) {
+                return state.allowedMananciais.has(manancialNorm);
+              }
+              if (entry.id === 'bacias') {
+                return false;
+              }
+              const mask = state.regionMask;
+              if (!mask || !mask.length) return false;
+              try {
+                const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
+                return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
+              } catch (error) {
+                console.warn('Falha ao usar a máscara regional como fallback de filtro.', error);
+                return false;
+              }
+            });
+          } else {
+            features = filterByRegionMask(allFeatures);
+          }
+        }
+
+        if (state.normalizedRegion) {
+          features = filterByRegionMask(features);
         }
 
         if (entry.classField) {
