@@ -1472,6 +1472,10 @@
           await ensureRegionMask();
         }
 
+        if (state.normalizedRegion && entry.id !== 'bacias') {
+          await ensureRegionMask();
+        }
+
         let features = allFeatures;
         if (state.normalizedRegion) {
           if (entry.filterable) {
