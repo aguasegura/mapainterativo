@@ -146,6 +146,62 @@
     return Math.abs(x) > 200 || Math.abs(y) > 90;
   }
 
+  const WEB_MERCATOR_RADIUS = 6378137;
+  const RAD2DEG = 180 / Math.PI;
+
+  function mercatorToLon(x) {
+    if (!Number.isFinite(x)) return 0;
+    return (x / WEB_MERCATOR_RADIUS) * RAD2DEG;
+  }
+
+  function mercatorToLat(y) {
+    if (!Number.isFinite(y)) return 0;
+    const latRad = 2 * Math.atan(Math.exp(y / WEB_MERCATOR_RADIUS)) - Math.PI / 2;
+    const latDeg = latRad * RAD2DEG;
+    return Math.max(Math.min(latDeg, 90), -90);
+  }
+
+  function transformCoordsToWgs84(coords) {
+    if (!Array.isArray(coords)) return coords;
+    if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+      const lon = mercatorToLon(coords[0]);
+      const lat = mercatorToLat(coords[1]);
+      if (coords.length > 2) {
+        return [lon, lat, ...coords.slice(2)];
+      }
+      return [lon, lat];
+    }
+    return coords.map(transformCoordsToWgs84);
+  }
+
+  function reprojectGeometryToWgs84(geometry) {
+    if (!geometry) return null;
+    if (geometry.type === 'GeometryCollection') {
+      const geometries = (geometry.geometries || [])
+        .map(inner => reprojectGeometryToWgs84(inner))
+        .filter(Boolean);
+      return geometries.length ? { type: 'GeometryCollection', geometries } : null;
+    }
+    if (!Array.isArray(geometry.coordinates)) {
+      return null;
+    }
+    return {
+      ...geometry,
+      coordinates: transformCoordsToWgs84(geometry.coordinates)
+    };
+  }
+
+  function reprojectFeatureToWgs84(feature) {
+    if (!feature) return null;
+    const geometry = reprojectGeometryToWgs84(feature.geometry);
+    if (!geometry) return null;
+    const clone = { type: 'Feature', geometry };
+    if (feature.properties && typeof feature.properties === 'object') {
+      clone.properties = { ...feature.properties };
+    }
+    return clone;
+  }
+
   function planarRingArea(ring) {
     if (!Array.isArray(ring) || ring.length < 4) return 0;
     let sum = 0;
@@ -452,7 +508,9 @@
     allowedMunicipalities: new Set(),
     allowedMananciais: new Set(),
     regionMask: null,
+    regionMask4326: null,
     regionBBox: null,
+    regionBBox4326: null,
     filter: {
       region: selectedRegion,
       municipality: '',
@@ -979,10 +1037,14 @@
     return true;
   }
 
-  function fitMapToFeatures(features) {
+  function fitMapToFeatures(features, { isProjected = false } = {}) {
     if (!state.map || !Array.isArray(features) || !features.length) return;
+    const normalizedFeatures = isProjected
+      ? features.map(reprojectFeatureToWgs84).filter(Boolean)
+      : features;
+    if (!normalizedFeatures.length) return;
     try {
-      const bbox = turf.bbox({ type: 'FeatureCollection', features });
+      const bbox = turf.bbox({ type: 'FeatureCollection', features: normalizedFeatures });
       const bounds = L.latLngBounds(
         [bbox[1], bbox[0]],
         [bbox[3], bbox[2]]
@@ -998,7 +1060,7 @@
   function fitToFilteredSelection() {
     const baciasEntry = state.layerStore.get('bacias');
     if (!baciasEntry || !baciasEntry.currentFeatures?.length) return;
-    fitMapToFeatures(baciasEntry.currentFeatures);
+    fitMapToFeatures(baciasEntry.currentFeatures, { isProjected: baciasEntry.isProjected });
   }
 
   function collectFilterUniverse() {
@@ -1027,7 +1089,9 @@
     const baciasEntry = state.layerStore.get('bacias');
     if (!baciasEntry || !Array.isArray(baciasEntry.originalFeatures)) {
       state.regionMask = null;
+      state.regionMask4326 = null;
       state.regionBBox = null;
+      state.regionBBox4326 = null;
       return;
     }
 
@@ -1037,16 +1101,51 @@
 
     if (!features.length) {
       state.regionMask = null;
+      state.regionMask4326 = null;
       state.regionBBox = null;
+      state.regionBBox4326 = null;
       return;
     }
 
     state.regionMask = features;
+    state.regionMask4326 = features;
+    state.regionBBox = null;
+    state.regionBBox4326 = null;
     try {
       state.regionBBox = turf.bbox({ type: 'FeatureCollection', features });
     } catch (error) {
       console.warn('Não foi possível calcular a extensão da regional selecionada.', error);
       state.regionBBox = null;
+    }
+
+    const maskIsProjected = features.some(feature => geometryIsProjected(feature.geometry));
+    if (maskIsProjected) {
+      const geographicFeatures = features
+        .map(reprojectFeatureToWgs84)
+        .filter(Boolean);
+      if (geographicFeatures.length) {
+        state.regionMask4326 = geographicFeatures;
+        try {
+          state.regionBBox4326 = turf.bbox({ type: 'FeatureCollection', features: geographicFeatures });
+        } catch (error) {
+          console.warn('Não foi possível calcular a extensão em coordenadas geográficas.', error);
+          state.regionBBox4326 = null;
+        }
+      } else {
+        state.regionMask4326 = null;
+        state.regionBBox4326 = null;
+      }
+    } else {
+      state.regionBBox4326 = state.regionBBox;
+    }
+
+    if (!state.regionBBox4326 && state.regionMask4326) {
+      try {
+        state.regionBBox4326 = turf.bbox({ type: 'FeatureCollection', features: state.regionMask4326 });
+      } catch (error) {
+        console.warn('Não foi possível calcular a extensão geográfica da regional.', error);
+        state.regionBBox4326 = null;
+      }
     }
   }
 
@@ -1062,11 +1161,17 @@
     return state.regionMask;
   }
 
-  function bboxIntersectsRegion(feature) {
-    if (!state.regionBBox) return true;
+  function getRegionMaskContext({ isProjected = false } = {}) {
+    const mask = isProjected ? state.regionMask : state.regionMask4326 || state.regionMask;
+    const bbox = isProjected ? state.regionBBox : state.regionBBox4326 || state.regionBBox;
+    return { mask, bbox };
+  }
+
+  function bboxIntersectsRegion(feature, bbox) {
+    if (!bbox) return true;
     try {
       const featureBBox = turf.bbox(feature);
-      const [minX, minY, maxX, maxY] = state.regionBBox;
+      const [minX, minY, maxX, maxY] = bbox;
       return !(
         featureBBox[2] < minX ||
         featureBBox[0] > maxX ||
@@ -1078,21 +1183,21 @@
     }
   }
 
-  function filterByRegionMask(features) {
+  function filterByRegionMask(features, { isProjected = false } = {}) {
     if (!Array.isArray(features) || !features.length) {
       return Array.isArray(features) ? features : [];
     }
 
     if (!state.normalizedRegion) return features;
 
-    const mask = state.regionMask;
+    const { mask, bbox } = getRegionMaskContext({ isProjected });
     if (!mask || !mask.length) {
       return features;
     }
 
     return features.filter(feature => {
       if (!feature || !feature.geometry) return false;
-      if (!bboxIntersectsRegion(feature)) return false;
+      if (!bboxIntersectsRegion(feature, bbox)) return false;
       try {
         const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
         return mask.some(maskFeature => turf.booleanIntersects(maskFeature, featureWrapper));
@@ -1107,12 +1212,13 @@
     state.orderedEntries.forEach(entry => {
       if (!entry.loaded) return;
       if (!entry.filterable) {
-        entry.currentFeatures = filterByRegionMask(entry.originalFeatures);
+        entry.currentFeatures = filterByRegionMask(entry.originalFeatures, { isProjected: entry.isProjected });
         syncEntryLayer(entry, { force: true });
         return;
       }
       const filtered = filterByRegionMask(
-        entry.originalFeatures.filter(feature => passesFilter(feature.properties))
+        entry.originalFeatures.filter(feature => passesFilter(feature.properties)),
+        { isProjected: entry.isProjected }
       );
       entry.currentFeatures = filtered;
       syncEntryLayer(entry, { force: true });
@@ -1359,6 +1465,12 @@
         entry.metric = config.metric || metricFromGeometry(geom);
         const allFeatures = Array.isArray(fc.features) ? fc.features : [];
         entry.filterable = allFeatures.some(hasFilterAttributes);
+        const datasetIsProjected = detectProjected(allFeatures);
+        entry.isProjected = datasetIsProjected;
+
+        if (state.normalizedRegion && entry.id !== 'bacias') {
+          await ensureRegionMask();
+        }
 
         if (state.normalizedRegion && entry.id !== 'bacias') {
           await ensureRegionMask();
@@ -1385,7 +1497,7 @@
               if (entry.id === 'bacias') {
                 return false;
               }
-              const mask = state.regionMask;
+              const { mask } = getRegionMaskContext({ isProjected: datasetIsProjected });
               if (!mask || !mask.length) return false;
               try {
                 const featureWrapper = feature.type === 'Feature' ? feature : { type: 'Feature', geometry: feature.geometry };
@@ -1396,12 +1508,12 @@
               }
             });
           } else {
-            features = filterByRegionMask(allFeatures);
+            features = filterByRegionMask(allFeatures, { isProjected: datasetIsProjected });
           }
         }
 
         if (state.normalizedRegion) {
-          features = filterByRegionMask(features);
+          features = filterByRegionMask(features, { isProjected: datasetIsProjected });
         }
 
         if (entry.classField) {
