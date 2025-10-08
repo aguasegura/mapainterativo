@@ -196,10 +196,23 @@
     const geometry = reprojectGeometryToWgs84(feature.geometry);
     if (!geometry) return null;
     const clone = { type: 'Feature', geometry };
+    if (feature.id !== undefined) {
+      clone.id = feature.id;
+    }
     if (feature.properties && typeof feature.properties === 'object') {
       clone.properties = { ...feature.properties };
     }
     return clone;
+  }
+
+  function buildDisplayFeatures(entry) {
+    if (!entry) return [];
+    const features = Array.isArray(entry.currentFeatures) ? entry.currentFeatures : [];
+    if (!features.length) return [];
+    if (!entry.isProjected) return features;
+    return features
+      .map(reprojectFeatureToWgs84)
+      .filter(Boolean);
   }
 
   function planarRingArea(ring) {
@@ -822,8 +835,9 @@
 
     if (!entry.zoomVisible || force) {
       entry.layer.clearLayers();
-      if (entry.currentFeatures && entry.currentFeatures.length) {
-        entry.layer.addData({ type: 'FeatureCollection', features: entry.currentFeatures });
+      const displayFeatures = buildDisplayFeatures(entry);
+      if (displayFeatures.length) {
+        entry.layer.addData({ type: 'FeatureCollection', features: displayFeatures });
         if (entry.id === 'bacias' && state.map && state.map.hasLayer(entry.layer)) {
           entry.layer.bringToFront();
         }
@@ -1467,10 +1481,6 @@
         entry.filterable = allFeatures.some(hasFilterAttributes);
         const datasetIsProjected = detectProjected(allFeatures);
         entry.isProjected = datasetIsProjected;
-
-        if (state.normalizedRegion && entry.id !== 'bacias') {
-          await ensureRegionMask();
-        }
 
         if (state.normalizedRegion && entry.id !== 'bacias') {
           await ensureRegionMask();
