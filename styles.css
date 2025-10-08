@@ -412,6 +412,23 @@ body {
   flex-shrink: 0;
 }
 
+.legend-swatch.point {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.legend-swatch.point svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 .legend-swatch.line {
   height: 4px;
   border-radius: 999px;
@@ -426,6 +443,15 @@ body {
 .legend-value {
   color: var(--muted);
   font-weight: 600;
+}
+
+.point-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.point-marker svg {
+  display: block;
 }
 
 .legend-note {
