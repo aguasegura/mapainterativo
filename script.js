@@ -447,7 +447,9 @@
     {
       id: 'uso_app',
       name: 'Conflito de Uso (APP 30m)',
-      files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
+      files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz',
+              'conflitosdeuso__conflitodeuso_otto.geojson_part-001.gz',
+              'conflitosdeuso__conflitodeuso.geojson_part-001.gz'],
       geom: 'polygon',
       visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
     },
