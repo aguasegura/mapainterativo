@@ -454,7 +454,7 @@
     {
       id: 'car',
       name: 'Cadastro Ambiental Rural (CAR)',
-      files: ['car.geojson_part-001.gz'],
+      files: ['imoveiscar__car_otto.geojson_part-001.gz'],
       geom: 'polygon',
       visualHints: 'Camada com geometrias complexas; aproxime para evitar sobreposições excessivas.'
     },
