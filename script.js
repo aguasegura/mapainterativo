@@ -32,7 +32,7 @@
   };
 
   const FILTER_ALIASES = {
-    region: ['Regional', 'regional', 'regional i', 'Regional_I', 'RegionalI', 'regional_i'],
+    region: ['Regional', 'regional', 'regional i', 'Regional_I', 'RegionalI', 'regional_i', 'Regional IDR', 'Regional_IDR'],
     municipality: ['municipio'],
     manancial: ['manancial']
   };
