@@ -379,7 +379,7 @@
     'Agricultura Perene': '#ed9c44',
     'Área Construída': '#b13f3c',
     'Área Urbanizada': '#e34a33',
-    'Corpos d’Água': '#4c78a8',
+    'Corpos d'Água': '#4c78a8',
     "Corpos d'Água": '#4c78a8',
     'Floresta Nativa': '#1a7f3b',
     'Mangue': '#3b9d5d',
@@ -454,7 +454,7 @@
     {
       id: 'car',
       name: 'Cadastro Ambiental Rural (CAR)',
-      files: ['car.geojson_part-001.gz'],
+      files: ['imoveiscar__car_otto.geojson_part-001.gz'],
       geom: 'polygon',
       visualHints: 'Camada com geometrias complexas; aproxime para evitar sobreposições excessivas.'
     },
