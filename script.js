@@ -379,7 +379,7 @@
     'Agricultura Perene': '#ed9c44',
     'Área Construída': '#b13f3c',
     'Área Urbanizada': '#e34a33',
-    'Corpos d'Água': '#4c78a8',
+    'Corpos d’Água': '#4c78a8',
     "Corpos d'Água": '#4c78a8',
     'Floresta Nativa': '#1a7f3b',
     'Mangue': '#3b9d5d',
