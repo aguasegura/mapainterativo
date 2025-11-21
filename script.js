@@ -401,7 +401,7 @@
     },
     {
       id: 'altimetria',
-      name: 'Altimetria',
+      name: 'Altimetria (classes)',
       files: ['altimetria__altimetria_otto.geojson_part-001.gz'],
       geom: 'polygon',
       classField: 'ClAlt',
@@ -423,7 +423,7 @@
     },
     {
       id: 'solos',
-      name: 'Solos',
+      name: 'Tipos de Solos',
       files: ['solos__solos_otto.geojson_part-001.gz'],
       geom: 'polygon',
       classField: 'Cl_solos',
@@ -436,7 +436,8 @@
         'uso_solo__usodosolo_otto.geojson_part-001.gz',
         'uso_solo__usodosolo_otto.geojson_part-002.gz',
         'uso_solo__usodosolo_otto.geojson_part-003.gz',
-        'uso_solo__usodosolo_otto.geojson_part-004.gz'
+        'uso_solo__usodosolo_otto.geojson_part-004.gz',
+        'uso_solo__usodosolo_otto.geojson_part-005.gz'
       ],
       geom: 'polygon',
       classField: 'NIVEL_II',
@@ -445,7 +446,7 @@
     },
     {
       id: 'uso_app',
-      name: 'Uso do Solo em APP',
+      name: 'Conflito de Uso (APP 30m)',
       files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
       geom: 'polygon',
       visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
@@ -476,7 +477,18 @@
         'curvasdenivel__curvas_otto.geojson_part-001.gz',
         'curvasdenivel__curvas_otto.geojson_part-002.gz',
         'curvasdenivel__curvas_otto.geojson_part-003.gz',
-        'curvasdenivel__curvas_otto.geojson_part-004.gz'
+        'curvasdenivel__curvas_otto.geojson_part-004.gz',
+        'curvasdenivel__curvas_otto.geojson_part-005.gz',
+        'curvasdenivel__curvas_otto.geojson_part-006.gz',
+        'curvasdenivel__curvas_otto.geojson_part-007.gz',
+        'curvasdenivel__curvas_otto.geojson_part-008.gz',
+        'curvasdenivel__curvas_otto.geojson_part-009.gz',
+        'curvasdenivel__curvas_otto.geojson_part-010.gz',
+        'curvasdenivel__curvas_otto.geojson_part-011.gz',
+        'curvasdenivel__curvas_otto.geojson_part-012.gz',
+        'curvasdenivel__curvas_otto.geojson_part-013.gz',
+        'curvasdenivel__curvas_otto.geojson_part-014.gz',
+        'curvasdenivel__curvas_otto.geojson_part-015.gz'
       ],
       geom: 'line',
       metric: 'length',
@@ -484,7 +496,7 @@
     },
     {
       id: 'hidrografia',
-      name: 'Hidrografia',
+      name: 'Rede de Drenagem (Hidrografia)',
       files: ['hidrografia__hidrografia_otto.geojson_part-001.gz'],
       geom: 'line',
       metric: 'length',
@@ -504,8 +516,8 @@
     { id: 'bovinos', name: 'Bovinos', files: ['bovinos__bovinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'bubalinos', name: 'Bubalinos', files: ['bubalinos__bubalinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'caf', name: 'CAF', files: ['caf.geojson_part-001.gz'], geom: 'point', metric: 'count' },
-    { id: 'educacao', name: 'Educação Ambiental', files: ['educacao__educacao_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
-    { id: 'sigarh', name: 'SIGARH', files: ['sigarh.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'educacao', name: 'Escolas Estaduais', files: ['educacao__educacao_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'sigarh', name: 'Outorgas (SIGARH)', files: ['sigarh.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' }
   ];
 
