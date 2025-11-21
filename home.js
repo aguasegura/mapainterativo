@@ -58,7 +58,7 @@
       const regions = Array.from(
         new Set(
           (data.features || [])
-            .map(feature => feature?.properties?.['Regional I'])
+            .map(feature => feature?.properties?.['Regional IDR'])
             .filter(value => typeof value === 'string' && value.trim() !== '')
             .map(value => value.trim())
         )
