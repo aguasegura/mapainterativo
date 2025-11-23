@@ -384,7 +384,7 @@
     'Agricultura Perene': '#ed9c44',
     'Área Construída': '#b13f3c',
     'Área Urbanizada': '#e34a33',
-    "Corpos d'Água": '#4c78a8',
+    'Corpos d'Água': '#4c78a8',
     "Corpos d'Água": '#4c78a8',
     'Floresta Nativa': '#1a7f3b',
     'Mangue': '#3b9d5d',
@@ -1510,7 +1510,9 @@
         entry.geom = geom;
         entry.metric = config.metric || metricFromGeometry(geom);
         const allFeatures = Array.isArray(fc.features) ? fc.features : [];
-        entry.filterable = allFeatures.some(hasFilterAttributes);
+        entry.filterable = (entry.id === 'car')
+          ? false
+          : allFeatures.some(hasFilterAttributes);
         const datasetIsProjected = detectProjected(allFeatures);
         entry.isProjected = datasetIsProjected;
 
