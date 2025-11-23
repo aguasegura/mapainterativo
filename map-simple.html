@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Programa Água Segura — Mapa Interativo</title>
+  <link rel="icon" type="image/x-icon" href="data/aguasegura_ico.ico" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="header-logos">
+      <img src="data/aguaseguralogo1.png" alt="Programa Água Segura" class="logo-small" />
+      <img src="data/logo_sanepar.jpg" alt="Sanepar" class="logo-small" />
+      <img src="data/Logo_IAT_PR.png" alt="IAT-Paraná" class="logo-small" />
+      <img src="data/adapar.png" alt="ADAPAR" class="logo-small" />
+      <img src="data/logo_IDR-SEAB.png" alt="IDR-SEAB" class="logo-small" />
+    </div>
+    <span id="regionPill" class="region-pill" aria-live="polite">Curitiba</span>
+    <a class="btn link-btn" href="index.html">Trocar regional</a>
+    <button id="fitAll" class="btn" type="button">Ajustar visão</button>
+    <div class="slider-row">
+      <span class="muted">Opacidade</span>
+      <input id="opacity" type="range" min="20" max="100" value="70" />
+      <span id="opacityVal" class="muted">70%</span>
+    </div>
+    <span class="version">v4.2 — IDR-Paraná © 2025</span>
+  </header>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  
+  <script>
+    // Versão simplificada para teste
+    (async function() {
+      'use strict';
+      
+      // Configuração inicial
+      const selectedRegion = new URLSearchParams(window.location.search).get('region') || 'Curitiba';
+      document.getElementById('regionPill').textContent = selectedRegion;
+      
+      console.log('Iniciando mapa simplificado com região:', selectedRegion);
+      
+      // Criar mapa
+      const map = L.map('map', {
+        center: [-25.42, -49.27], // Curitiba
+        zoom: 10,
+        preferCanvas: true
+      });
+      
+      // Adicionar camada base
+      L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap, &copy; CARTO'
+      }).addTo(map);
+      
+      console.log('Mapa base criado');
+      
+      // Configuração de camadas
+      const layers = {
+        'Bacias Selecionadas': {
+          files: ['baciasselecionadas.geojson'],
+          style: { color: '#1d4ed8', weight: 2, fillColor: '#bfdbfe', fillOpacity: 0.3 },
+          visible: true
+        },
+        'CAR': {
+          files: ['car.geojson_part-001.gz'],
+          style: { color: '#0f3d1f', weight: 1.4, fillColor: '#2bb24c', fillOpacity: 0.55 },
+          visible: true
+        }
+      };
+      
+      // Função para carregar arquivo
+      async function loadFile(filename) {
+        const url = `data/${filename}`;
+        console.log('Carregando:', url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Erro HTTP ${response.status}`);
+        }
+        
+        if (filename.endsWith('.gz')) {
+          const buffer = await response.arrayBuffer();
+          const text = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+          return JSON.parse(text);
+        }
+        
+        return await response.json();
+      }
+      
+      // Carregar e adicionar camadas
+      const overlays = {};
+      
+      for (const [name, config] of Object.entries(layers)) {
+        try {
+          console.log(`Carregando camada: ${name}`);
+          
+          const data = await loadFile(config.files[0]);
+          console.log(`${name}: ${data.features ? data.features.length : 0} features carregadas`);
+          
+          const layer = L.geoJSON(data, {
+            style: config.style,
+            onEachFeature: (feature, layer) => {
+              if (feature.properties) {
+                const props = Object.entries(feature.properties)
+                  .slice(0, 10) // Limitar a 10 propriedades
+                  .map(([key, value]) => `<b>${key}</b>: ${value}`)
+                  .join('<br>');
+                layer.bindPopup(props);
+              }
+            }
+          });
+          
+          overlays[name] = layer;
+          
+          if (config.visible) {
+            layer.addTo(map);
+          }
+          
+          // Ajustar o mapa para a primeira camada visível
+          if (name === 'Bacias Selecionadas' && config.visible) {
+            map.fitBounds(layer.getBounds());
+          }
+          
+        } catch (error) {
+          console.error(`Erro ao carregar ${name}:`, error);
+        }
+      }
+      
+      // Adicionar controle de camadas
+      L.control.layers({}, overlays, { collapsed: false }).addTo(map);
+      
+      // Controle de opacidade
+      const opacitySlider = document.getElementById('opacity');
+      const opacityValue = document.getElementById('opacityVal');
+      
+      opacitySlider.addEventListener('input', function() {
+        const opacity = this.value / 100;
+        opacityValue.textContent = `${this.value}%`;
+        
+        // Atualizar opacidade de todas as camadas
+        Object.values(overlays).forEach(layer => {
+          layer.setStyle({ opacity: opacity, fillOpacity: opacity * 0.5 });
+        });
+      });
+      
+      // Botão de ajustar visão
+      document.getElementById('fitAll').addEventListener('click', function() {
+        const bounds = L.latLngBounds();
+        let hasFeatures = false;
+        
+        Object.values(overlays).forEach(layer => {
+          if (map.hasLayer(layer)) {
+            bounds.extend(layer.getBounds());
+            hasFeatures = true;
+          }
+        });
+        
+        if (hasFeatures) {
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
+      });
+      
+      console.log('Inicialização completa');
+      
+    })();
+  </script>
+</body>
+</html>

@@ -11,13 +11,18 @@
   if (!selectedRegion) {
     const stored = window.localStorage?.getItem(STORAGE_KEY);
     if (stored) {
+      selectedRegion = stored;
       const target = new URL(window.location.href);
       target.searchParams.set('region', stored);
-      window.location.replace(target.toString());
-      return;
+      window.history.replaceState(null, '', target.toString());
+    } else {
+      // Define uma região padrão se não houver nenhuma
+      selectedRegion = 'Curitiba';
+      const target = new URL(window.location.href);
+      target.searchParams.set('region', 'Curitiba');
+      window.history.replaceState(null, '', target.toString());
+      window.localStorage?.setItem(STORAGE_KEY, selectedRegion);
     }
-    window.location.replace('index.html');
-    return;
   }
 
   selectedRegion = selectedRegion.trim();
@@ -627,16 +632,30 @@
   }
 
   async function fetchGeoJSON(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Erro ao carregar ${url}: ${response.status}`);
+    console.log('Carregando:', url);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(`Erro HTTP ao carregar ${url}: ${response.status}`);
+        throw new Error(`Erro ao carregar ${url}: ${response.status}`);
+      }
+      
+      if (url.endsWith('.gz')) {
+        const buffer = await response.arrayBuffer();
+        console.log(`Arquivo .gz carregado: ${url}, tamanho: ${buffer.byteLength} bytes`);
+        const text = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+        const data = JSON.parse(text);
+        console.log(`Dados descompactados de ${url}: ${data.features ? data.features.length : 0} features`);
+        return data;
+      }
+      
+      const data = await response.json();
+      console.log(`Dados JSON de ${url}: ${data.features ? data.features.length : 0} features`);
+      return data;
+    } catch (error) {
+      console.error(`Erro ao processar ${url}:`, error);
+      throw error;
     }
-    if (url.endsWith('.gz')) {
-      const buffer = await response.arrayBuffer();
-      const text = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
-      return JSON.parse(text);
-    }
-    return await response.json();
   }
 
   async function loadGeoJSON(input) {
@@ -1583,7 +1602,11 @@
   }
 
   async function init() {
-    const baseLayers = {
+    console.log('Iniciando mapa com região:', selectedRegion);
+    
+    // Adicionar tratamento de erro para toda a inicialização
+    try {
+      const baseLayers = {
       'CARTO Light': L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap, &copy; CARTO'
       }),
@@ -1598,12 +1621,20 @@
       })
     };
 
-    state.map = L.map('map', {
-      center: [-24.5, -51],
-      zoom: 7,
-      preferCanvas: true,
-      layers: [baseLayers['CARTO Light']]
-    });
+      // Verificar se o elemento do mapa existe
+      const mapElement = document.getElementById('map');
+      if (!mapElement) {
+        throw new Error('Elemento #map não encontrado no DOM');
+      }
+      
+      state.map = L.map('map', {
+        center: [-24.5, -51],
+        zoom: 7,
+        preferCanvas: true,
+        layers: [baseLayers['CARTO Light']]
+      });
+      
+      console.log('Mapa criado com sucesso');
 
     const overlays = {};
     const defaultLoads = [];
@@ -1658,8 +1689,24 @@
     };
     hintsControl.addTo(state.map);
 
-    enforceZoomVisibility();
-    updateLegend();
+      enforceZoomVisibility();
+      updateLegend();
+      
+      console.log('Inicialização completa');
+    } catch (error) {
+      console.error('Erro crítico na inicialização do mapa:', error);
+      // Mostrar erro na interface
+      const mapElement = document.getElementById('map');
+      if (mapElement) {
+        mapElement.innerHTML = `
+          <div style="padding: 20px; text-align: center; margin-top: 100px;">
+            <h2>Erro ao carregar o mapa</h2>
+            <p>${error.message}</p>
+            <p>Por favor, recarregue a página ou verifique o console para mais detalhes.</p>
+          </div>
+        `;
+      }
+    }
   }
 
   if (document.readyState === 'loading') {
