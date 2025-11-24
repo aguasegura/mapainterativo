@@ -32,7 +32,7 @@
 
   const FILTER_FIELDS = {
     region: 'Regional I',
-    municipality: 'Municipio',
+    municipality: 'NomeMunicipio',
     manancial: 'Manancial'
   };
 
@@ -57,7 +57,8 @@
     caf: { fill: '#6366f1', stroke: '#3730a3', label: 'CAF', fontSize: 8, legendFontSize: 7 },
     educacao: { fill: '#06b6d4', stroke: '#0e7490', label: 'Ed', fontSize: 10, legendFontSize: 9 },
     sigarh: { fill: '#fb7185', stroke: '#be123c', label: 'SG', fontSize: 9, legendFontSize: 8 },
-    suinos: { fill: '#ef4444', stroke: '#991b1b', label: 'Su', fontSize: 10, legendFontSize: 9 }
+    suinos: { fill: '#ef4444', stroke: '#991b1b', label: 'Su', fontSize: 10, legendFontSize: 9 },
+    urs: { fill: '#ef5555', stroke: '#881b1b', label: 'UR', fontSize: 10, legendFontSize: 9 }
   };
 
   const pointIconCache = new Map();
@@ -524,7 +525,8 @@
     { id: 'caf', name: 'CAF', files: ['caf.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'educacao', name: 'Escolas Estaduais', files: ['educacao__educacao_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'sigarh', name: 'Outorgas (SIGARH)', files: ['sigarh.geojson_part-001.gz'], geom: 'point', metric: 'count' },
-    { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' }
+    { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'urs', name: 'URs', files: ['urs__urs.geojson_part-001.gz'], geom: 'point', metric: 'count' }
   ];
 
   const state = {
