@@ -1,21 +1,24 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Departamento de Sustentabilidade — Programa Água Segura</title>
     <link rel="icon" type="image/x-icon" href="data/aguasegura_ico.ico" />
 
-    <!-- Mesmo script do index.html para garantir o base href correto no GitHub Pages -->
+    <!-- Mesmo script do index original para garantir o base href correto no GitHub Pages -->
     <script>
       (function ensureBaseHref() {
         try {
-          const current = new URL(document.currentScript?.src || window.location.href, window.location.href);
-          const base = new URL('./', current);
-          let baseEl = document.querySelector('base[data-auto-base]');
+          const current = new URL(
+            document.currentScript?.src || window.location.href,
+            window.location.href
+          );
+          const base = new URL("./", current);
+          let baseEl = document.querySelector("base[data-auto-base]");
           if (!baseEl) {
-            baseEl = document.createElement('base');
-            baseEl.setAttribute('data-auto-base', 'true');
+            baseEl = document.createElement("base");
+            baseEl.setAttribute("data-auto-base", "true");
             if (document.head.firstChild) {
               document.head.insertBefore(baseEl, document.head.firstChild);
             } else {
@@ -25,7 +28,7 @@
           baseEl.href = base.href;
           window.__APP_BASE_URL__ = base.href;
         } catch (error) {
-          console.error('Não foi possível definir a base dos assets.', error);
+          console.error("Não foi possível definir a base dos assets.", error);
         }
       })();
     </script>
@@ -220,7 +223,7 @@
   </head>
 
   <body class="landing">
-    <!-- Cabeçalho igual ao index.html -->
+    <!-- Cabeçalho -->
     <header class="landing-header">
       <div class="header-logos">
         <img src="data/aguaseguralogo1.png" alt="Programa Água Segura" class="logo-small" />
@@ -246,10 +249,10 @@
         </p>
 
         <p>
-          Esta página oferece uma síntese do arranjo institucional do
-          <strong>Programa Água Segura</strong> e das entregas esperadas para 2026 em cada microbacia
-          atendida, indicando como os materiais e ferramentas disponíveis devem ser utilizados para
-          organizar o trabalho de forma padronizada no Estado.
+          Esta página reúne a síntese do arranjo institucional do
+          <strong>Programa Água Segura</strong> e das entregas esperadas em cada microbacia atendida,
+          indicando como os materiais e ferramentas disponíveis devem ser utilizados para organizar o
+          trabalho de forma padronizada no Estado.
         </p>
 
         <p class="ds-subtitle">Programa Água Segura e o TCTF</p>
@@ -279,13 +282,16 @@
           </li>
         </ul>
 
-        <p class="ds-subtitle">Entregas previstas para 2026</p>
+        <p class="ds-subtitle">Entregas previstas em cada microbacia</p>
         <p>
           Para cada microbacia selecionada, o planejamento do Programa Água Segura prevê o cumprimento
-          do seguinte conjunto de entregas ao longo de 2026:
+          do seguinte conjunto de entregas:
         </p>
         <ul class="ds-list">
-          <li>Realização de reuniões de dinamização e diagnóstico participativo com as comunidades das microbacias;</li>
+          <li>
+            Realização de reuniões de dinamização e diagnóstico participativo com as comunidades das
+            microbacias;
+          </li>
           <li>Seleção das Unidades de Referência (UR) com ata registrada no CMDRS correspondente;</li>
           <li>Levantamento das práticas necessárias em cada UR, considerando solo, água e produção;</li>
           <li>Acompanhamento sistemático da execução das práticas pactuadas;</li>
@@ -295,18 +301,23 @@
         <div class="ds-checklist">
           <p class="ds-checklist-title">Checklist mínimo em cada microbacia</p>
           <ul class="ds-list">
-            <li>Ao menos uma reunião de dinamização e diagnóstico participativo realizada e registrada;</li>
+            <li>
+              Ao menos uma reunião de dinamização e diagnóstico participativo realizada e registrada;
+            </li>
             <li>UR formalmente definida com ata do CMDRS arquivada;</li>
             <li>Lista de práticas priorizadas por propriedade/UR, com respectivos registros;</li>
             <li>Visitas e registros de acompanhamento da execução das práticas;</li>
-            <li>Ateste de execução emitido, com anexos comprobatórios digitalizados no sistema.</li>
+            <li>
+              Ateste de execução emitido, com anexos comprobatórios digitalizados no sistema e
+              arquivados na regional.
+            </li>
           </ul>
         </div>
 
         <p>
           Toda a documentação necessária para cada etapa — modelos de atas, roteiros, fichas e
-          relatórios — será disponibilizada no
-          <a href="index.html" target="_blank" rel="noopener">portal do Programa Água Segura</a>.
+          relatórios — será disponibilizada neste
+          <a href="./" target="_self">portal do Programa Água Segura</a>.
         </p>
 
         <p class="ds-subtitle">Papel do Departamento de Sustentabilidade</p>
@@ -348,7 +359,7 @@
             execução.
           </p>
           <div class="ds-sidebar-actions">
-            <a class="btn" href="index.html">Portal do programa</a>
+            <a class="btn" href="selecaoregional.html">Seleção de regional</a>
             <a class="btn" href="map.html">Abrir mapa interativo</a>
           </div>
         </div>
@@ -365,10 +376,12 @@
       </section>
     </main>
 
-    <!-- Seções detalhadas: Materiais, Eventos, Treinamentos, Calendário -->
+    <!-- MATERIAIS -->
     <section id="materiais" class="ds-section" aria-labelledby="titulo-materiais">
       <div class="landing-card">
-        <h2 id="titulo-materiais">Materiais do Departamento de Sustentabilidade e do Programa Água Segura</h2>
+        <h2 id="titulo-materiais">
+          Materiais do Departamento de Sustentabilidade e do Programa Água Segura
+        </h2>
         <p>
           Abaixo estão agrupados os principais documentos de referência do TCTF e os produtos técnicos
           gerados no âmbito do Programa Água Segura. Os arquivos digitais ficarão concentrados na
@@ -455,6 +468,7 @@
       </div>
     </section>
 
+    <!-- EVENTOS -->
     <section id="eventos" class="ds-section" aria-labelledby="titulo-eventos">
       <div class="landing-card">
         <h2 id="titulo-eventos">Eventos</h2>
@@ -496,6 +510,7 @@
       </div>
     </section>
 
+    <!-- TREINAMENTOS -->
     <section id="treinamentos" class="ds-section" aria-labelledby="titulo-treinamentos">
       <div class="landing-card">
         <h2 id="titulo-treinamentos">Treinamentos e capacitações</h2>
@@ -557,20 +572,20 @@
       </div>
     </section>
 
+    <!-- CALENDÁRIO -->
     <section id="calendario" class="ds-section" aria-labelledby="titulo-calendario">
       <div class="landing-card">
         <h2 id="titulo-calendario">Calendário de atividades</h2>
         <p class="ds-calendar-note">
-          O calendário abaixo pode ser integrado a uma agenda oficial (por exemplo, Google Calendar) do
-          Departamento de Sustentabilidade, reunindo os principais prazos do TCTF, eventos, reuniões e
-          capacitações do Programa Água Segura. A ideia é apoiar o planejamento das entregas em cada
-          microbacia ao longo do ano.
+          O calendário abaixo integra a agenda oficial do Departamento de Sustentabilidade para o
+          Programa Água Segura, reunindo os principais prazos do TCTF, eventos, reuniões e
+          capacitações. A ideia é apoiar o planejamento das entregas em cada microbacia ao longo do
+          ano.
         </p>
 
-        <!-- Substitua o src pelo link de incorporação da agenda oficial -->
         <iframe
           class="ds-calendar-frame"
-          src="https://calendar.google.com/calendar/embed?src=SEU_CALENDARIO_AQUI"
+          src="https://calendar.google.com/calendar/embed?src=ae1a6c93f4342bfb40d1b7e9313133a2f9cf320b044dc275e9322687c81055de%40group.calendar.google.com&ctz=America%2FSao_Paulo&mode=AGENDA"
           title="Calendário do Departamento de Sustentabilidade e Programa Água Segura"
         ></iframe>
       </div>
