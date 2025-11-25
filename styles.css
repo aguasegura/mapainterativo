@@ -52,7 +52,10 @@ body {
   height: 42px;
   width: auto;
 }
-
+.logo-medium {
+  height: 84px;
+  width: auto;
+}
 .btn {
   appearance: none;
   border: 1px solid var(--border-strong);
