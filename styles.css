@@ -902,6 +902,43 @@ body.landing {
   border: 0;
 }
 
+/* Lista de atas de reunião */
+.ds-list-atas {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.ds-list-atas li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ds-list-atas li:last-child {
+  border-bottom: none;
+}
+
+.ds-list-atas a {
+  color: #1e40af;
+  text-decoration: none;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ds-list-atas a:hover {
+  text-decoration: underline;
+  color: #1e3a8a;
+}
+
+.ds-list-atas a::before {
+  content: '📄';
+  font-size: 0.85rem;
+}
+
 @media (max-width: 860px) {
   .topbar {
     flex-wrap: wrap;
