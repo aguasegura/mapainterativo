@@ -156,8 +156,8 @@
       }
 
       .ds-columns {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        display: flex;
+        flex-direction: column;
         gap: 1.25rem;
         margin-top: 0.9rem;
       }
@@ -215,10 +215,6 @@
       @media (max-width: 980px) {
         .ds-section {
           padding: 0 1.5rem 2rem;
-        }
-
-        .ds-columns {
-          grid-template-columns: minmax(0, 1fr);
         }
       }
 
