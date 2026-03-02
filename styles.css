@@ -792,6 +792,116 @@ body.landing {
   font-size: 0.9rem;
 }
 
+.ds-note {
+  font-size: 0.92rem;
+  color: var(--muted);
+  font-style: italic;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-left: 3px solid var(--accent, #3b82f6);
+  border-radius: 0 4px 4px 0;
+  margin: 0.5rem 0;
+}
+
+.ds-indicators {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.ds-indicator-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.ds-indicator-number {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e40af;
+  line-height: 1.2;
+}
+
+.ds-indicator-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.ds-prns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.ds-prns-dimension {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.ds-prns-dimension strong {
+  display: block;
+  color: #1e40af;
+  margin-bottom: 0.25rem;
+}
+
+.ds-prns-dimension small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.ds-prns-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.ds-level {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.ds-level-bronze {
+  background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
+  color: white;
+}
+
+.ds-level-prata {
+  background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%);
+  color: #333;
+}
+
+.ds-level-ouro {
+  background: linear-gradient(135deg, #ffd700 0%, #daa520 100%);
+  color: #333;
+}
+
+/* Classe utilitária para acessibilidade - esconde visualmente mas mantém para leitores de tela */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 860px) {
   .topbar {
     flex-wrap: wrap;
