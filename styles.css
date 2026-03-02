@@ -902,18 +902,32 @@ body.landing {
   border: 0;
 }
 
-/* Lista de atas de reunião */
+/* Seção de atas de reunião */
+.ds-atas-container {
+  max-width: 600px;
+}
+
+.ds-atas-year {
+  background: #1e40af;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin: 1.5rem 0 0.5rem 0;
+}
+
+.ds-atas-year:first-child {
+  margin-top: 1rem;
+}
+
 .ds-list-atas {
   list-style: none;
   padding: 0;
-  margin: 0.5rem 0;
-  max-height: 400px;
-  overflow-y: auto;
+  margin: 0;
 }
 
 .ds-list-atas li {
-  padding: 0.4rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .ds-list-atas li:last-child {
@@ -921,21 +935,39 @@ body.landing {
 }
 
 .ds-list-atas a {
-  color: #1e40af;
+  color: #374151;
   text-decoration: none;
   font-size: 0.9rem;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  gap: 0.75rem;
+  transition: background 0.15s ease;
 }
 
 .ds-list-atas a:hover {
-  text-decoration: underline;
-  color: #1e3a8a;
+  background: #f0f9ff;
 }
 
 .ds-list-atas a::before {
   content: '📄';
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.ds-ata-num {
+  font-weight: 600;
+  color: #1e40af;
+  min-width: 55px;
+}
+
+.ds-ata-date {
+  color: #6b7280;
+  min-width: 90px;
+}
+
+.ds-ata-pauta {
+  color: #9ca3af;
   font-size: 0.85rem;
 }
 
