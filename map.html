@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>💧Programa Água Segura — Mapa Interativo</title>
     <link rel="icon" type="image/x-icon" href="data/aguasegura_ico.ico" />
+
+    <!-- SEO e Open Graph -->
+    <meta name="description" content="Mapa interativo do Programa Água Segura — Visualize as microbacias hidrográficas do Paraná com camadas de uso do solo, hidrografia, nascentes e mais." />
+    <meta property="og:title" content="Programa Água Segura — Mapa Interativo" />
+    <meta property="og:description" content="Mapa interativo das 27 microbacias do Programa Água Segura. Camadas temáticas, filtros por regional e ferramentas de análise." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aguasegura.github.io/mapainterativo/map.html" />
+    <meta property="og:image" content="https://aguasegura.github.io/mapainterativo/data/aguaseguralogo1.png" />
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script>
       (function ensureBaseHref() {
@@ -42,11 +51,11 @@
       <span id="regionPill" class="region-pill" aria-live="polite"></span>
       <a class="btn link-btn" href="selecaoregional.html">Trocar regional</a>
       <a class="btn link-btn" href="index.html" style="--arrow:'⌂'">Início</a>
-      <button id="fitAll" class="btn" type="button">Ajustar visão</button>
-      <div class="slider-row">
-        <span class="muted">Opacidade</span>
-        <input id="opacity" type="range" min="20" max="100" value="70" />
-        <span id="opacityVal" class="muted">70%</span>
+      <button id="fitAll" class="btn" type="button" aria-label="Ajustar visão para mostrar todas as microbacias">Ajustar visão</button>
+      <div class="slider-row" role="group" aria-label="Controle de opacidade das camadas">
+        <label for="opacity" class="muted">Opacidade</label>
+        <input id="opacity" type="range" min="20" max="100" value="70" aria-label="Opacidade das camadas do mapa" aria-valuemin="20" aria-valuemax="100" aria-valuenow="70" />
+        <span id="opacityVal" class="muted" aria-live="polite">70%</span>
       </div>
       <span class="version">IDR-Paraná · 2026</span>
     </header>

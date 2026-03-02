@@ -16,12 +16,9 @@
       target.searchParams.set('region', stored);
       window.history.replaceState(null, '', target.toString());
     } else {
-      // Define uma região padrão se não houver nenhuma
-      selectedRegion = 'Curitiba';
-      const target = new URL(window.location.href);
-      target.searchParams.set('region', 'Curitiba');
-      window.history.replaceState(null, '', target.toString());
-      window.localStorage?.setItem(STORAGE_KEY, selectedRegion);
+      // Redireciona para seleção de regional se nenhuma região estiver definida
+      window.location.href = 'selecaoregional.html';
+      return;
     }
   }
 
@@ -31,7 +28,7 @@
   const normalizedRegion = selectedRegion.toLowerCase();
 
   const FILTER_FIELDS = {
-    region: 'Regional I',
+    region: 'Regional IDR',
     municipality: 'NomeMunicipio',
     manancial: 'Manancial'
   };
