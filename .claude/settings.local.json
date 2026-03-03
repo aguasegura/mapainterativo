@@ -1,19 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__docker-mcp__read_file",
-      "mcp__docker-mcp__list_directory",
-      "Bash(dir /s /b)",
-      "Bash(tree:*)",
-      "Bash(grep:*)",
-      "Bash(ls:*)",
-      "Bash(awk:*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nCorreções da auditoria completa do site Água Segura\n\nPrioridade 1 \\(Críticas\\):\n- Corrigir número TCTF: CE 09/2024 → CE 009/2024\n- Remover 16 links quebrados de PDFs inexistentes\n- Corrigir referência: 100 → 27 microbacias\n- Adicionar seção \"Sobre o Programa\" com indicadores\n\nPrioridade 2 \\(Médias\\):\n- Adicionar ARIA labels no map.html \\(acessibilidade\\)\n- Adicionar meta tags SEO e Open Graph em todas as páginas\n- Expandir seção PRNS com 6 dimensões e níveis Bronze/Prata/Ouro\n\nPrioridade 3 \\(Opcionais\\):\n- Redirecionar para seleção de regional quando sem região definida\n- Corrigir FILTER_FIELDS: Regional I → Regional IDR\n- Adicionar classe sr-only para acessibilidade\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(cd:*)",
+      "Bash(gzip:*)"
     ]
-  },
-  "enabledMcpjsonServers": [
-    "insforge",
-    "docker-mcp"
-  ]
+  }
 }

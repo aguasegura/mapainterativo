@@ -1,0 +1,67 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//IDR-Paraná//Capacitações Sustentabilidade 2026//PT
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Capacitações Sustentabilidade 2026
+X-WR-TIMEZONE:America/Sao_Paulo
+BEGIN:VTIMEZONE
+TZID:America/Sao_Paulo
+BEGIN:STANDARD
+DTSTART:20260101T000000
+TZOFFSETFROM:-0300
+TZOFFSETTO:-0300
+TZNAME:BRT
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTART;TZID=America/Sao_Paulo:20260310T090000
+DTEND;TZID=America/Sao_Paulo:20260319T120000
+SUMMARY:Oficina de elaboração e retificação de CAR
+DESCRIPTION:Assessoria de Sustentabilidade — Dept. Sustentabilidade — DEX/IDR-Paraná\n\nModalidade: Online\nParticipantes IDR: 40\n\nElaboração e retificação do Cadastro Ambiental Rural\, uso do SICAR\, delimitação de APP e Reserva Legal\, orientação à regularização ambiental e adesão ao PRA. Integra teoria e prática com exercícios aplicados.
+LOCATION:Curitiba\, Paraná (Online)
+CATEGORIES:Capacitação,Sustentabilidade,CAR
+STATUS:TENTATIVE
+UID:cap-sust-2026-car-oficina@idr.pr.gov.br
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/Sao_Paulo:20260512T080000
+DTEND;TZID=America/Sao_Paulo:20260514T170000
+SUMMARY:Curso de QGIS aplicado ao manejo de bacias hidrográficas
+DESCRIPTION:Assessoria de Sustentabilidade — Dept. Sustentabilidade — DEX/IDR-Paraná\n\nModalidade: Presencial\nParticipantes IDR: 25 + 10 externos\n\nGeoprocessamento aplicado a recursos hídricos: delimitação de bacias e áreas de contribuição\, análise de rede de drenagem\, mapeamento de nascentes\, áreas sensíveis e zonas de proteção\, interpretação de informações espaciais para uso sustentável da água\, conservação do solo e segurança hídrica.
+LOCATION:Curitiba\, Paraná
+CATEGORIES:Capacitação,Sustentabilidade,QGIS,Geoprocessamento
+STATUS:TENTATIVE
+UID:cap-sust-2026-qgis-bacias@idr.pr.gov.br
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/Sao_Paulo:20260609T083000
+DTEND;TZID=America/Sao_Paulo:20260626T120000
+SUMMARY:Regularização ambiental da propriedade rural
+DESCRIPTION:Assessoria de Sustentabilidade — Dept. Sustentabilidade — DEX/IDR-Paraná\n\nModalidade: Híbrido\nParticipantes IDR: 40 + 20 externos\n\nDiagnóstico de APP\, Reserva Legal e áreas de uso restrito\; uso do CAR e do PRA\; licenças ambientais\, autorizações específicas e outorgas de uso da água\; requisitos\, fluxos e responsabilidades. Capacita extensionistas a apoiar produtores na recuperação de passivos e condução de trâmites administrativos.
+LOCATION:Curitiba\, Paraná (Híbrido)
+CATEGORIES:Capacitação,Sustentabilidade,Regularização Ambiental
+STATUS:TENTATIVE
+UID:cap-sust-2026-regularizacao-ambiental@idr.pr.gov.br
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/Sao_Paulo:20260915T080000
+DTEND;TZID=America/Sao_Paulo:20260917T170000
+SUMMARY:Drones na Gestão Ambiental e Hidrológica de Microbacias
+DESCRIPTION:Assessoria de Sustentabilidade — Dept. Sustentabilidade — DEX/IDR-Paraná\n\nModalidade: Presencial\nParticipantes IDR: 15 + 5 externos\n\nUso de drones como ferramenta estratégica para diagnóstico\, monitoramento e planejamento de microbacias. Fundamentos de hidrologia\, planejamento de missões\, coleta de imagens\, processamento fotogramétrico\, geração de ortofotos\, modelos digitais e mapas temáticos. Identificação de áreas críticas\, mapeamento de APPs e nascentes\, avaliação de processos erosivos.
+LOCATION:Umuarama\, Paraná
+CATEGORIES:Capacitação,Sustentabilidade,Drones,Microbacias
+STATUS:TENTATIVE
+UID:cap-sust-2026-drones-microbacias@idr.pr.gov.br
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/Sao_Paulo:20261020T080000
+DTEND;TZID=America/Sao_Paulo:20261022T170000
+SUMMARY:Gestão Hídrica e Conservação da Água no Meio Rural
+DESCRIPTION:Assessoria de Sustentabilidade — Dept. Sustentabilidade — DEX/IDR-Paraná\n\nModalidade: Presencial\nParticipantes IDR: 25 + 10 externos\n\nPrincípios do manejo da água na propriedade rural: diagnóstico das fontes hídricas\, práticas de conservação do solo e da água\, técnicas de captação e armazenamento\, uso eficiente da irrigação\, qualidade da água\, outorga e regularização. Planejamento hídrico integrado para reduzir perdas e aumentar eficiência produtiva.
+LOCATION:Curitiba\, Paraná
+CATEGORIES:Capacitação,Sustentabilidade,Gestão Hídrica
+STATUS:TENTATIVE
+UID:cap-sust-2026-gestao-hidrica@idr.pr.gov.br
+END:VEVENT
+END:VCALENDAR
