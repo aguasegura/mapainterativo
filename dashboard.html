@@ -910,16 +910,24 @@ function FilterBar({ mananciais, allMananciais, filters, setFilters }) {
   const allBacias = useMemo(() =>
     [...new Set(allMananciais.map(m => m.Nome_bacia))].sort((a, b) => a.localeCompare(b, 'pt'))
   , [allMananciais]);
+  const allManancialNames = useMemo(() => {
+    let src = allMananciais;
+    if (filters.regional) src = src.filter(m => m.Regional_IDR === filters.regional);
+    if (filters.municipio) src = src.filter(m => m.NomeMunicipio === filters.municipio);
+    if (filters.bacia) src = src.filter(m => m.Nome_bacia === filters.bacia);
+    return [...new Set(src.map(m => m.Manancial))].sort((a, b) => a.localeCompare(b, 'pt'));
+  }, [allMananciais, filters.regional, filters.municipio, filters.bacia]);
   const chips = [];
-  if (filters.regional) chips.push({ label: 'Regional: ' + filters.regional, clear: () => setFilters(p => ({ ...p, regional: '', municipio: '' })) });
-  if (filters.municipio) chips.push({ label: 'Municipio: ' + filters.municipio, clear: () => setFilters(p => ({ ...p, municipio: '' })) });
-  if (filters.bacia) chips.push({ label: 'Bacia: ' + filters.bacia, clear: () => setFilters(p => ({ ...p, bacia: '' })) });
+  if (filters.regional) chips.push({ label: 'Regional: ' + filters.regional, clear: () => setFilters(p => ({ ...p, regional: '', municipio: '', manancial: '' })) });
+  if (filters.municipio) chips.push({ label: 'Municipio: ' + filters.municipio, clear: () => setFilters(p => ({ ...p, municipio: '', manancial: '' })) });
+  if (filters.bacia) chips.push({ label: 'Bacia: ' + filters.bacia, clear: () => setFilters(p => ({ ...p, bacia: '', manancial: '' })) });
+  if (filters.manancial) chips.push({ label: 'Manancial: ' + filters.manancial, clear: () => setFilters(p => ({ ...p, manancial: '' })) });
   return html`
     <div class="dashboard-filters">
       <div class="dashboard-filter-group">
         <label class="dashboard-filter-label">Regional IDR</label>
         <select class="dashboard-filter-select" value=${filters.regional}
-          onChange=${e => setFilters(p => ({ ...p, regional: e.target.value, municipio: '' }))}>
+          onChange=${e => setFilters(p => ({ ...p, regional: e.target.value, municipio: '', manancial: '' }))}>
           <option value="">Todas</option>
           ${allRegionais.map(r => html`<option key=${r} value=${r}>${r}</option>`)}
         </select>
@@ -927,7 +935,7 @@ function FilterBar({ mananciais, allMananciais, filters, setFilters }) {
       <div class="dashboard-filter-group">
         <label class="dashboard-filter-label">Municipio</label>
         <select class="dashboard-filter-select" value=${filters.municipio}
-          onChange=${e => setFilters(p => ({ ...p, municipio: e.target.value }))}>
+          onChange=${e => setFilters(p => ({ ...p, municipio: e.target.value, manancial: '' }))}>
           <option value="">Todos</option>
           ${allMunicipios.map(m => html`<option key=${m} value=${m}>${m}</option>`)}
         </select>
@@ -935,9 +943,17 @@ function FilterBar({ mananciais, allMananciais, filters, setFilters }) {
       <div class="dashboard-filter-group">
         <label class="dashboard-filter-label">Bacia</label>
         <select class="dashboard-filter-select" value=${filters.bacia}
-          onChange=${e => setFilters(p => ({ ...p, bacia: e.target.value }))}>
+          onChange=${e => setFilters(p => ({ ...p, bacia: e.target.value, manancial: '' }))}>
           <option value="">Todas</option>
           ${allBacias.map(b => html`<option key=${b} value=${b}>${b}</option>`)}
+        </select>
+      </div>
+      <div class="dashboard-filter-group">
+        <label class="dashboard-filter-label">Manancial</label>
+        <select class="dashboard-filter-select" value=${filters.manancial}
+          onChange=${e => setFilters(p => ({ ...p, manancial: e.target.value }))}>
+          <option value="">Todos</option>
+          ${allManancialNames.map(m => html`<option key=${m} value=${m}>${m}</option>`)}
         </select>
       </div>
     </div>
@@ -954,7 +970,7 @@ function Dashboard({ rawBacias, rawUrts, summary }) {
     const hh = window.location.hash.replace('#', '');
     return TABS.find(t => t.id === hh) ? hh : 'capa';
   });
-  const [filters, setFilters] = useState({ regional: '', municipio: '', bacia: '' });
+  const [filters, setFilters] = useState({ regional: '', municipio: '', bacia: '', manancial: '' });
   const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
@@ -975,6 +991,7 @@ function Dashboard({ rawBacias, rawUrts, summary }) {
     if (filters.regional) list = list.filter(m => m.Regional_IDR === filters.regional);
     if (filters.municipio) list = list.filter(m => m.NomeMunicipio === filters.municipio);
     if (filters.bacia) list = list.filter(m => m.Nome_bacia === filters.bacia);
+    if (filters.manancial) list = list.filter(m => m.Manancial === filters.manancial);
     return list;
   }, [allMananciais, filters]);
 
