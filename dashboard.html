@@ -74,38 +74,56 @@ const { createElement: h, useState, useEffect, useMemo, useRef, useCallback } = 
 const { createRoot } = ReactDOM;
 const html = htm.bind(h);
 
-const COLORS = ['#1d4ed8','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d','#ea580c'];
-const CLASS_COLORS = { 'IDR-Parana': '#1d4ed8', 'Sanepar': '#059669' };
+const COLORS = ['#1d4ed8','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d','#ea580c',
+  '#1f77b4','#ff7f0e','#2ca02c','#9467bd','#8c564b','#e377c2','#bcbd22','#17becf'];
+const CLASS_COLORS = { 'IDR-Paraná': '#1d4ed8', 'IDR-Parana': '#1d4ed8', 'Sanepar': '#059669' };
 
 const TABS = [
   { id:'capa', label:'Capa' },
   { id:'visao-geral', label:'Visao Geral' },
-  { id:'bacias', label:'Bacias' },
-  { id:'regionais', label:'Regionais' },
-  { id:'municipios', label:'Municipios' },
-  { id:'classificacao', label:'Classificacao' },
+  { id:'relevo', label:'Relevo' },
+  { id:'uso-solo', label:'Uso do Solo' },
+  { id:'solos', label:'Solos' },
+  { id:'recursos-hidricos', label:'Recursos Hidricos' },
+  { id:'infraestrutura', label:'Infraestrutura' },
+  { id:'agropecuaria', label:'Agropecuaria' },
+  { id:'ambiental', label:'Ambiental' },
   { id:'urts', label:'URTs' },
-  { id:'tabela-detalhada', label:'Tabela Detalhada' }
+  { id:'tabela-manancial', label:'Tabela por Manancial' }
 ];
+
+// ============ FORMATTERS ============
+const fmt = v => typeof v === 'number' ? v.toLocaleString('pt-BR') : v;
+const fmtDec = (v, d) => typeof v === 'number' ? v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }) : v;
+function sumObj(obj) { return Object.values(obj || {}).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0); }
+function mergeObjs(objs) {
+  const r = {};
+  objs.forEach(o => { for (const [k, v] of Object.entries(o || {})) { r[k] = (r[k] || 0) + (typeof v === 'number' ? v : 0); } });
+  return r;
+}
+function objToSorted(obj) {
+  return Object.entries(obj || {}).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+}
 
 // ============ DATA LOADER ============
 async function loadData() {
-  const [bacias, ursBuffer] = await Promise.all([
+  const [bacias, summary, ursBuffer] = await Promise.all([
     fetch('data/baciasselecionadas.geojson').then(r => r.json()),
+    fetch('data/bi_summary.json').then(r => r.json()),
     fetch('data/urs__urs.geojson_part-001.gz').then(r => r.arrayBuffer())
   ]);
   const ursText = window.pako.ungzip(new Uint8Array(ursBuffer), { to: 'string' });
   const urts = JSON.parse(ursText);
-  return { bacias, urts };
+  return { bacias, summary, urts };
 }
 
 // ============ D3 CHART COMPONENTS ============
-function D3HBar({ data, fill, height }) {
+function D3HBar({ data, fill, height, colorMap }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current || !data || data.length === 0) return;
     const el = ref.current; el.innerHTML = '';
-    const margin = { top: 8, right: 40, bottom: 20, left: 140 };
+    const margin = { top: 8, right: 50, bottom: 20, left: 140 };
     const w = (el.clientWidth || 460);
     const barH = 22;
     const totalH = height || Math.max(120, data.length * (barH + 4) + margin.top + margin.bottom);
@@ -120,72 +138,82 @@ function D3HBar({ data, fill, height }) {
 
     g.selectAll('rect').data(data).join('rect')
       .attr('y', d => y(d.name)).attr('width', d => x(d.value))
-      .attr('height', y.bandwidth()).attr('fill', fill || '#1d4ed8').attr('rx', 3);
+      .attr('height', y.bandwidth())
+      .attr('fill', d => (colorMap && colorMap[d.name]) || fill || '#1d4ed8')
+      .attr('rx', 3);
 
     g.selectAll('.label').data(data).join('text').attr('class', 'label')
       .attr('x', d => x(d.value) + 4).attr('y', d => y(d.name) + y.bandwidth() / 2)
-      .attr('dy', '0.35em').text(d => d.value)
+      .attr('dy', '0.35em').text(d => typeof d.value === 'number' && d.value % 1 !== 0 ? fmtDec(d.value, 1) : fmt(d.value))
       .attr('font-size', '11px').attr('fill', '#374151');
 
     g.append('g').call(d3.axisLeft(y).tickSize(0)).select('.domain').remove();
     g.selectAll('.tick text').attr('font-size', '11px');
     g.append('g').attr('transform', 'translate(0,' + innerH + ')').call(d3.axisBottom(x).ticks(5))
       .selectAll('text').attr('font-size', '10px');
-  }, [data, fill, height]);
+  }, [data, fill, height, colorMap]);
   return html`<div ref=${ref} style=${{ width: '100%', minHeight: '120px' }}></div>`;
 }
 
-function D3Donut({ data }) {
+function D3Donut({ data, showLegend }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current || !data || data.length === 0) return;
     const el = ref.current; el.innerHTML = '';
-    const w = Math.min(el.clientWidth || 300, 320);
-    const h = 260;
-    const radius = Math.min(w, h) / 2 - 10;
+    const w = Math.min(el.clientWidth || 300, 340);
+    const legendH = (showLegend !== false) ? Math.ceil(data.length / 2) * 20 + 10 : 0;
+    const chartH = 220;
+    const hh = chartH + legendH;
+    const radius = Math.min(w, chartH) / 2 - 10;
 
-    const svg = d3.select(el).append('svg').attr('width', w).attr('height', h);
-    const g = svg.append('g').attr('transform', 'translate(' + (w / 2) + ',' + (h / 2) + ')');
+    const svg = d3.select(el).append('svg').attr('width', w).attr('height', hh);
+    const g = svg.append('g').attr('transform', 'translate(' + (w / 2) + ',' + (chartH / 2) + ')');
 
     const pie = d3.pie().value(d => d.value).sort(null);
     const arc = d3.arc().innerRadius(radius * 0.55).outerRadius(radius);
-    const labelArc = d3.arc().innerRadius(radius * 0.8).outerRadius(radius * 0.8);
 
-    const arcs = g.selectAll('path').data(pie(data)).join('path')
+    g.selectAll('path').data(pie(data)).join('path')
       .attr('d', arc).attr('fill', (d, i) => d.data.color || COLORS[i % COLORS.length])
       .attr('stroke', '#fff').attr('stroke-width', 2);
 
     g.selectAll('.lbl').data(pie(data)).join('text').attr('class', 'lbl')
-      .attr('transform', d => 'translate(' + labelArc.centroid(d) + ')')
-      .attr('text-anchor', 'middle').attr('font-size', '11px').attr('fill', '#fff').attr('font-weight', '600')
-      .text(d => d.data.value);
+      .attr('transform', d => {
+        const c = arc.centroid(d);
+        return 'translate(' + c + ')';
+      })
+      .attr('text-anchor', 'middle').attr('font-size', '10px').attr('fill', '#fff').attr('font-weight', '600')
+      .text(d => (d.endAngle - d.startAngle) > 0.25 ? (typeof d.data.value === 'number' && d.data.value % 1 !== 0 ? fmtDec(d.data.value, 1) : fmt(d.data.value)) : '');
 
-    // Legend below
-    const lg = svg.append('g').attr('transform', 'translate(10,' + (h - 30) + ')');
-    let lx = 0;
-    data.forEach((d, i) => {
-      const grp = lg.append('g').attr('transform', 'translate(' + lx + ',0)');
-      grp.append('rect').attr('width', 12).attr('height', 12).attr('rx', 2)
-        .attr('fill', d.color || COLORS[i % COLORS.length]);
-      grp.append('text').attr('x', 16).attr('y', 10).text(d.name + ' (' + d.value + ')')
-        .attr('font-size', '11px').attr('fill', '#374151');
-      lx += d.name.length * 7 + 60;
-    });
-  }, [data]);
-  return html`<div ref=${ref} style=${{ width: '100%', minHeight: '260px' }}></div>`;
+    if (showLegend !== false) {
+      const lg = svg.append('g').attr('transform', 'translate(8,' + (chartH + 4) + ')');
+      const colW = w / 2 - 8;
+      data.forEach((d, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const grp = lg.append('g').attr('transform', 'translate(' + (col * colW) + ',' + (row * 18) + ')');
+        grp.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2)
+          .attr('fill', d.color || COLORS[i % COLORS.length]);
+        const label = d.name.length > 22 ? d.name.slice(0, 20) + '..' : d.name;
+        grp.append('text').attr('x', 14).attr('y', 9).text(label)
+          .attr('font-size', '10px').attr('fill', '#374151');
+      });
+    }
+  }, [data, showLegend]);
+  return html`<div ref=${ref} style=${{ width: '100%', minHeight: '220px' }}></div>`;
 }
 
 function D3StackedBar({ data, keys, colors }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!ref.current || !data || data.length === 0) return;
+    if (!ref.current || !data || data.length === 0 || !keys || keys.length === 0) return;
     const el = ref.current; el.innerHTML = '';
-    const margin = { top: 8, right: 40, bottom: 20, left: 140 };
+    const margin = { top: 8, right: 30, bottom: 30, left: 140 };
     const w = el.clientWidth || 460;
     const barH = 24;
-    const totalH = data.length * (barH + 4) + margin.top + margin.bottom;
+    const legendH = Math.ceil(keys.length / 3) * 18 + 10;
+    const totalH = data.length * (barH + 4) + margin.top + margin.bottom + legendH;
     const innerW = w - margin.left - margin.right;
-    const innerH = totalH - margin.top - margin.bottom;
+    const innerH = totalH - margin.top - margin.bottom - legendH;
 
     const svg = d3.select(el).append('svg').attr('width', w).attr('height', totalH);
     const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -200,17 +228,20 @@ function D3StackedBar({ data, keys, colors }) {
       .attr('fill', d => color(d.key))
       .selectAll('rect').data(d => d).join('rect')
       .attr('y', d => y(d.data.name)).attr('x', d => x(d[0]))
-      .attr('width', d => x(d[1]) - x(d[0])).attr('height', y.bandwidth()).attr('rx', 2);
+      .attr('width', d => Math.max(0, x(d[1]) - x(d[0]))).attr('height', y.bandwidth()).attr('rx', 2);
 
     g.append('g').call(d3.axisLeft(y).tickSize(0)).select('.domain').remove();
-    g.selectAll('.tick text').attr('font-size', '11px');
+    g.selectAll('.tick text').attr('font-size', '10px');
 
-    // Legend
-    const lg = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + (totalH - 2) + ')');
+    const lg = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + (innerH + margin.top + 20) + ')');
+    const colW = Math.floor(innerW / 3);
     keys.forEach((k, i) => {
-      const grp = lg.append('g').attr('transform', 'translate(' + (i * 120) + ',0)');
-      grp.append('rect').attr('width', 12).attr('height', 12).attr('rx', 2).attr('fill', color(k));
-      grp.append('text').attr('x', 16).attr('y', 10).text(k).attr('font-size', '11px').attr('fill', '#374151');
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const grp = lg.append('g').attr('transform', 'translate(' + (col * colW) + ',' + (row * 18) + ')');
+      grp.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', color(k));
+      const label = k.length > 18 ? k.slice(0, 16) + '..' : k;
+      grp.append('text').attr('x', 14).attr('y', 9).text(label).attr('font-size', '10px').attr('fill', '#374151');
     });
   }, [data, keys, colors]);
   return html`<div ref=${ref} style=${{ width: '100%', minHeight: '120px' }}></div>`;
@@ -241,38 +272,10 @@ function MiniMap({ features, points, colorFn }) {
   return html`<div ref=${ref} class="dashboard-minimap" style=${{ minHeight: '320px' }}></div>`;
 }
 
-function D3Treemap({ data }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!ref.current || !data || data.length === 0) return;
-    const el = ref.current; el.innerHTML = '';
-    const w = el.clientWidth || 500;
-    const hh = 320;
-    const root = d3.hierarchy({ children: data }).sum(d => d.value || 0);
-    d3.treemap().size([w, hh]).padding(2)(root);
-    const svg = d3.select(el).append('svg').attr('width', w).attr('height', hh);
-    const color = d3.scaleOrdinal(d3.schemeTableau10);
-    const nodes = svg.selectAll('g').data(root.leaves()).join('g')
-      .attr('transform', d => 'translate(' + d.x0 + ',' + d.y0 + ')');
-    nodes.append('rect')
-      .attr('width', d => Math.max(0, d.x1 - d.x0))
-      .attr('height', d => Math.max(0, d.y1 - d.y0))
-      .attr('fill', d => color(d.data.group || d.data.name))
-      .attr('rx', 3).attr('opacity', 0.85);
-    nodes.append('text').attr('x', 4).attr('y', 14)
-      .text(d => (d.x1 - d.x0 > 50 && d.y1 - d.y0 > 18) ? d.data.name : '')
-      .attr('font-size', '10px').attr('fill', '#fff');
-    nodes.append('text').attr('x', 4).attr('y', 26)
-      .text(d => (d.x1 - d.x0 > 40 && d.y1 - d.y0 > 30) ? d.data.value : '')
-      .attr('font-size', '9px').attr('fill', 'rgba(255,255,255,0.8)');
-  }, [data]);
-  return html`<div ref=${ref} class="dashboard-minimap" style=${{ minHeight: '320px' }}></div>`;
-}
-
 // ============ REUSABLE COMPONENTS ============
 function KPICard({ number, label }) {
   return html`<div class="ds-indicator-card">
-    <span class="ds-indicator-number">${number}</span>
+    <span class="ds-indicator-number">${typeof number === 'number' ? fmt(number) : number}</span>
     <span class="ds-indicator-label">${label}</span>
   </div>`;
 }
@@ -334,6 +337,8 @@ function SortableTable({ columns, data, pageSize }) {
 }
 
 // ============ TAB PAGES ============
+
+// 1. Capa
 function PageCapa() {
   return html`<div class="dashboard-capa">
     <h2>PROGRAMA AGUA SEGURA</h2>
@@ -345,7 +350,7 @@ function PageCapa() {
     <p style=${{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
       Este painel apresenta indicadores consolidados a partir dos dados georreferenciados
       das ottobacias e Unidades de Referencia Tecnologica (URTs) do Programa Agua Segura.
-      Os dados sao extraidos dos GeoJSON do repositorio e atualizados automaticamente.
+      Os dados sao extraidos dos GeoJSON do repositorio e pre-agregados por manancial.
     </p>
     <div class="header-logos" style=${{ marginTop: '2rem', justifyContent: 'center' }}>
       <img src="data/aguaseguralogo2.png" alt="Programa Agua Segura" style=${{ height: '80px' }} />
@@ -357,27 +362,37 @@ function PageCapa() {
   </div>`;
 }
 
-function PageVisaoGeral({ baciasData, urtsData }) {
-  const mananciais = new Set(baciasData.map(f => f.properties.Manancial)).size;
-  const ottos = baciasData.length;
-  const bacias = new Set(baciasData.map(f => f.properties.Nome_bacia)).size;
-  const municipios = new Set(baciasData.map(f => f.properties.NomeMunicipio)).size;
-  const regionais = new Set(baciasData.map(f => f.properties['Regional IDR'])).size;
-  const urts = urtsData.length;
+// 2. Visao Geral
+function PageVisaoGeral({ mananciais, baciasData, summary }) {
+  const t = summary.totals;
   const classeData = useMemo(() => {
     const counts = {};
-    baciasData.forEach(f => { const c = f.properties.Classe; counts[c] = (counts[c] || 0) + 1; });
+    mananciais.forEach(m => { const c = m.Classe; counts[c] = (counts[c] || 0) + m.num_ottobacias; });
     return Object.entries(counts).map(([name, value]) => ({ name, value, color: CLASS_COLORS[name] || '#94a3b8' }));
-  }, [baciasData]);
+  }, [mananciais]);
+  const totalNasc = useMemo(() => mananciais.reduce((s, m) => s + m.nascentes, 0), [mananciais]);
+  const totalConst = useMemo(() => mananciais.reduce((s, m) => s + m.construcoes.count, 0), [mananciais]);
+  const totalCaf = useMemo(() => mananciais.reduce((s, m) => s + m.caf.count, 0), [mananciais]);
+  const totalEstKm = useMemo(() => mananciais.reduce((s, m) => s + m.estradas_km, 0), [mananciais]);
+  const totalHidKm = useMemo(() => mananciais.reduce((s, m) => s + m.hidrografia_km, 0), [mananciais]);
+  const totalOttos = useMemo(() => mananciais.reduce((s, m) => s + m.num_ottobacias, 0), [mananciais]);
+  const numBacias = useMemo(() => new Set(mananciais.map(m => m.Nome_bacia)).size, [mananciais]);
+  const numMun = useMemo(() => new Set(mananciais.map(m => m.NomeMunicipio)).size, [mananciais]);
+  const numReg = useMemo(() => new Set(mananciais.map(m => m.Regional_IDR)).size, [mananciais]);
   const colorFn = useCallback(d => CLASS_COLORS[d.properties.Classe] || '#94a3b8', []);
   return html`
     <div class="dashboard-kpis">
-      <${KPICard} number=${mananciais} label="Mananciais" />
-      <${KPICard} number=${ottos} label="Ottobacias" />
-      <${KPICard} number=${bacias} label="Bacias" />
-      <${KPICard} number=${municipios} label="Municipios" />
-      <${KPICard} number=${regionais} label="Regionais" />
-      <${KPICard} number=${urts} label="URTs" />
+      <${KPICard} number=${mananciais.length} label="Mananciais" />
+      <${KPICard} number=${totalOttos} label="Ottobacias" />
+      <${KPICard} number=${numBacias} label="Bacias" />
+      <${KPICard} number=${numMun} label="Municipios" />
+      <${KPICard} number=${numReg} label="Regionais" />
+      <${KPICard} number=${t.urts} label="URTs" />
+      <${KPICard} number=${totalNasc} label="Nascentes" />
+      <${KPICard} number=${totalConst} label="Construcoes" />
+      <${KPICard} number=${totalCaf} label="CAFs" />
+      <${KPICard} number=${fmtDec(totalEstKm, 1)} label="Estradas (km)" />
+      <${KPICard} number=${fmtDec(totalHidKm, 1)} label="Hidrografia (km)" />
     </div>
     <div class="dashboard-grid">
       <div class="dashboard-card">
@@ -391,119 +406,415 @@ function PageVisaoGeral({ baciasData, urtsData }) {
     </div>`;
 }
 
-function PageBacias({ baciasData }) {
-  const bacias = new Set(baciasData.map(f => f.properties.Nome_bacia)).size;
-  const ottos = baciasData.length;
-  const ottosPorBacia = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const b = f.properties.Nome_bacia; m[b] = (m[b] || 0) + 1; });
-    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [baciasData]);
-  const manPorBacia = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const b = f.properties.Nome_bacia; if (!m[b]) m[b] = new Set(); m[b].add(f.properties.Manancial); });
-    return Object.entries(m).map(([name, s]) => ({ name, value: s.size })).sort((a, b) => b.value - a.value);
-  }, [baciasData]);
-  const munPorBacia = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const b = f.properties.Nome_bacia; if (!m[b]) m[b] = new Set(); m[b].add(f.properties.NomeMunicipio); });
-    return Object.entries(m).map(([name, s]) => ({ name, value: s.size })).sort((a, b) => b.value - a.value);
-  }, [baciasData]);
-  return html`
-    <div class="dashboard-kpis">
-      <${KPICard} number=${bacias} label="Total Bacias" />
-      <${KPICard} number=${ottos} label="Total Ottobacias" />
-    </div>
-    <div class="dashboard-grid">
-      <div class="dashboard-card"><h3>Ottobacias por Bacia</h3><${D3HBar} data=${ottosPorBacia} /></div>
-      <div class="dashboard-card"><h3>Mananciais por Bacia</h3><${D3HBar} data=${manPorBacia} fill="#059669" /></div>
-    </div>
-    <div class="dashboard-grid">
-      <div class="dashboard-card"><h3>Municipios por Bacia</h3><${D3HBar} data=${munPorBacia} fill="#d97706" /></div>
-    </div>`;
-}
+// 3. Relevo
+function PageRelevo({ mananciais, summary }) {
+  const palAlt = summary.paletas.altimetria;
+  const palDec = summary.paletas.declividade;
+  const decLabels = summary.paletas.declividade_labels || {};
 
-function PageRegionais({ baciasData }) {
-  const regionais = new Set(baciasData.map(f => f.properties['Regional IDR'])).size;
-  const ottosPorReg = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const r = f.properties['Regional IDR']; m[r] = (m[r] || 0) + 1; });
-    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [baciasData]);
-  const manPorReg = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const r = f.properties['Regional IDR']; if (!m[r]) m[r] = new Set(); m[r].add(f.properties.Manancial); });
-    return Object.entries(m).map(([name, s]) => ({ name, value: s.size })).sort((a, b) => b.value - a.value);
-  }, [baciasData]);
-  const media = regionais > 0 ? (baciasData.length / regionais).toFixed(1) : 0;
-  return html`
-    <div class="dashboard-kpis">
-      <${KPICard} number=${regionais} label="Total Regionais" />
-      <${KPICard} number=${media} label="Media ottobacias/regional" />
-    </div>
-    <div class="dashboard-grid">
-      <div class="dashboard-card"><h3>Ottobacias por Regional</h3><${D3HBar} data=${ottosPorReg} /></div>
-      <div class="dashboard-card"><h3>Mananciais por Regional</h3><${D3HBar} data=${manPorReg} fill="#059669" /></div>
-    </div>`;
-}
+  const altClasses = useMemo(() => {
+    const merged = mergeObjs(mananciais.map(m => m.altimetria));
+    return Object.keys(merged).filter(k => merged[k] > 0);
+  }, [mananciais]);
+  const decClasses = useMemo(() => {
+    const merged = mergeObjs(mananciais.map(m => m.declividade));
+    return Object.keys(merged).filter(k => merged[k] > 0);
+  }, [mananciais]);
 
-function PageMunicipios({ baciasData }) {
-  const municipios = new Set(baciasData.map(f => f.properties.NomeMunicipio)).size;
-  const ottosPorMun = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const mu = f.properties.NomeMunicipio; m[mu] = (m[mu] || 0) + 1; });
-    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [baciasData]);
-  const topMun = ottosPorMun[0] ? ottosPorMun[0].name + ' (' + ottosPorMun[0].value + ')' : '--';
-  const treemapData = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const mu = f.properties.NomeMunicipio; const ba = f.properties.Nome_bacia; m[mu] = m[mu] || { name: mu, value: 0, group: ba }; m[mu].value++; });
-    return Object.values(m);
-  }, [baciasData]);
-  const top10 = ottosPorMun.slice(0, 10);
+  const altDonut = useMemo(() => {
+    const merged = mergeObjs(mananciais.map(m => m.altimetria));
+    return objToSorted(merged).map(d => ({ ...d, color: palAlt[d.name] || '#6b7280', value: Math.round(d.value) }));
+  }, [mananciais]);
+  const decDonut = useMemo(() => {
+    const merged = mergeObjs(mananciais.map(m => m.declividade));
+    return objToSorted(merged).map(d => ({ ...d, name: decLabels[d.name] || d.name, color: palDec[d.name] || '#6b7280', value: Math.round(d.value) }));
+  }, [mananciais]);
+
+  const altStacked = useMemo(() => {
+    const keys = summary.classes_altimetria.filter(k => altClasses.includes(k));
+    const data = mananciais.filter(m => Object.keys(m.altimetria).length > 0)
+      .map(m => ({ name: m.Manancial, ...m.altimetria }))
+      .sort((a, b) => { const ta = keys.reduce((s, k) => s + (a[k] || 0), 0); const tb = keys.reduce((s, k) => s + (b[k] || 0), 0); return tb - ta; })
+      .slice(0, 15);
+    return { data, keys };
+  }, [mananciais, altClasses]);
+  const decStacked = useMemo(() => {
+    const keys = summary.classes_declividade.filter(k => decClasses.includes(k));
+    const data = mananciais.filter(m => Object.keys(m.declividade).length > 0)
+      .map(m => ({ name: m.Manancial, ...m.declividade }))
+      .sort((a, b) => { const ta = keys.reduce((s, k) => s + (a[k] || 0), 0); const tb = keys.reduce((s, k) => s + (b[k] || 0), 0); return tb - ta; })
+      .slice(0, 15);
+    return { data, keys };
+  }, [mananciais, decClasses]);
+
   return html`
     <div class="dashboard-kpis">
-      <${KPICard} number=${municipios} label="Total Municipios" />
-      <${KPICard} number=${topMun} label="Mais ottobacias" />
+      <${KPICard} number=${altClasses.length} label="Classes altimetria" />
+      <${KPICard} number=${decClasses.length} label="Classes declividade" />
     </div>
     <div class="dashboard-grid">
-      <div class="dashboard-card"><h3>Municipios por Bacia (Treemap)</h3><${D3Treemap} data=${treemapData} /></div>
       <div class="dashboard-card">
-        <h3>Top 10 Municipios</h3>
-        <table class="dashboard-table">
-          <thead><tr><th>Municipio</th><th>Ottobacias</th></tr></thead>
-          <tbody>${top10.map((r, i) => html`<tr key=${i}><td>${r.name}</td><td>${r.value}</td></tr>`)}</tbody>
-        </table>
+        <h3>Altimetria por Manancial (ha) — Top 15</h3>
+        <${D3StackedBar} data=${altStacked.data} keys=${altStacked.keys} colors=${palAlt} />
+      </div>
+      <div class="dashboard-card">
+        <h3>Proporcao por Classe de Altimetria</h3>
+        <${D3Donut} data=${altDonut} />
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Declividade por Manancial (ha) — Top 15</h3>
+        <${D3StackedBar} data=${decStacked.data} keys=${decStacked.keys} colors=${palDec} />
+      </div>
+      <div class="dashboard-card">
+        <h3>Proporcao por Classe de Declividade</h3>
+        <${D3Donut} data=${decDonut} />
       </div>
     </div>`;
 }
 
-function PageClassificacao({ baciasData }) {
-  const classeGeral = useMemo(() => {
-    const counts = {}; baciasData.forEach(f => { const c = f.properties.Classe; counts[c] = (counts[c] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name, value, color: CLASS_COLORS[name] || '#94a3b8' }));
-  }, [baciasData]);
-  const classePorBacia = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const b = f.properties.Nome_bacia; const c = f.properties.Classe; if (!m[b]) m[b] = { name: b }; m[b][c] = (m[b][c] || 0) + 1; });
-    return Object.values(m).sort((a, b) => (b['Sanepar'] || 0) - (a['Sanepar'] || 0));
-  }, [baciasData]);
-  const classePorRegional = useMemo(() => {
-    const m = {}; baciasData.forEach(f => { const r = f.properties['Regional IDR']; const c = f.properties.Classe; if (!m[r]) m[r] = { regional: r, 'IDR-Parana': 0, 'Sanepar': 0 }; m[r][c] = (m[r][c] || 0) + 1; });
-    return Object.values(m).sort((a, b) => a.regional.localeCompare(b.regional, 'pt'));
-  }, [baciasData]);
-  const classKeys = [...new Set(baciasData.map(f => f.properties.Classe))];
+// 4. Uso do Solo
+function PageUsoSolo({ mananciais, summary }) {
+  const pal = summary.paletas.uso_solo;
+  const totalArea = useMemo(() => mananciais.reduce((s, m) => s + sumObj(m.uso_solo), 0), [mananciais]);
+  const merged = useMemo(() => mergeObjs(mananciais.map(m => m.uso_solo)), [mananciais]);
+  const predominant = useMemo(() => { const e = objToSorted(merged); return e[0] ? e[0].name : '--'; }, [merged]);
+  const donut = useMemo(() => objToSorted(merged).map(d => ({ ...d, color: pal[d.name] || '#94a3b8', value: Math.round(d.value) })), [merged]);
+  const keys = useMemo(() => summary.classes_uso_solo.filter(k => merged[k] > 0), [merged]);
+
+  const stacked = useMemo(() => {
+    const data = mananciais.filter(m => Object.keys(m.uso_solo).length > 0)
+      .map(m => ({ name: m.Manancial, ...m.uso_solo }))
+      .sort((a, b) => { const ta = keys.reduce((s, k) => s + (a[k] || 0), 0); const tb = keys.reduce((s, k) => s + (b[k] || 0), 0); return tb - ta; })
+      .slice(0, 15);
+    return data;
+  }, [mananciais, keys]);
+
+  const topFloresta = useMemo(() =>
+    mananciais.filter(m => m.uso_solo['Floresta Nativa'] > 0)
+      .map(m => ({ name: m.Manancial, value: Math.round(m.uso_solo['Floresta Nativa']) }))
+      .sort((a, b) => b.value - a.value).slice(0, 10)
+  , [mananciais]);
+
   return html`
+    <div class="dashboard-kpis">
+      <${KPICard} number=${fmtDec(totalArea, 0)} label="Area total (ha)" />
+      <${KPICard} number=${predominant} label="Classe predominante" />
+    </div>
     <div class="dashboard-grid">
-      <div class="dashboard-card"><h3>Proporcao Geral</h3><${D3Donut} data=${classeGeral} /></div>
-      <div class="dashboard-card"><h3>Classe por Bacia</h3>
-        <${D3StackedBar} data=${classePorBacia} keys=${classKeys} colors=${CLASS_COLORS} />
+      <div class="dashboard-card">
+        <h3>Uso do Solo por Manancial (ha) — Top 15</h3>
+        <${D3StackedBar} data=${stacked} keys=${keys} colors=${pal} />
+      </div>
+      <div class="dashboard-card">
+        <h3>Proporcao por Classe</h3>
+        <${D3Donut} data=${donut} />
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Top 10 — Floresta Nativa (ha)</h3>
+        <${D3HBar} data=${topFloresta} fill="#1a7f3b" />
+      </div>
+    </div>`;
+}
+
+// 5. Solos
+function PageSolos({ mananciais, summary }) {
+  const pal = summary.paletas.solos;
+  const merged = useMemo(() => mergeObjs(mananciais.map(m => m.solos)), [mananciais]);
+  const numTypes = useMemo(() => Object.keys(merged).filter(k => merged[k] > 0).length, [merged]);
+  const predominant = useMemo(() => { const e = objToSorted(merged); return e[0] ? e[0].name : '--'; }, [merged]);
+  const donut = useMemo(() => objToSorted(merged).map(d => ({ ...d, color: pal[d.name] || '#94a3b8', value: Math.round(d.value) })), [merged]);
+  const hbar = useMemo(() => objToSorted(merged).map(d => ({ ...d, value: Math.round(d.value) })), [merged]);
+
+  return html`
+    <div class="dashboard-kpis">
+      <${KPICard} number=${numTypes} label="Tipos de solo" />
+      <${KPICard} number=${predominant} label="Tipo predominante" />
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Proporcao por Tipo de Solo</h3>
+        <${D3Donut} data=${donut} />
+      </div>
+      <div class="dashboard-card">
+        <h3>Area por Tipo de Solo (ha)</h3>
+        <${D3HBar} data=${hbar} colorMap=${pal} />
+      </div>
+    </div>`;
+}
+
+// 6. Recursos Hidricos
+function PageRecursosHidricos({ mananciais }) {
+  const totalHidKm = useMemo(() => mananciais.reduce((s, m) => s + m.hidrografia_km, 0), [mananciais]);
+  const totalNasc = useMemo(() => mananciais.reduce((s, m) => s + m.nascentes, 0), [mananciais]);
+  const totalSigarh = useMemo(() => mananciais.reduce((s, m) => s + m.sigarh.count, 0), [mananciais]);
+  const regimeMerged = useMemo(() => mergeObjs(mananciais.map(m => m.hidrografia_regime)), [mananciais]);
+  const permKm = useMemo(() => Math.round(regimeMerged['Permanente'] || 0), [regimeMerged]);
+
+  const hidBar = useMemo(() =>
+    mananciais.filter(m => m.hidrografia_km > 0)
+      .map(m => ({ name: m.Manancial, value: Math.round(m.hidrografia_km * 10) / 10 }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const regimeDonut = useMemo(() =>
+    objToSorted(regimeMerged).map((d, i) => ({ ...d, value: Math.round(d.value), color: ['#2b8cbe', '#a6bddb', '#74a9cf'][i] || COLORS[i] }))
+  , [regimeMerged]);
+  const nascBar = useMemo(() =>
+    mananciais.filter(m => m.nascentes > 0)
+      .map(m => ({ name: m.Manancial, value: m.nascentes }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const sigarhMerged = useMemo(() => mergeObjs(mananciais.map(m => m.sigarh.por_uso)), [mananciais]);
+  const sigarhDonut = useMemo(() =>
+    objToSorted(sigarhMerged).map((d, i) => ({ ...d, color: COLORS[i % COLORS.length] }))
+  , [sigarhMerged]);
+
+  return html`
+    <div class="dashboard-kpis">
+      <${KPICard} number=${fmtDec(totalHidKm, 1)} label="Hidrografia (km)" />
+      <${KPICard} number=${totalNasc} label="Nascentes" />
+      <${KPICard} number=${totalSigarh} label="Outorgas SIGARH" />
+      <${KPICard} number=${fmtDec(permKm, 0)} label="Rios permanentes (km)" />
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Extensao Hidrografia por Manancial (km)</h3>
+        <${D3HBar} data=${hidBar} fill="#2b8cbe" />
+      </div>
+      <div class="dashboard-card">
+        <h3>Hidrografia por Regime</h3>
+        <${D3Donut} data=${regimeDonut} />
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Nascentes por Manancial</h3>
+        <${D3HBar} data=${nascBar} fill="#0ea5e9" />
+      </div>
+      <div class="dashboard-card">
+        <h3>Outorgas SIGARH por Tipo de Uso</h3>
+        <${D3Donut} data=${sigarhDonut} />
+      </div>
+    </div>`;
+}
+
+// 7. Infraestrutura
+function PageInfraestrutura({ mananciais }) {
+  const totalEstKm = useMemo(() => mananciais.reduce((s, m) => s + m.estradas_km, 0), [mananciais]);
+  const totalConst = useMemo(() => mananciais.reduce((s, m) => s + m.construcoes.count, 0), [mananciais]);
+  const totalEduc = useMemo(() => mananciais.reduce((s, m) => s + m.educacao, 0), [mananciais]);
+  const totalAreaConst = useMemo(() => mananciais.reduce((s, m) => s + m.construcoes.area_m2, 0), [mananciais]);
+
+  const estBar = useMemo(() =>
+    mananciais.filter(m => m.estradas_km > 0)
+      .map(m => ({ name: m.Manancial, value: Math.round(m.estradas_km * 10) / 10 }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const estClassMerged = useMemo(() => mergeObjs(mananciais.map(m => m.estradas_classe)), [mananciais]);
+  const estDonut = useMemo(() =>
+    objToSorted(estClassMerged).map((d, i) => ({ ...d, value: Math.round(d.value), color: COLORS[i % COLORS.length] }))
+  , [estClassMerged]);
+  const constBar = useMemo(() =>
+    mananciais.filter(m => m.construcoes.count > 0)
+      .map(m => ({ name: m.Manancial, value: m.construcoes.count }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const tableData = useMemo(() =>
+    mananciais.map(m => ({
+      Manancial: m.Manancial, estradas_km: Math.round(m.estradas_km * 10) / 10,
+      construcoes: m.construcoes.count, escolas: m.educacao
+    })).sort((a, b) => b.estradas_km - a.estradas_km)
+  , [mananciais]);
+
+  return html`
+    <div class="dashboard-kpis">
+      <${KPICard} number=${fmtDec(totalEstKm, 1)} label="Estradas (km)" />
+      <${KPICard} number=${totalConst} label="Construcoes" />
+      <${KPICard} number=${totalEduc} label="Escolas" />
+      <${KPICard} number=${fmt(Math.round(totalAreaConst))} label="Area construida (m2)" />
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Extensao Estradas por Manancial (km)</h3>
+        <${D3HBar} data=${estBar} fill="#d1495b" />
+      </div>
+      <div class="dashboard-card">
+        <h3>Estradas por Classe Funcional</h3>
+        <${D3Donut} data=${estDonut} />
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Construcoes por Manancial</h3>
+        <${D3HBar} data=${constBar} fill="#6366f1" />
       </div>
     </div>
     <div class="dashboard-card" style=${{ marginBottom: '1.5rem' }}>
-      <h3>Contagem por Classe e Regional</h3>
-      <table class="dashboard-table">
-        <thead><tr><th>Regional</th><th>IDR-Parana</th><th>Sanepar</th><th>Total</th></tr></thead>
-        <tbody>${classePorRegional.map((r, i) => html`<tr key=${i}>
-          <td>${r.regional}</td><td>${r['IDR-Parana'] || 0}</td><td>${r['Sanepar'] || 0}</td>
-          <td>${(r['IDR-Parana'] || 0) + (r['Sanepar'] || 0)}</td>
-        </tr>`)}</tbody>
-      </table>
+      <h3>Infraestrutura por Manancial</h3>
+      <${SortableTable} columns=${[
+        { key: 'Manancial', label: 'Manancial' },
+        { key: 'estradas_km', label: 'Estradas (km)' },
+        { key: 'construcoes', label: 'Construcoes' },
+        { key: 'escolas', label: 'Escolas' }
+      ]} data=${tableData} pageSize=${15} />
     </div>`;
 }
 
+// 8. Agropecuaria
+function PageAgropecuaria({ mananciais }) {
+  const totalBov = useMemo(() => mananciais.reduce((s, m) => s + m.bovinos.total, 0), [mananciais]);
+  const totalSui = useMemo(() => mananciais.reduce((s, m) => s + m.suinos.total, 0), [mananciais]);
+  const totalAves = useMemo(() => mananciais.reduce((s, m) => s + m.aves.total, 0), [mananciais]);
+  const totalBub = useMemo(() => mananciais.reduce((s, m) => s + m.bubalinos, 0), [mananciais]);
+  const totalCaf = useMemo(() => mananciais.reduce((s, m) => s + m.caf.count, 0), [mananciais]);
+  const totalAgro = useMemo(() => mananciais.reduce((s, m) => s + m.agrotoxicos.count, 0), [mananciais]);
+
+  const bovBar = useMemo(() =>
+    mananciais.filter(m => m.bovinos.total > 0)
+      .map(m => ({ name: m.Manancial, value: m.bovinos.total }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const avesMerged = useMemo(() => {
+    const m = mergeObjs(mananciais.map(m => {
+      const { total, ...rest } = m.aves;
+      return rest;
+    }));
+    return m;
+  }, [mananciais]);
+  const avesDonut = useMemo(() =>
+    objToSorted(avesMerged).filter(d => d.value > 0).map((d, i) => ({ ...d, color: COLORS[i % COLORS.length] }))
+  , [avesMerged]);
+  const cafBar = useMemo(() =>
+    mananciais.filter(m => m.caf.count > 0)
+      .map(m => ({ name: m.Manancial, value: m.caf.count }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const agroBar = useMemo(() =>
+    mananciais.filter(m => m.agrotoxicos.count > 0)
+      .map(m => ({ name: m.Manancial, value: m.agrotoxicos.count }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const tableData = useMemo(() =>
+    mananciais.map(m => ({
+      Manancial: m.Manancial, bovinos: m.bovinos.total, suinos: m.suinos.total,
+      aves: m.aves.total, bubalinos: m.bubalinos, caf: m.caf.count,
+      agrotoxicos: m.agrotoxicos.count
+    })).sort((a, b) => b.bovinos - a.bovinos)
+  , [mananciais]);
+
+  return html`
+    <div class="dashboard-kpis">
+      <${KPICard} number=${totalBov} label="Bovinos" />
+      <${KPICard} number=${totalSui} label="Suinos" />
+      <${KPICard} number=${totalAves} label="Aves" />
+      <${KPICard} number=${totalBub} label="Bubalinos" />
+      <${KPICard} number=${totalCaf} label="CAFs" />
+      <${KPICard} number=${totalAgro} label="Agrotoxicos" />
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Rebanho Bovino por Manancial</h3>
+        <${D3HBar} data=${bovBar} fill="#22c55e" />
+      </div>
+      <div class="dashboard-card">
+        <h3>Aves por Especie</h3>
+        <${D3Donut} data=${avesDonut} />
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>CAFs por Manancial</h3>
+        <${D3HBar} data=${cafBar} fill="#6366f1" />
+      </div>
+      <div class="dashboard-card">
+        <h3>Registros de Agrotoxicos por Manancial</h3>
+        <${D3HBar} data=${agroBar} fill="#dc2626" />
+      </div>
+    </div>
+    <div class="dashboard-card" style=${{ marginBottom: '1.5rem' }}>
+      <h3>Agropecuaria por Manancial</h3>
+      <${SortableTable} columns=${[
+        { key: 'Manancial', label: 'Manancial' },
+        { key: 'bovinos', label: 'Bovinos' },
+        { key: 'suinos', label: 'Suinos' },
+        { key: 'aves', label: 'Aves' },
+        { key: 'bubalinos', label: 'Bubalinos' },
+        { key: 'caf', label: 'CAFs' },
+        { key: 'agrotoxicos', label: 'Agrotoxicos' }
+      ]} data=${tableData} pageSize=${15} />
+    </div>`;
+}
+
+// 9. Ambiental
+function PageAmbiental({ mananciais, summary }) {
+  const totalCar = useMemo(() => mananciais.reduce((s, m) => s + m.car.count, 0), [mananciais]);
+  const totalCarArea = useMemo(() => mananciais.reduce((s, m) => s + m.car.area_ha, 0), [mananciais]);
+  const totalConflitos = useMemo(() => mananciais.reduce((s, m) => s + m.conflitos.area_ha, 0), [mananciais]);
+  const totalApp = useMemo(() => mananciais.reduce((s, m) => s + m.uso_app.area_ha, 0), [mananciais]);
+
+  const carBar = useMemo(() =>
+    mananciais.filter(m => m.car.count > 0)
+      .map(m => ({ name: m.Manancial, value: m.car.count }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
+  const conflitosMerged = useMemo(() => mergeObjs(mananciais.map(m => m.conflitos.por_classe)), [mananciais]);
+  const conflitosDonut = useMemo(() =>
+    objToSorted(conflitosMerged).filter(d => d.value > 0)
+      .map((d, i) => ({ ...d, value: Math.round(d.value), color: (summary.paletas.uso_solo || {})[d.name] || COLORS[i % COLORS.length] }))
+  , [conflitosMerged]);
+  const appMerged = useMemo(() => mergeObjs(mananciais.map(m => m.uso_app.por_classe)), [mananciais]);
+  const appDonut = useMemo(() =>
+    objToSorted(appMerged).filter(d => d.value > 0)
+      .map((d, i) => ({ ...d, value: Math.round(d.value), color: (summary.paletas.uso_solo || {})[d.name] || COLORS[i % COLORS.length] }))
+  , [appMerged]);
+  const tableData = useMemo(() =>
+    mananciais.map(m => ({
+      Manancial: m.Manancial, car_count: m.car.count,
+      car_area: Math.round(m.car.area_ha),
+      conflitos_ha: Math.round(m.conflitos.area_ha),
+      app_ha: Math.round(m.uso_app.area_ha)
+    })).sort((a, b) => b.car_count - a.car_count)
+  , [mananciais]);
+
+  return html`
+    <div class="dashboard-kpis">
+      <${KPICard} number=${totalCar} label="Imoveis CAR" />
+      <${KPICard} number=${fmtDec(totalCarArea, 0)} label="Area CAR (ha)" />
+      <${KPICard} number=${fmtDec(totalConflitos, 0)} label="Conflitos (ha)" />
+      <${KPICard} number=${fmtDec(totalApp, 0)} label="Uso em APP (ha)" />
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Imoveis CAR por Manancial</h3>
+        <${D3HBar} data=${carBar} fill="#2bb24c" />
+      </div>
+      <div class="dashboard-card">
+        <h3>Conflitos de Uso por Classe</h3>
+        <${D3Donut} data=${conflitosDonut} />
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <h3>Uso do Solo em APP por Classe</h3>
+        <${D3Donut} data=${appDonut} />
+      </div>
+    </div>
+    <div class="dashboard-card" style=${{ marginBottom: '1.5rem' }}>
+      <h3>Ambiental por Manancial</h3>
+      <${SortableTable} columns=${[
+        { key: 'Manancial', label: 'Manancial' },
+        { key: 'car_count', label: 'CAR (imoveis)' },
+        { key: 'car_area', label: 'CAR area (ha)' },
+        { key: 'conflitos_ha', label: 'Conflitos (ha)' },
+        { key: 'app_ha', label: 'Uso APP (ha)' }
+      ]} data=${tableData} pageSize=${15} />
+    </div>`;
+}
+
+// 10. URTs
 function PageURTs({ baciasData, urtsData }) {
   const total = urtsData.length;
   const mip = urtsData.filter(f => f.properties.MIP === 'Sim').length;
@@ -548,33 +859,57 @@ function PageURTs({ baciasData, urtsData }) {
     </div>`;
 }
 
-function PageTabelaDetalhada({ baciasData }) {
+// 11. Tabela por Manancial
+function PageTabelaManancial({ mananciais }) {
   const tableData = useMemo(() =>
-    baciasData.map(f => ({ Cod_otto: f.properties.Cod_otto, Manancial: f.properties.Manancial, Nome_bacia: f.properties.Nome_bacia, 'Regional IDR': f.properties['Regional IDR'], NomeMunicipio: f.properties.NomeMunicipio, Classe: f.properties.Classe }))
-  , [baciasData]);
+    mananciais.map(m => ({
+      Cod_man: m.Cod_man, Manancial: m.Manancial, Bacia: m.Nome_bacia,
+      Regional: m.Regional_IDR, Municipio: m.NomeMunicipio, Classe: m.Classe,
+      ottobacias: m.num_ottobacias,
+      nascentes: m.nascentes, estradas_km: Math.round(m.estradas_km * 10) / 10,
+      hidrografia_km: Math.round(m.hidrografia_km * 10) / 10,
+      construcoes: m.construcoes.count, caf: m.caf.count,
+      bovinos: m.bovinos.total, suinos: m.suinos.total, aves: m.aves.total,
+      car: m.car.count, agrotoxicos: m.agrotoxicos.count
+    }))
+  , [mananciais]);
   const columns = [
-    { key: 'Cod_otto', label: 'Cod. Otto' }, { key: 'Manancial', label: 'Manancial' },
-    { key: 'Nome_bacia', label: 'Bacia' }, { key: 'Regional IDR', label: 'Regional IDR' },
-    { key: 'NomeMunicipio', label: 'Municipio' }, { key: 'Classe', label: 'Classe' }
+    { key: 'Cod_man', label: 'Cod' },
+    { key: 'Manancial', label: 'Manancial' },
+    { key: 'Bacia', label: 'Bacia' },
+    { key: 'Regional', label: 'Regional' },
+    { key: 'Municipio', label: 'Municipio' },
+    { key: 'Classe', label: 'Classe' },
+    { key: 'ottobacias', label: 'Ottos' },
+    { key: 'nascentes', label: 'Nascentes' },
+    { key: 'estradas_km', label: 'Estradas km' },
+    { key: 'hidrografia_km', label: 'Hidrog. km' },
+    { key: 'construcoes', label: 'Constr.' },
+    { key: 'caf', label: 'CAFs' },
+    { key: 'bovinos', label: 'Bovinos' },
+    { key: 'suinos', label: 'Suinos' },
+    { key: 'aves', label: 'Aves' },
+    { key: 'car', label: 'CAR' },
+    { key: 'agrotoxicos', label: 'Agrotox.' }
   ];
   return html`<div class="dashboard-card">
-    <h3>Tabela Detalhada — Ottobacias</h3>
+    <h3>Tabela Consolidada por Manancial</h3>
     <${SortableTable} columns=${columns} data=${tableData} pageSize=${15} />
   </div>`;
 }
 
 // ============ FILTER BAR ============
-function FilterBar({ baciasData, filters, setFilters }) {
+function FilterBar({ mananciais, allMananciais, filters, setFilters }) {
   const allRegionais = useMemo(() =>
-    [...new Set(baciasData.map(f => f.properties['Regional IDR']))].sort((a, b) => a.localeCompare(b, 'pt'))
-  , [baciasData]);
+    [...new Set(allMananciais.map(m => m.Regional_IDR))].sort((a, b) => a.localeCompare(b, 'pt'))
+  , [allMananciais]);
   const allMunicipios = useMemo(() => {
-    const feats = filters.regional ? baciasData.filter(f => f.properties['Regional IDR'] === filters.regional) : baciasData;
-    return [...new Set(feats.map(f => f.properties.NomeMunicipio))].sort((a, b) => a.localeCompare(b, 'pt'));
-  }, [baciasData, filters.regional]);
+    const src = filters.regional ? allMananciais.filter(m => m.Regional_IDR === filters.regional) : allMananciais;
+    return [...new Set(src.map(m => m.NomeMunicipio))].sort((a, b) => a.localeCompare(b, 'pt'));
+  }, [allMananciais, filters.regional]);
   const allBacias = useMemo(() =>
-    [...new Set(baciasData.map(f => f.properties.Nome_bacia))].sort((a, b) => a.localeCompare(b, 'pt'))
-  , [baciasData]);
+    [...new Set(allMananciais.map(m => m.Nome_bacia))].sort((a, b) => a.localeCompare(b, 'pt'))
+  , [allMananciais]);
   const chips = [];
   if (filters.regional) chips.push({ label: 'Regional: ' + filters.regional, clear: () => setFilters(p => ({ ...p, regional: '', municipio: '' })) });
   if (filters.municipio) chips.push({ label: 'Municipio: ' + filters.municipio, clear: () => setFilters(p => ({ ...p, municipio: '' })) });
@@ -614,7 +949,7 @@ function FilterBar({ baciasData, filters, setFilters }) {
 }
 
 // ============ MAIN DASHBOARD ============
-function Dashboard({ rawBacias, rawUrts }) {
+function Dashboard({ rawBacias, rawUrts, summary }) {
   const [activeTab, setActiveTab] = useState(() => {
     const hh = window.location.hash.replace('#', '');
     return TABS.find(t => t.id === hh) ? hh : 'capa';
@@ -633,14 +968,23 @@ function Dashboard({ rawBacias, rawUrts }) {
 
   const switchTab = (id) => { setActiveTab(id); window.location.hash = id; };
 
-  const baciasFiltered = useMemo(() => {
-    let feats = rawBacias.features;
-    if (filters.regional) feats = feats.filter(f => f.properties['Regional IDR'] === filters.regional);
-    if (filters.municipio) feats = feats.filter(f => f.properties.NomeMunicipio === filters.municipio);
-    if (filters.bacia) feats = feats.filter(f => f.properties.Nome_bacia === filters.bacia);
-    return feats;
-  }, [rawBacias, filters]);
+  // Filter mananciais from summary
+  const allMananciais = summary.mananciais;
+  const filteredMananciais = useMemo(() => {
+    let list = allMananciais;
+    if (filters.regional) list = list.filter(m => m.Regional_IDR === filters.regional);
+    if (filters.municipio) list = list.filter(m => m.NomeMunicipio === filters.municipio);
+    if (filters.bacia) list = list.filter(m => m.Nome_bacia === filters.bacia);
+    return list;
+  }, [allMananciais, filters]);
 
+  // Filter bacias features to match filtered mananciais
+  const filteredCodMans = useMemo(() => new Set(filteredMananciais.map(m => String(m.Cod_man))), [filteredMananciais]);
+  const baciasFiltered = useMemo(() =>
+    rawBacias.features.filter(f => filteredCodMans.has(String(f.properties.Cod_man)))
+  , [rawBacias, filteredCodMans]);
+
+  // Filter URTs
   const urtsFiltered = useMemo(() => {
     let feats = rawUrts.features;
     if (filters.regional) feats = feats.filter(f => (f.properties['Regional IDR'] || f.properties['Região']) === filters.regional);
@@ -657,7 +1001,7 @@ function Dashboard({ rawBacias, rawUrts }) {
         class=${'dashboard-tab' + (activeTab === t.id ? ' active' : '')}
         onClick=${() => switchTab(t.id)}>${t.label}</button>`)}
     </div>
-    ${activeTab !== 'capa' && html`<${FilterBar} baciasData=${rawBacias.features} filters=${filters} setFilters=${setFilters} />`}
+    ${activeTab !== 'capa' && html`<${FilterBar} mananciais=${filteredMananciais} allMananciais=${allMananciais} filters=${filters} setFilters=${setFilters} />`}
     <div class="dashboard-print-controls">
       <button onClick=${() => window.print()}>Imprimir pagina atual</button>
       <button onClick=${handlePrintAll}>Imprimir todas</button>
@@ -668,13 +1012,16 @@ function Dashboard({ rawBacias, rawUrts }) {
       let content;
       switch(t.id) {
         case 'capa': content = html`<${PageCapa} />`; break;
-        case 'visao-geral': content = html`<${PageVisaoGeral} baciasData=${baciasFiltered} urtsData=${urtsFiltered} />`; break;
-        case 'bacias': content = html`<${PageBacias} baciasData=${baciasFiltered} />`; break;
-        case 'regionais': content = html`<${PageRegionais} baciasData=${baciasFiltered} />`; break;
-        case 'municipios': content = html`<${PageMunicipios} baciasData=${baciasFiltered} />`; break;
-        case 'classificacao': content = html`<${PageClassificacao} baciasData=${baciasFiltered} />`; break;
+        case 'visao-geral': content = html`<${PageVisaoGeral} mananciais=${filteredMananciais} baciasData=${baciasFiltered} summary=${summary} />`; break;
+        case 'relevo': content = html`<${PageRelevo} mananciais=${filteredMananciais} summary=${summary} />`; break;
+        case 'uso-solo': content = html`<${PageUsoSolo} mananciais=${filteredMananciais} summary=${summary} />`; break;
+        case 'solos': content = html`<${PageSolos} mananciais=${filteredMananciais} summary=${summary} />`; break;
+        case 'recursos-hidricos': content = html`<${PageRecursosHidricos} mananciais=${filteredMananciais} />`; break;
+        case 'infraestrutura': content = html`<${PageInfraestrutura} mananciais=${filteredMananciais} />`; break;
+        case 'agropecuaria': content = html`<${PageAgropecuaria} mananciais=${filteredMananciais} />`; break;
+        case 'ambiental': content = html`<${PageAmbiental} mananciais=${filteredMananciais} summary=${summary} />`; break;
         case 'urts': content = html`<${PageURTs} baciasData=${baciasFiltered} urtsData=${urtsFiltered} />`; break;
-        case 'tabela-detalhada': content = html`<${PageTabelaDetalhada} baciasData=${baciasFiltered} />`; break;
+        case 'tabela-manancial': content = html`<${PageTabelaManancial} mananciais=${filteredMananciais} />`; break;
       }
       return html`<div key=${t.id} class=${cls}>
         <div class="print-header">
@@ -700,7 +1047,7 @@ function App() {
   if (!data) return html`<div class="dashboard-container" style=${{ textAlign: 'center', padding: '4rem 2rem' }}>
     <p style=${{ fontSize: '1.1rem', color: '#6b7280' }}>Carregando dados do Programa Agua Segura...</p>
   </div>`;
-  return html`<${Dashboard} rawBacias=${data.bacias} rawUrts=${data.urts} />`;
+  return html`<${Dashboard} rawBacias=${data.bacias} rawUrts=${data.urts} summary=${data.summary} />`;
 }
 
 createRoot(document.getElementById('dashboard-root')).render(html`<${App} />`);
