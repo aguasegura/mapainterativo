@@ -1866,11 +1866,17 @@
 
         const entities = dataSource.entities.values;
 
-        entities.forEach((entity, index) => {
-          const feature = featuresToDisplay[index];
-          if (!feature) return;
-
-          const leafletStyle = styleForEntry(entry, feature.properties || {});
+        entities.forEach((entity) => {
+          // Build properties from Cesium's PropertyBag (preserves correct mapping even for MultiPolygon splits)
+          const props = {};
+          if (entity.properties) {
+            const names = entity.properties.propertyNames;
+            for (let i = 0; i < names.length; i++) {
+              props[names[i]] = entity.properties[names[i]]?.getValue?.()
+                ?? entity.properties[names[i]];
+            }
+          }
+          const leafletStyle = styleForEntry(entry, props);
 
           if (entity.polygon) {
             const fillColor = window.Cesium.Color.fromCssColorString(leafletStyle.fillColor || '#3388ff');
@@ -1918,11 +1924,10 @@
             };
           }
 
-          if (feature.properties) {
-            const props = Object.entries(feature.properties)
+          if (Object.keys(props).length > 0) {
+            entity.description = Object.entries(props)
               .map(([key, value]) => `<b>${key}:</b> ${value}`)
               .join('<br/>');
-            entity.description = props;
           }
         });
 
