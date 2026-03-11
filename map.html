@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>💧Programa Água Segura — Mapa Interativo</title>
     <link rel="icon" type="image/x-icon" href="data/aguasegura_ico.ico" />
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
 
     <!-- SEO e Open Graph -->
     <meta name="description" content="Mapa interativo do Programa Água Segura — Visualize as microbacias hidrográficas do Paraná com camadas de uso do solo, hidrografia, nascentes e mais." />
@@ -53,15 +55,24 @@
       <a class="btn link-btn" href="dashboard.html">Painel BI</a>
       <a class="btn link-btn" href="index.html" style="--arrow:'⌂'">Início</a>
       <button id="fitAll" class="btn" type="button" aria-label="Ajustar visão para mostrar todas as microbacias">Ajustar visão</button>
+      <button id="toggle3D" class="btn btn-3d" type="button">
+        <span class="toggle-icon">🌍</span> Visão 3D
+      </button>
       <div class="slider-row" role="group" aria-label="Controle de opacidade das camadas">
         <label for="opacity" class="muted">Opacidade</label>
         <input id="opacity" type="range" min="20" max="100" value="70" aria-label="Opacidade das camadas do mapa" aria-valuemin="20" aria-valuemax="100" aria-valuenow="70" />
         <span id="opacityVal" class="muted" aria-live="polite">70%</span>
       </div>
+      <div class="slider-row" id="terrainExaggerationControl" style="display: none;">
+        <span class="muted">Exagero do Relevo</span>
+        <input id="terrainExaggeration" type="range" min="1" max="3" step="0.1" value="1" />
+        <span id="terrainExaggerationVal" class="muted">1.0x</span>
+      </div>
       <span class="version">IDR-Paraná · 2026</span>
     </header>
 
     <div id="map"></div>
+    <div id="cesiumContainer" style="display: none;"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>

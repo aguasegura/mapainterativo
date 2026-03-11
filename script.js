@@ -59,6 +59,7 @@
   };
 
   const pointIconCache = new Map();
+  const pointBillboardCache = new Map();
 
   const SLOPE_CLASSES = ['000a003', '003a008', '008a015', '015a025', '025a045', '045a100', '>100'];
   const SLOPE_COLORS = ['#f7fcfd', '#ccece6', '#66c2a4', '#41ae76', '#238b45', '#006d2c', '#00441b'];
@@ -360,6 +361,17 @@
     const preset = getPointPreset(entry.id);
     const fontSize = preset.legendFontSize ?? Math.max((preset.fontSize || 10) - 1, 7);
     return buildPointSVG(preset, { size: 18, strokeWidth: 1.8, fontSize });
+  }
+
+  function getPointBillboard(entry, { size = 28 } = {}) {
+    const key = `${entry.id}:${size}`;
+    if (!pointBillboardCache.has(key)) {
+      const preset = getPointPreset(entry.id);
+      const svg = buildPointSVG(preset, { size });
+      const url = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+      pointBillboardCache.set(key, { url, size });
+    }
+    return pointBillboardCache.get(key);
   }
 
   const SOIL_COLORS = {
@@ -1270,6 +1282,9 @@
     });
     refreshLayerStyles();
     updateLegend();
+    if (is3DMode && cesiumViewer) {
+      setTimeout(() => syncLayersToCesium(), 100);
+    }
 
     if (fit) {
       fitToFilteredSelection();
@@ -1446,6 +1461,7 @@
       state.opacity = percent / 100;
       if (label) label.textContent = `${percent}%`;
       refreshLayerStyles();
+      if (is3DMode && cesiumViewer) { syncLayersToCesium(); }
     };
 
     slider.addEventListener('input', update);
@@ -1659,6 +1675,9 @@
       const entry = state.orderedEntries.find(candidate => candidate.layer === event.layer);
       if (!entry) return;
       ensureLayerLoaded(entry).catch(error => console.error(error));
+      if (is3DMode && cesiumViewer) {
+        setTimeout(() => syncLayersToCesium(), 100);
+      }
     });
 
     state.map.on('zoomend', () => {
@@ -1666,8 +1685,16 @@
       updateLegend();
     });
 
-    state.map.on('overlayremove', () => {
+    state.map.on('overlayremove', event => {
       updateLegend();
+      if (is3DMode && cesiumViewer) {
+        const entry = state.orderedEntries.find(candidate => candidate.layer === event.layer);
+        if (entry && cesiumDataSources.has(entry.id)) {
+          const dataSource = cesiumDataSources.get(entry.id);
+          cesiumViewer.dataSources.remove(dataSource);
+          cesiumDataSources.delete(entry.id);
+        }
+      }
     });
 
     await Promise.all(defaultLoads);
@@ -1675,6 +1702,8 @@
     await setupFilters();
     setupFitControl();
     setupOpacityControl();
+    setup3DToggle();
+    setupTerrainExaggeration();
 
     const legendControl = L.control({ position: 'bottomright' });
     legendControl.onAdd = () => {
@@ -1709,6 +1738,330 @@
       }
     }
   }
+
+  // ========================================
+  // CESIUM 3D VIEWER INTEGRATION
+  // ========================================
+
+  let cesiumViewer = null;
+  let is3DMode = false;
+  let cesiumDataSources = new Map();
+  let leafletControlContainer = null;
+  let leafletControlHost = null;
+  let leafletControlHome = null;
+
+  function ensureControlHost() {
+    if (!state.map || (leafletControlHost && leafletControlContainer)) return;
+
+    const mapEl = state.map.getContainer();
+    const container = mapEl?.querySelector('.leaflet-control-container');
+    if (!container) return;
+
+    leafletControlContainer = container;
+    leafletControlHome = mapEl;
+    leafletControlHost = document.querySelector('.leaflet-control-host');
+
+    if (!leafletControlHost) {
+      leafletControlHost = document.createElement('div');
+      leafletControlHost.className = 'leaflet-control-host';
+      document.body.appendChild(leafletControlHost);
+    }
+  }
+
+  function moveControlsToHost() {
+    ensureControlHost();
+    if (leafletControlContainer && leafletControlHost && leafletControlContainer.parentElement !== leafletControlHost) {
+      leafletControlHost.appendChild(leafletControlContainer);
+    }
+  }
+
+  function moveControlsToMap() {
+    if (leafletControlContainer && leafletControlHome && leafletControlContainer.parentElement !== leafletControlHome) {
+      leafletControlHome.appendChild(leafletControlContainer);
+    }
+  }
+
+  function initCesium() {
+    if (cesiumViewer) return cesiumViewer;
+
+    try {
+      window.Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5YjBhODc2Yy0zZjI0LTQ2N2UtOTRhOC0yZDkzYzU3ZmIxYmQiLCJpZCI6MzU3OTY1LCJpYXQiOjE3NjI0NjA3MzV9.uhOQfnXI_h1VES1j_haZxrpzMZaPf-0rjrmo_xcAjag';
+
+      cesiumViewer = new window.Cesium.Viewer('cesiumContainer', {
+        terrain: window.Cesium.Terrain.fromWorldTerrain({
+          requestWaterMask: true,
+          requestVertexNormals: true
+        }),
+        baseLayerPicker: true,
+        geocoder: false,
+        homeButton: true,
+        sceneModePicker: true,
+        navigationHelpButton: false,
+        animation: false,
+        timeline: false,
+        fullscreenButton: false,
+        vrButton: false,
+        infoBox: true,
+        selectionIndicator: true
+      });
+
+      cesiumViewer.scene.verticalExaggeration = 1.0;
+
+      cesiumViewer.camera.setView({
+        destination: window.Cesium.Cartesian3.fromDegrees(-51.0, -24.5, 500000),
+        orientation: {
+          heading: window.Cesium.Math.toRadians(0),
+          pitch: window.Cesium.Math.toRadians(-45),
+          roll: 0.0
+        }
+      });
+
+      console.log('Cesium Viewer initialized successfully');
+      return cesiumViewer;
+    } catch (error) {
+      console.error('Error initializing Cesium:', error);
+      return null;
+    }
+  }
+
+  function convertLeafletLayerToCesium(entry) {
+    if (!cesiumViewer) return;
+    if (!entry.loaded) return;
+
+    try {
+      if (cesiumDataSources.has(entry.id)) {
+        const existingSource = cesiumDataSources.get(entry.id);
+        cesiumViewer.dataSources.remove(existingSource);
+      }
+
+      let featuresToDisplay = [];
+
+      if (entry.currentFeatures && entry.currentFeatures.length > 0) {
+        featuresToDisplay = entry.isProjected
+          ? entry.currentFeatures.map(reprojectFeatureToWgs84).filter(Boolean)
+          : entry.currentFeatures;
+      } else if (entry.originalFeatures && entry.originalFeatures.length > 0) {
+        featuresToDisplay = entry.isProjected
+          ? entry.originalFeatures.map(reprojectFeatureToWgs84).filter(Boolean)
+          : entry.originalFeatures;
+      }
+
+      if (!featuresToDisplay || featuresToDisplay.length === 0) return;
+
+      const filteredGeoJSON = {
+        type: 'FeatureCollection',
+        features: featuresToDisplay
+      };
+
+      const dataSource = new window.Cesium.GeoJsonDataSource(entry.name);
+
+      dataSource.load(filteredGeoJSON, {
+        stroke: window.Cesium.Color.fromCssColorString('#3388ff'),
+        fill: window.Cesium.Color.fromCssColorString('#3388ff').withAlpha(0.5),
+        strokeWidth: 2,
+        clampToGround: true
+      }).then(() => {
+        cesiumViewer.dataSources.add(dataSource);
+        cesiumDataSources.set(entry.id, dataSource);
+
+        const entities = dataSource.entities.values;
+
+        entities.forEach((entity, index) => {
+          const feature = featuresToDisplay[index];
+          if (!feature) return;
+
+          const leafletStyle = styleForEntry(entry, feature.properties || {});
+
+          if (entity.polygon) {
+            const fillColor = window.Cesium.Color.fromCssColorString(leafletStyle.fillColor || '#3388ff');
+            const strokeColor = window.Cesium.Color.fromCssColorString(leafletStyle.color || '#3388ff');
+            const fillOpacity = leafletStyle.fillOpacity !== undefined ? leafletStyle.fillOpacity : 0.4;
+            const strokeOpacity = leafletStyle.opacity !== undefined ? leafletStyle.opacity : 0.8;
+            const isConstrucoes = entry.id === 'construcoes';
+
+            if (isConstrucoes) {
+              entity.polygon.heightReference = window.Cesium.HeightReference.RELATIVE_TO_GROUND;
+              entity.polygon.extrudedHeightReference = window.Cesium.HeightReference.RELATIVE_TO_GROUND;
+              entity.polygon.height = 0;
+              entity.polygon.extrudedHeight = 5;
+              entity.polygon.closeTop = true;
+              entity.polygon.closeBottom = true;
+            }
+
+            if (fillOpacity > 0) {
+              entity.polygon.material = fillColor.withAlpha(fillOpacity);
+              entity.polygon.fill = true;
+            } else {
+              entity.polygon.fill = false;
+            }
+
+            entity.polygon.outline = true;
+            entity.polygon.outlineColor = strokeColor.withAlpha(strokeOpacity);
+            entity.polygon.outlineWidth = leafletStyle.weight || 1;
+          } else if (entity.polyline) {
+            const lineColor = window.Cesium.Color.fromCssColorString(leafletStyle.color || '#1f78b4');
+            const lineOpacity = leafletStyle.opacity || 0.8;
+
+            entity.polyline.material = lineColor.withAlpha(lineOpacity);
+            entity.polyline.width = leafletStyle.weight || 1.5;
+            entity.polyline.clampToGround = true;
+            entity.polyline.arcType = window.Cesium.ArcType.GEODESIC;
+          } else if (entity.point) {
+            const billboard = getPointBillboard(entry, { size: 28 });
+            entity.point.show = false;
+            entity.billboard = {
+              image: billboard.url,
+              width: billboard.size,
+              height: billboard.size,
+              verticalOrigin: window.Cesium.VerticalOrigin.CENTER,
+              heightReference: window.Cesium.HeightReference.CLAMP_TO_GROUND
+            };
+          }
+
+          if (feature.properties) {
+            const props = Object.entries(feature.properties)
+              .map(([key, value]) => `<b>${key}:</b> ${value}`)
+              .join('<br/>');
+            entity.description = props;
+          }
+        });
+
+        console.log(`Loaded ${entry.name} into Cesium (${entities.length} entities)`);
+      }).catch(error => {
+        console.error(`Error loading ${entry.name}:`, error);
+      });
+    } catch (error) {
+      console.error(`Error converting layer ${entry.name} to Cesium:`, error);
+    }
+  }
+
+  function syncLayersToCesium() {
+    if (!cesiumViewer) return;
+
+    state.orderedEntries.forEach(entry => {
+      const isVisible = state.map.hasLayer(entry.layer);
+      const isLoaded = entry.loaded;
+
+      if (isVisible && isLoaded) {
+        convertLeafletLayerToCesium(entry);
+      } else {
+        if (cesiumDataSources.has(entry.id)) {
+          const dataSource = cesiumDataSources.get(entry.id);
+          cesiumViewer.dataSources.remove(dataSource);
+          cesiumDataSources.delete(entry.id);
+        }
+      }
+    });
+  }
+
+  function toggle3DView() {
+    const cesiumContainer = document.getElementById('cesiumContainer');
+    const toggleButton = document.getElementById('toggle3D');
+
+    is3DMode = !is3DMode;
+
+    if (is3DMode) {
+      cesiumContainer.style.display = 'block';
+      toggleButton.innerHTML = '<span class="toggle-icon">🗺️</span> Visão 2D';
+
+      document.body.classList.add('mode-3d');
+      moveControlsToHost();
+
+      const terrainControl = document.getElementById('terrainExaggerationControl');
+      if (terrainControl) {
+        terrainControl.style.display = 'flex';
+      }
+
+      if (!cesiumViewer) {
+        initCesium();
+      }
+
+      const leafletBounds = state.map.getBounds();
+      const currentZoom = state.map.getZoom();
+      const currentCenter = state.map.getCenter();
+
+      setTimeout(() => {
+        syncLayersToCesium();
+
+        const zoomToHeight = (zoom) => {
+          return Math.pow(2, 18 - zoom) * 1000;
+        };
+
+        const cameraHeight = zoomToHeight(currentZoom);
+        const centerLon = currentCenter.lng;
+        const centerLat = currentCenter.lat;
+        const pitch = Math.max(-60, Math.min(-30, -30 - (currentZoom - 10) * 2));
+
+        cesiumViewer.camera.flyTo({
+          destination: window.Cesium.Cartesian3.fromDegrees(centerLon, centerLat, cameraHeight),
+          orientation: {
+            heading: window.Cesium.Math.toRadians(0),
+            pitch: window.Cesium.Math.toRadians(pitch),
+            roll: 0.0
+          },
+          duration: 1.5
+        });
+      }, 100);
+    } else {
+      if (cesiumViewer) {
+        const camera = cesiumViewer.camera;
+        const cameraPosition = camera.positionCartographic;
+
+        const centerLon = window.Cesium.Math.toDegrees(cameraPosition.longitude);
+        const centerLat = window.Cesium.Math.toDegrees(cameraPosition.latitude);
+        const height = cameraPosition.height;
+
+        const heightToZoom = (h) => {
+          return Math.max(5, Math.min(18, 18 - Math.log2(h / 1000)));
+        };
+
+        const newZoom = Math.round(heightToZoom(height));
+
+        state.map.setView([centerLat, centerLon], newZoom, {
+          animate: false
+        });
+      }
+
+      moveControlsToMap();
+      document.body.classList.remove('mode-3d');
+
+      const terrainControl = document.getElementById('terrainExaggerationControl');
+      if (terrainControl) {
+        terrainControl.style.display = 'none';
+      }
+
+      cesiumContainer.style.display = 'none';
+      toggleButton.innerHTML = '<span class="toggle-icon">🌍</span> Visão 3D';
+    }
+  }
+
+  function setup3DToggle() {
+    const toggleButton = document.getElementById('toggle3D');
+    if (toggleButton) {
+      toggleButton.addEventListener('click', toggle3DView);
+    }
+  }
+
+  function setupTerrainExaggeration() {
+    const slider = document.getElementById('terrainExaggeration');
+    const label = document.getElementById('terrainExaggerationVal');
+    if (!slider) return;
+
+    const update = () => {
+      const value = Number(slider.value);
+      if (cesiumViewer && cesiumViewer.scene) {
+        cesiumViewer.scene.verticalExaggeration = value;
+      }
+      if (label) label.textContent = `${value.toFixed(1)}x`;
+    };
+
+    slider.addEventListener('input', update);
+    update();
+  }
+
+  // ========================================
+  // END CESIUM INTEGRATION
+  // ========================================
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

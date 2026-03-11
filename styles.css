@@ -26,6 +26,56 @@ body {
 #map {
   position: absolute;
   inset: var(--topbar-height) 0 0 0;
+  z-index: 1;
+}
+
+#cesiumContainer {
+  position: absolute;
+  inset: var(--topbar-height) 0 0 0;
+  width: 100%;
+  height: calc(100% - var(--topbar-height));
+  z-index: 2;
+  display: none;
+}
+
+/* In 3D mode, hide the 2D canvas and float the controls above Cesium */
+body.mode-3d #map {
+  visibility: hidden;
+}
+
+.leaflet-control-host {
+  position: fixed;
+  inset: var(--topbar-height) 0 0 0;
+  z-index: 1005;
+  pointer-events: none;
+  display: none;
+}
+
+body.mode-3d .leaflet-control-host {
+  display: block;
+}
+
+body.mode-3d .leaflet-control-host .leaflet-control-container,
+body.mode-3d .leaflet-control-host .leaflet-control {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Ensure layer control and all Leaflet controls are visible and clickable in 3D mode */
+body.mode-3d .leaflet-control-host .leaflet-control-layers,
+body.mode-3d .leaflet-control-host .leaflet-control-layers-expanded {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+body.mode-3d #cesiumContainer {
+  display: block;
+  z-index: 1000;
+}
+
+/* Ensure controls work properly */
+.leaflet-control {
+  pointer-events: auto;
 }
 
 .topbar {
@@ -79,6 +129,25 @@ body {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
+}
+
+.btn-3d {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-3d:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #63408a 100%);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-3d .toggle-icon {
+  font-size: 1.1rem;
+  margin-right: 0.25rem;
 }
 
 .slider-row {
