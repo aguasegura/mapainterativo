@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body>
+<style>
+:root {
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-tertiary: #94a3b8;
+  --color-background-secondary: #f8fafc;
+  --color-background-success: #f0fdf4;
+  --color-border-tertiary: #e2e8f0;
+  --color-border-secondary: #cbd5e1;
+  --color-border-success: #22c55e;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+.root{font-family:var(--font-sans)}
+.hdr{display:flex;align-items:center;padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);gap:10px;flex-wrap:wrap}
+.ttl{font-size:14px;font-weight:500;color:var(--color-text-primary)}
+.sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.ctrl{margin-left:auto;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.pt-row{display:flex;gap:4px;align-items:center}
+.pt{width:18px;height:5px;border-radius:3px;background:var(--color-border-tertiary);cursor:pointer;transition:all .3s}
+.pt:hover{background:var(--color-border-secondary)}
+.pt.done{background:var(--color-border-success);opacity:.7}
+.pt.cur{background:var(--color-border-success);width:26px}
+.ph-lbl{font-size:11px;color:var(--color-text-secondary);min-width:150px;text-align:center}
+.sc{overflow-x:auto;width:100%}
+.grid{display:grid;grid-template-columns:34px 126px repeat(7,153px);grid-template-rows:44px repeat(11,auto);min-width:1207px}
+.vtitle{grid-column:1;grid-row:1/span 12;background:var(--color-background-secondary);border-right:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:center}
+.vtitle span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:500;color:var(--color-text-secondary);letter-spacing:2px;white-space:nowrap}
+.corner{grid-column:2;grid-row:1;background:var(--color-background-secondary);border-right:1.5px solid var(--color-border-success);border-bottom:1.5px solid var(--color-border-success)}
+.ph{grid-row:1;background:var(--color-background-secondary);border-right:0.5px solid var(--color-border-tertiary);border-bottom:1.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;text-align:center;transition:background .3s,border-bottom-color .3s}
+.ph.hi{background:var(--color-background-success);border-bottom-color:var(--color-border-success)}
+.phn{font-size:11px;font-weight:500;color:var(--color-text-secondary)}
+.phd{font-size:10px;color:var(--color-text-tertiary);line-height:1.3;margin-top:1px}
+.ll{grid-column:2;background:var(--color-background-secondary);border-right:1.5px solid var(--color-border-success);border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;padding:5px 8px}
+.llt{font-size:11px;font-weight:500;color:var(--color-text-primary);line-height:1.3}
+.lc{border-right:0.5px solid var(--color-border-tertiary);border-bottom:0.5px solid var(--color-border-tertiary);padding:4px 3px;min-height:76px;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;transition:background .3s}
+.lc.alt{background:var(--color-background-secondary)}
+.lc.hi{background:var(--color-background-success)}
+.lc.big{min-height:106px}
+.node{width:100%;max-width:143px;padding:4px 5px;border-radius:4px;font-size:11px;font-weight:500;line-height:1.3;text-align:center;min-height:28px;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.85) translateY(5px);transition:opacity .45s ease,transform .45s ease}
+.node.vis{opacity:1;transform:scale(1) translateY(0)}
+.na{background:#FAEEDA;color:#633806;border:0.5px solid #EF9F27}
+.ns{background:#FAC775;color:#412402;border:0.5px solid #BA7517;min-height:48px}
+.nb{background:#E6F1FB;color:#042C53;border:0.5px solid #378ADD;min-height:38px;font-size:12px}
+.nr{background:#FCEBEB;color:#501313;border:0.5px solid #E24B4A}
+.nt{background:#9FE1CB;color:#04342C;border:0.5px solid #1D9E75;border-radius:13px}
+.no{background:transparent;color:#854F0B;border:1px dashed #EF9F27}
+@media(prefers-color-scheme:dark){
+.na{background:#633806;color:#FAEEDA;border-color:#EF9F27}
+.ns{background:#412402;color:#FAC775;border-color:#BA7517}
+.nb{background:#042C53;color:#B5D4F4;border-color:#378ADD}
+.nr{background:#501313;color:#F7C1C1;border-color:#E24B4A}
+.nt{background:#04342C;color:#9FE1CB;border-color:#1D9E75}
+.no{color:#FAC775;border-color:#EF9F27}
+}
+.leg{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 14px;border-top:0.5px solid var(--color-border-tertiary);margin-top:2px}
+.lgi{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary)}
+.lgb{width:15px;height:10px;border-radius:2px;flex-shrink:0}
+</style>
+<div class="root">
+<div class="hdr">
+  <div><div class="ttl">Programa Água Segura — fluxograma operacional</div><div class="sub">Convênio CE 09/2024-GHID · SANEPAR / IDR-Paraná / ADAPAR</div></div>
+  <div class="ctrl">
+    <div class="pt-row" id="ptRow"></div>
+    <div class="ph-lbl" id="phLbl">Selecione uma fase</div>
+    <button id="bPrev" onclick="goPrev()" disabled>← Anterior</button>
+    <button id="bPlay" onclick="togglePlay()">▶ Reproduzir</button>
+    <button id="bNext" onclick="goNext()">Próxima →</button>
+    <button onclick="doRestart()">↺</button>
+  </div>
+</div>
+<div class="sc"><div class="grid" id="g"></div></div>
+<div class="leg">
+  <span style="font-size:11px;font-weight:500;color:var(--color-text-secondary)">Legenda:</span>
+  <div class="lgi"><div class="lgb" style="background:#FAEEDA;border:.5px solid #EF9F27"></div>Ação IDR / inst. parceiras</div>
+  <div class="lgi"><div class="lgb" style="background:#FAC775;border:.5px solid #BA7517"></div>Protocolo Sanepar</div>
+  <div class="lgi"><div class="lgb" style="background:#E6F1FB;border:.5px solid #378ADD"></div>Relatório / produto</div>
+  <div class="lgi"><div class="lgb" style="background:#FCEBEB;border:.5px solid #E24B4A"></div>Emergência ambiental</div>
+  <div class="lgi"><div class="lgb" style="background:#9FE1CB;border:.5px solid #1D9E75;border-radius:6px"></div>Monitoramento contínuo</div>
+  <div class="lgi"><div class="lgb" style="background:transparent;border:1px dashed #EF9F27"></div>Ação complementar / preventiva</div>
+</div>
+</div>
+<script>
+const PH=[
+  {s:'Fase 1',n:'Formalização\nInstitucional'},
+  {s:'Fase 2',n:'Diagnóstico\nda Bacia'},
+  {s:'Fase 3',n:'Seleção das URs'},
+  {s:'Fase 4',n:'Diagnóstico das\nPropriedades'},
+  {s:'Fase 5',n:'Execução\nnas URs'},
+  {s:'Fase 6',n:'Monitoramento\ne Avaliação'},
+  {s:'Fase 7',n:'Encerramento'},
+];
+const LN=[
+  {n:'IDR Paraná',big:1},{n:'Prefeitura\nMunicipal',big:0},
+  {n:'Conselhos',big:0},{n:'Proprietários\nRurais',big:0},
+  {n:'Demais Atores',big:0},{n:'Sanepar',big:1},
+  {n:'ADAPAR',big:0},{n:'IAT',big:0},
+  {n:'Defesa Civil',big:0},{n:'Sistema de Saúde',big:0},
+  {n:'Acidentes\nAmbientais',big:0},
+];
+const ND={
+  '0,0':[{t:'TCTF / Guia\ndo Programa',c:'na'}],
+  '0,1':[{t:'Orientação dos Técnicos\nApresentação do Manual',c:'na'},{t:'Pré-diagnóstico',c:'na'},{t:'Levantamento de Campo\nGeorreferenciado',c:'na'}],
+  '0,2':[{t:'Identificação de\nProprietários Voluntários',c:'na'}],
+  '0,3':[{t:'Diagnóstico das\nPropriedades',c:'na'},{t:'Avaliação do CAR\nda Propriedade',c:'na'},{t:'Planejamento, Projeto\ne Orçamento',c:'na'},{t:'Priorização das\nPráticas Sustentáveis',c:'na'}],
+  '0,4':[{t:'Indicadores de Adoção\ndas Tecnologias',c:'na'},{t:'Acompanhamento\ne Ateste',c:'na'}],
+  '0,5':[{t:'Realização de\nEventos Técnicos',c:'na'},{t:'Avaliação do andamento\ndas atividades',c:'na'}],
+  '0,6':[{t:'Relatório\ndo Convênio',c:'nb'}],
+  '1,1':[{t:'Reunião de Apresentação\nGuia do Programa',c:'na'},{t:'Termo de Adesão',c:'na'}],
+  '1,4':[{t:'Ações de Apoio',c:'na'}],
+  '2,1':[{t:'Plano de Trabalho /\nCronograma de Ações',c:'na'}],
+  '2,2':[{t:'Validação das\nPropriedades',c:'na'}],
+  '2,4':[{t:'Ações de Apoio',c:'na'}],
+  '3,2':[{t:'Reuniões Comunitárias\n/ DRP',c:'na'},{t:'Termo de\nCompromisso UR',c:'na'}],
+  '3,4':[{t:'Execução de boas práticas\nInstalação das URTs',c:'na'}],
+  '4,2':[{t:'Ações com\ndemais atores',c:'na'}],
+  '5,0':[{t:'Avaliação de Poços',c:'na'},{t:'Monitoramento\nquali-quantitativo',c:'nt'}],
+  '5,1':[{t:'Identificação e avaliação\ndo impacto de alto\nRisco / Perigo para o\nabastecimento público',c:'ns'},{t:'Compartilhamento\ndos Dados',c:'ns'}],
+  '5,2':[{t:'Sala de\nSituação',c:'ns'}],
+  '5,3':[{t:'Plano de\nContingência',c:'ns'}],
+  '5,4':[{t:'Contratação / Execução\ndos Serviços nas URTs',c:'na'},{t:'Contratação / Execução\nde Projetos e Obras',c:'na'}],
+  '5,5':[{t:'Indicadores de Mitigação\nde Risco de Qualidade',c:'na'},{t:'Avaliação do plano\nde Mitigação de Riscos',c:'na'}],
+  '6,4':[{t:'Ações de\nApoio / Orientação',c:'na'}],
+  '6,5':[{t:'Ações de\nFiscalização',c:'na'}],
+  '7,4':[{t:'Ações de\nApoio / Orientação',c:'na'}],
+  '7,5':[{t:'Ações de\nFiscalização',c:'na'}],
+  '8,5':[{t:'Plano de\nPrevenção',c:'no'}],
+  '10,1':[{t:'Identificação e comunicação\nda ocorrência',c:'nr'}],
+  '10,4':[{t:'Mitigação e\nResposta',c:'no'}],
+  '10,5':[{t:'Recuperação',c:'no'}],
+};
+
+function build(){
+  const g=document.getElementById('g');
+  const vt=document.createElement('div');
+  vt.className='vtitle';vt.style.cssText='grid-column:1;grid-row:1/span 12;';
+  vt.innerHTML='<span>Programa Água Segura</span>';g.appendChild(vt);
+  const co=document.createElement('div');
+  co.className='corner';co.style.cssText='grid-column:2;grid-row:1;';g.appendChild(co);
+  PH.forEach((ph,pi)=>{
+    const d=document.createElement('div');
+    d.className='ph';d.id='ph'+pi;
+    d.style.cssText=`grid-column:${pi+3};grid-row:1;`;
+    d.innerHTML=`<div class="phn">${ph.s}</div><div class="phd">${ph.n.replace(/\n/g,'<br>')}</div>`;
+    g.appendChild(d);
+  });
+  LN.forEach((ln,li)=>{
+    const alt=li%2===0;
+    const ll=document.createElement('div');
+    ll.className='ll';ll.style.cssText=`grid-column:2;grid-row:${li+2};`;
+    ll.innerHTML=`<div class="llt">${ln.n.replace(/\n/g,'<br>')}</div>`;g.appendChild(ll);
+    PH.forEach((_,pi)=>{
+      const c=document.createElement('div');
+      c.className=`lc${alt?' alt':''}${ln.big?' big':''}`;
+      c.id=`c${li}_${pi}`;c.style.cssText=`grid-column:${pi+3};grid-row:${li+2};`;
+      const k=`${li},${pi}`;
+      if(ND[k])ND[k].forEach((nd,ni)=>{
+        const n=document.createElement('div');
+        n.className=`node ${nd.c}`;n.id=`n${li}_${pi}_${ni}`;n.dataset.phase=pi;
+        n.innerHTML=nd.t.replace(/\n/g,'<br>');n.title=nd.t.replace(/\n/g,' ');
+        c.appendChild(n);
+      });
+      g.appendChild(c);
+    });
+  });
+  const tr=document.getElementById('ptRow');
+  PH.forEach((_,i)=>{
+    const d=document.createElement('div');d.className='pt';d.id='p'+i;
+    d.onclick=()=>goTo(i);tr.appendChild(d);
+  });
+}
+
+let cur=-1,playing=false,timer=null;
+
+function upd(){
+  PH.forEach((_,i)=>{
+    const d=document.getElementById('p'+i),h=document.getElementById('ph'+i);
+    if(i<cur){d.className='pt done';h.classList.add('hi');}
+    else if(i===cur){d.className='pt cur';h.classList.add('hi');}
+    else{d.className='pt';h.classList.remove('hi');}
+  });
+  document.getElementById('phLbl').textContent=cur>=0?PH[cur].s+': '+PH[cur].n.replace(/\n/,' '):'Selecione uma fase';
+  document.getElementById('bPrev').disabled=cur<=0;
+  document.getElementById('bNext').disabled=cur>=PH.length-1;
+}
+
+function show(p){
+  document.querySelectorAll('.lc.hi').forEach(c=>c.classList.remove('hi'));
+  LN.forEach((_,li)=>{const c=document.getElementById(`c${li}_${p}`);if(c)c.classList.add('hi');});
+  document.querySelectorAll(`.node[data-phase="${p}"]`).forEach((n,i)=>{setTimeout(()=>n.classList.add('vis'),i*80+40);});
+}
+
+function goTo(p){
+  for(let i=cur+1;i<=p;i++)show(i);
+  cur=p;upd();
+}
+
+function goPrev(){
+  if(cur<=0)return;
+  document.querySelectorAll(`.node[data-phase="${cur}"]`).forEach(n=>n.classList.remove('vis'));
+  document.querySelectorAll('.lc.hi').forEach(c=>c.classList.remove('hi'));
+  cur--;
+  LN.forEach((_,li)=>{const c=document.getElementById(`c${li}_${cur}`);if(c)c.classList.add('hi');});
+  upd();
+}
+
+function goNext(){if(cur<PH.length-1)goTo(cur+1);}
+
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('bPlay').textContent=playing?'⏸ Pausar':'▶ Reproduzir';
+  if(playing)step();else clearTimeout(timer);
+}
+
+function step(){
+  if(!playing)return;
+  if(cur>=PH.length-1){playing=false;document.getElementById('bPlay').textContent='▶ Reproduzir';return;}
+  goNext();timer=setTimeout(step,2400);
+}
+
+function doRestart(){
+  clearTimeout(timer);playing=false;
+  document.getElementById('bPlay').textContent='▶ Reproduzir';
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('vis'));
+  document.querySelectorAll('.lc.hi').forEach(c=>c.classList.remove('hi'));
+  document.querySelectorAll('.ph.hi').forEach(h=>h.classList.remove('hi'));
+  cur=-1;upd();setTimeout(()=>goTo(0),350);
+}
+
+build();setTimeout(()=>goTo(0),700);
+</script>
+</body>
+</html>
