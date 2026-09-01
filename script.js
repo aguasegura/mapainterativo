@@ -55,7 +55,9 @@
     educacao: { fill: '#06b6d4', stroke: '#0e7490', label: 'Ed', fontSize: 10, legendFontSize: 9 },
     sigarh: { fill: '#fb7185', stroke: '#be123c', label: 'SG', fontSize: 9, legendFontSize: 8 },
     suinos: { fill: '#ef4444', stroke: '#991b1b', label: 'Su', fontSize: 10, legendFontSize: 9 },
-    urs: { fill: '#ef5555', stroke: '#881b1b', label: 'UR', fontSize: 10, legendFontSize: 9 }
+    urs: { fill: '#ef5555', stroke: '#881b1b', label: 'UR', fontSize: 10, legendFontSize: 9 },
+    transectos: { fill: '#f97316', stroke: '#9a3412', label: 'T', fontSize: 11, legendFontSize: 10 },
+    energia_estruturas: { fill: '#eab308', stroke: '#713f12', label: 'E', fontSize: 10, legendFontSize: 9 }
   };
 
   const pointIconCache = new Map();
@@ -403,6 +405,11 @@
     'Solo Exposto/Mineração': '#f0b67f',
     'Várzea': '#7fc6bc'
   };
+  const ENERGIA_COLORS = {
+    'Transmissão': '#7c3aed',
+    'Distribuição AT (LDAT)': '#d97706',
+    'Alimentador 34,5 kV': '#eab308'
+  };
   const DATASET_CONFIG = [
     {
       id: 'bacias',
@@ -526,6 +533,16 @@
       geom: 'line',
       metric: 'length'
     },
+    {
+      id: 'energia',
+      name: 'Linhas de Energia (Transmissão/Distribuição)',
+      files: ['energia__linhas.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      classField: 'Tipo',
+      palette: ENERGIA_COLORS,
+      visualHints: 'Linhas de transmissão em operação (EPE) e alimentadores troncais 34,5 kV (COPEL). Combine com "Estruturas de Energia" para ver torres e postes.'
+    },
 
     { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], geom: 'point', metric: 'count' },
@@ -535,7 +552,9 @@
     { id: 'educacao', name: 'Escolas Estaduais', files: ['educacao__educacao_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'sigarh', name: 'Outorgas (SIGARH)', files: ['sigarh.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
-    { id: 'urs', name: 'URs', files: ['urs__urs.geojson_part-001.gz'], geom: 'point', metric: 'count' }
+    { id: 'urs', name: 'URs', files: ['urs__urs.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'transectos', name: 'Transectos de Campo', files: ['transectos__pontos.geojson_part-001.gz'], geom: 'point', metric: 'count', visualHints: 'Pontos do levantamento de campo por transectos nas microbacias do programa.' },
+    { id: 'energia_estruturas', name: 'Estruturas de Energia (torres/postes LDAT)', files: ['energia__estruturas.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 12, visualHints: 'Estruturas das linhas de distribuição de alta tensão da COPEL. Aproxime (zoom ≥ 12) para visualizar.' }
   ];
 
   const state = {
@@ -596,6 +615,17 @@
         color: '#d1495b',
         weight: 1.6,
         opacity: 0.85 * state.opacity
+      };
+    },
+    energia(style, entry, properties) {
+      const tipo = `${(properties || {}).Tipo || ''}`.trim();
+      const cor = ENERGIA_COLORS[tipo] || '#7c3aed';
+      return {
+        ...style,
+        color: cor,
+        weight: tipo === 'Transmissão' ? 2.4 : 1.8,
+        dashArray: tipo === 'Transmissão' ? null : '6 4',
+        opacity: 0.9 * state.opacity
       };
     }
   };

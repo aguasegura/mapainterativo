@@ -34,6 +34,8 @@ aguasegura/
 - **Estradas** (malha viária) — `data/raw/estradas_otto.gpkg`
 - **CAR** (Cadastro Ambiental Rural) — `data/raw/car__car_otto.geojson`
 - **Limites de microbacias** (ottobacias) — `data/raw/ottobacias.gpkg`
+- **Linhas de Energia** (LTs em operação EPE + alimentadores 34,5 kV e estruturas LDAT COPEL) — `data/energia__linhas.geojson_part-001.gz`, `data/energia__estruturas.geojson_part-001.gz`
+- **Transectos de Campo** (levantamento por transectos nas microbacias) — `data/transectos__pontos.geojson_part-001.gz`
 
 > **Observação:** alguns arquivos podem ser grandes e versionados via **Git LFS**.
 
@@ -55,7 +57,9 @@ aguasegura/
 - **IPARDES** — base cartográfica do Paraná  
 - **MapBiomas** — séries históricas de uso/cobertura (1985-2023)  
 - **ANA (Hidroweb)** — séries de precipitação e vazão  
-- **PlanetScope / Sentinel-2 / Landsat** — imagens para monitoramento  
+- **PlanetScope / Sentinel-2 / Landsat** — imagens para monitoramento
+- **EPE (Webmap EPE)** — linhas de transmissão em operação
+- **COPEL (ANEEL/mapaANEEL)** — alimentadores 34,5 kV, estruturas LDAT e subestações  
 - **SEAB / IAT / ADAPAR / IDR-Paraná** — camadas setoriais e apoio  
 - **CAR** — limites de imóveis rurais (conforme disponibilidade/acesso)
 
