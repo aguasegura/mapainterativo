@@ -749,6 +749,18 @@ function PageAmbiental({ mananciais, summary }) {
   const totalCarArea = useMemo(() => mananciais.reduce((s, m) => s + m.car.area_ha, 0), [mananciais]);
   const totalConflitos = useMemo(() => mananciais.reduce((s, m) => s + m.conflitos.area_ha, 0), [mananciais]);
   const totalApp = useMemo(() => mananciais.reduce((s, m) => s + m.uso_app.area_ha, 0), [mananciais]);
+  const chuvaMedia = useMemo(() => {
+    const vals = mananciais.map(m => m.ambiental?.chuva_mm_2025).filter(v => v != null);
+    return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : null;
+  }, [mananciais]);
+  const totalPerda = useMemo(() =>
+    mananciais.reduce((s, m) => s + (m.ambiental?.perda_dossel_ha || 0), 0)
+  , [mananciais]);
+  const perdaBar = useMemo(() =>
+    mananciais.filter(m => (m.ambiental?.perda_dossel_ha || 0) > 0)
+      .map(m => ({ name: m.Manancial, value: Math.round(m.ambiental.perda_dossel_ha) }))
+      .sort((a, b) => b.value - a.value).slice(0, 15)
+  , [mananciais]);
 
   const carBar = useMemo(() =>
     mananciais.filter(m => m.car.count > 0)
@@ -770,7 +782,10 @@ function PageAmbiental({ mananciais, summary }) {
       Manancial: m.Manancial, car_count: m.car.count,
       car_area: Math.round(m.car.area_ha),
       conflitos_ha: Math.round(m.conflitos.area_ha),
-      app_ha: Math.round(m.uso_app.area_ha)
+      app_ha: Math.round(m.uso_app.area_ha),
+      chuva_mm: m.ambiental?.chuva_mm_2025 ?? '--',
+      perda_ha: m.ambiental?.perda_dossel_ha != null ? Math.round(m.ambiental.perda_dossel_ha) : '--',
+      perda_pct: m.ambiental?.perda_dossel_pct ?? '--'
     })).sort((a, b) => b.car_count - a.car_count)
   , [mananciais]);
 
@@ -780,6 +795,8 @@ function PageAmbiental({ mananciais, summary }) {
       <${KPICard} number=${fmtDec(totalCarArea, 0)} label="Area CAR (ha)" />
       <${KPICard} number=${fmtDec(totalConflitos, 0)} label="Conflitos (ha)" />
       <${KPICard} number=${fmtDec(totalApp, 0)} label="Uso em APP (ha)" />
+      <${KPICard} number=${chuvaMedia != null ? chuvaMedia : '--'} label="Chuva 2025 (mm, media)" />
+      <${KPICard} number=${fmtDec(totalPerda, 0)} label="Perda de dossel 2021-2024 (ha)" />
     </div>
     <div class="dashboard-grid">
       <div class="dashboard-card">
@@ -796,6 +813,10 @@ function PageAmbiental({ mananciais, summary }) {
         <h3>Uso do Solo em APP por Classe</h3>
         <${D3Donut} data=${appDonut} />
       </div>
+      <div class="dashboard-card">
+        <h3>Perda de Dossel 2021-2024 por Manancial (ha) — Hansen GFC</h3>
+        <${D3HBar} data=${perdaBar} fill="#b3593a" />
+      </div>
     </div>
     <div class="dashboard-card" style=${{ marginBottom: '1.5rem' }}>
       <h3>Ambiental por Manancial</h3>
@@ -804,7 +825,10 @@ function PageAmbiental({ mananciais, summary }) {
         { key: 'car_count', label: 'CAR (imoveis)' },
         { key: 'car_area', label: 'CAR area (ha)' },
         { key: 'conflitos_ha', label: 'Conflitos (ha)' },
-        { key: 'app_ha', label: 'Uso APP (ha)' }
+        { key: 'app_ha', label: 'Uso APP (ha)' },
+        { key: 'chuva_mm', label: 'Chuva 2025 (mm)' },
+        { key: 'perda_ha', label: 'Perda dossel (ha)' },
+        { key: 'perda_pct', label: 'Perda dossel (%)' }
       ]} data=${tableData} pageSize=${15} />
     </div>`;
 }

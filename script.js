@@ -59,7 +59,10 @@
     transectos: { fill: '#f97316', stroke: '#9a3412', label: 'T', fontSize: 11, legendFontSize: 10 },
     energia_estruturas: { fill: '#eab308', stroke: '#713f12', label: 'E', fontSize: 10, legendFontSize: 9 },
     postes: { fill: '#a16207', stroke: '#57330a', label: '', fontSize: 8, legendFontSize: 7 },
-    transformadores: { fill: '#dc2626', stroke: '#7f1d1d', label: 'Tr', fontSize: 9, legendFontSize: 8 }
+    transformadores: { fill: '#dc2626', stroke: '#7f1d1d', label: 'Tr', fontSize: 9, legendFontSize: 8 },
+    armazens: { fill: '#c9a24b', stroke: '#7a4a12', label: 'Az', fontSize: 10, legendFontSize: 9 },
+    unidades_idr: { fill: '#5e3d8f', stroke: '#3b2361', label: 'ID', fontSize: 10, legendFontSize: 9 },
+    cnpj_agro: { fill: '#d98f4a', stroke: '#8c3d1f', label: '', fontSize: 8, legendFontSize: 7 }
   };
 
   const pointIconCache = new Map();
@@ -412,6 +415,26 @@
     'Distribuição AT (LDAT)': '#d97706',
     'Alimentador 34,5 kV': '#eab308'
   };
+
+  const DEGRADACAO_COLORS = {
+    'DFRACA': '#fde68a', 'DMEDIA': '#f59e0b', 'DFORTE': '#b91c1c',
+    'CIDADE': '#9ca3af', 'RIOS': '#3b82f6'
+  };
+  const DEGRADACAO_LABELS = {
+    'DFRACA': 'Degradação fraca', 'DMEDIA': 'Degradação média',
+    'DFORTE': 'Degradação forte', 'CIDADE': 'Área urbana', 'RIOS': 'Rios'
+  };
+  const APTIDAO_COLORS = {
+    'Apto': '#2e7d4f', 'Restrito': '#e0a93e', 'Inapto': '#b6422e', '-': '#9ca3af'
+  };
+  const PLANTIOS_COLORS = {
+    'Eucalyptus': '#4c9a2a', 'Pinus': '#175c3c', 'Corte raso ou recém-plantio': '#c2a878'
+  };
+  const UCS_COLORS = { 'Integral': '#1e6b46', 'Sustentável': '#7fb069' };
+  const DENSIDADE_COLORS = {
+    '< 10 hab/km²': '#fee5d9', '10 a 50': '#fcae91', '50 a 200': '#fb6a4a',
+    '200 a 1.000': '#de2d26', '> 1.000 hab/km²': '#a50f15'
+  };
   const DATASET_CONFIG = [
     {
       id: 'bacias',
@@ -476,12 +499,83 @@
       visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
     },
     {
+      id: 'degradacao',
+      name: 'Degradação do Solo (IAT)',
+      files: ['degradacao.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'SPRCLASSE',
+      palette: DEGRADACAO_COLORS,
+      classLabels: DEGRADACAO_LABELS,
+      visualHints: 'Combine com "Declividade" e "Conflito de Uso" para priorizar ações de conservação.'
+    },
+    {
+      id: 'aptidao',
+      name: 'Aptidão Agrícola (IAT)',
+      files: ['aptidao.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'Aptidao',
+      palette: APTIDAO_COLORS,
+      visualHints: 'O detalhe da restrição (erosão, fertilidade, mecanização) aparece no popup, campo "Tipo".'
+    },
+    {
+      id: 'plantios',
+      name: 'Plantios Florestais (APRE)',
+      files: ['plantios.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'GENERO_1',
+      palette: PLANTIOS_COLORS
+    },
+    {
+      id: 'ucs',
+      name: 'Unidades de Conservação Estaduais',
+      files: ['ucs.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'class_snuc',
+      palette: UCS_COLORS
+    },
+    {
+      id: 'perimetros',
+      name: 'Perímetros Urbanos',
+      files: ['perimetros.geojson_part-001.gz'],
+      geom: 'polygon'
+    },
+    {
+      id: 'setores',
+      name: 'Densidade Demográfica (setores IBGE 2022)',
+      files: ['setores.geojson_part-001.gz'],
+      geom: 'polygon',
+      classField: 'dens_classe',
+      palette: DENSIDADE_COLORS,
+      visualHints: 'População do Censo 2022 por setor censitário; densidade em hab/km².'
+    },
+    {
+      id: 'soja',
+      name: 'Talhões de Soja 2022-23 (CONAB)',
+      files: ['soja.geojson_part-001.gz'],
+      geom: 'polygon',
+      visualHints: 'Talhões mapeados pela CONAB na safra 2022-23; mostra a pressão agrícola nas bacias.'
+    },
+    {
+      id: 'assentamentos',
+      name: 'Assentamentos de Reforma Agrária (INCRA)',
+      files: ['assentamentos.geojson_part-001.gz'],
+      geom: 'polygon'
+    },
+    {
+      id: 'terras_indigenas',
+      name: 'Terras Indígenas (FUNAI)',
+      files: ['terras_indigenas.geojson_part-001.gz'],
+      geom: 'polygon'
+    },
+    {
       id: 'car',
       name: 'Cadastro Ambiental Rural (CAR)',
       files: ['car.geojson_part-001.gz'],
       geom: 'polygon',
       defaultVisible: false,
-      visualHints: 'Camada com geometrias complexas; aproxime para evitar sobreposições excessivas.'
+      classField: 'clas_mod',
+      autoPalette: true,
+      visualHints: 'Colorido por classe de módulos fiscais (concentração fundiária); aproxime para evitar sobreposições excessivas.'
     },
     {
       id: 'construcoes',
@@ -576,6 +670,9 @@
     { id: 'transectos', name: 'Transectos de Campo', files: ['transectos__pontos.geojson_part-001.gz'], geom: 'point', metric: 'count', visualHints: 'Pontos do levantamento de campo por transectos nas microbacias do programa.' },
     { id: 'energia_estruturas', name: 'Estruturas de Energia (torres/postes LDAT)', files: ['energia__estruturas.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 12, visualHints: 'Estruturas das linhas de distribuição de alta tensão da COPEL. Aproxime (zoom ≥ 12) para visualizar.' },
     { id: 'transformadores', name: 'Transformadores de Distribuição (BDGD)', files: ['energia__transformadores.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 13, canvasPoints: true, visualHints: 'Transformadores MT/BT da COPEL (BDGD/ANEEL 2025). Aproxime (zoom ≥ 13).' },
+    { id: 'armazens', name: 'Armazéns (CONAB)', files: ['armazens.geojson_part-001.gz'], geom: 'point', metric: 'count', visualHints: 'Capacidade em toneladas no popup (campo CAP(t)).' },
+    { id: 'unidades_idr', name: 'Unidades IDR-Paraná', files: ['unidades_idr.geojson_part-001.gz'], geom: 'point', metric: 'count' },
+    { id: 'cnpj_agro', name: 'Empresas do Agro (CNPJ)', files: ['cnpj_agro.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 11, canvasPoints: true, visualHints: 'Estabelecimentos do agro geocodificados (Receita Federal/CNAE); só endereços com precisão de rua ou CEP.' },
     { id: 'postes', name: 'Postes (BDGD/ANEEL)', files: ['energia__postes.geojson_part-001.gz', 'energia__postes.geojson_part-002.gz'], geom: 'point', metric: 'count', minZoom: 14, canvasPoints: true, visualHints: 'Todos os postes/pontos notáveis da rede COPEL nas microbacias (BDGD/ANEEL 2025). Muito denso: aproxime (zoom ≥ 14).' }
   ];
 
@@ -607,7 +704,8 @@
         ...style,
         color: '#0f3d1f',
         weight: 1.4,
-        fillColor: '#2bb24c',
+        // mantém a cor da classe (clas_mod); verde só como reserva sem classe
+        fillColor: style.fillColor === '#1f78b4' ? '#2bb24c' : style.fillColor,
         fillOpacity: (entry.geom === 'polygon' ? 0.55 : style.fillOpacity || 0) * state.opacity,
         opacity: 0.95 * state.opacity
       };
@@ -638,6 +736,24 @@
         weight: 1.6,
         opacity: 0.85 * state.opacity
       };
+    },
+    perimetros(style) {
+      return { ...style, color: '#7a3a24', weight: 1.2, fillColor: '#b3593a', fillOpacity: 0.45 * state.opacity, opacity: 0.9 * state.opacity };
+    },
+    soja(style) {
+      return { ...style, color: '#a8891c', weight: 0.6, fillColor: '#d9b83c', fillOpacity: 0.55 * state.opacity, opacity: 0.8 * state.opacity };
+    },
+    assentamentos(style) {
+      return { ...style, color: '#8a5a1e', weight: 1.4, fillColor: '#c98a3a', fillOpacity: 0.5 * state.opacity, opacity: 0.9 * state.opacity };
+    },
+    terras_indigenas(style) {
+      return { ...style, color: '#7d4229', weight: 1.4, fillColor: '#b0603c', fillOpacity: 0.5 * state.opacity, opacity: 0.9 * state.opacity };
+    },
+    cnpj_agro(style, entry) {
+      if (entry.geom === 'point') {
+        return { ...style, radius: 4, weight: 1.2, color: '#8c3d1f', fillColor: '#d98f4a', fillOpacity: state.opacity, opacity: state.opacity };
+      }
+      return style;
     },
     rede_mt(style) {
       return { ...style, color: '#d97706', weight: 1.4, opacity: 0.85 * state.opacity };

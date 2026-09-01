@@ -373,6 +373,15 @@ readGZ('conflitosdeuso__uso_solo_em_app.geojson_part-001.gz').forEach(f => {
   e.uso_app.por_classe[cls] = round2((e.uso_app.por_classe[cls] || 0) + area);
 });
 
+// 20b. Indicadores ambientais (CHIRPS + Hansen, pre-computados)
+console.log('Processing indicadores ambientais...');
+let indAmb = {};
+try {
+  indAmb = readJSON('indicadores_ambientais.json').indicadores || {};
+} catch (e) {
+  console.warn('WARN: indicadores_ambientais.json ausente:', e.message);
+}
+
 // 21. URTs
 console.log('Processing URTs...');
 const urtsFeatures = readGZ('urs__urs.geojson_part-001.gz');
@@ -470,7 +479,12 @@ for (const [cm, e] of manMap) {
     educacao: e.educacao,
     car: e.car,
     conflitos: e.conflitos,
-    uso_app: e.uso_app
+    uso_app: e.uso_app,
+    ambiental: (indAmb[cm]
+      ? { chuva_mm_2025: indAmb[cm].chuva_mm_2025,
+          perda_dossel_ha: indAmb[cm].perda_dossel_ha_2021_2024,
+          perda_dossel_pct: indAmb[cm].perda_dossel_pct }
+      : { chuva_mm_2025: null, perda_dossel_ha: null, perda_dossel_pct: null })
   });
 }
 

@@ -1,0 +1,285 @@
+{
+ "fontes": {
+  "chuva_mm_2025": "CHIRPS v3.0 anual 2025 · UCSB CHC · média zonal por manancial",
+  "perda_dossel_ha_2021_2024": "Hansen GFC v1.12 lossyear · perda por qualquer causa 2021-2024"
+ },
+ "gerado_em": "2026-09-01",
+ "indicadores": {
+  "1": {
+   "manancial": "Água Branca",
+   "chuva_mm_2025": 1336,
+   "perda_dossel_ha_2021_2024": 4.7,
+   "perda_dossel_pct": 0.33
+  },
+  "10": {
+   "manancial": "das Pedras",
+   "chuva_mm_2025": 1999,
+   "perda_dossel_ha_2021_2024": 935.4,
+   "perda_dossel_pct": 6.34
+  },
+  "11": {
+   "manancial": "do Índios",
+   "chuva_mm_2025": 1605,
+   "perda_dossel_ha_2021_2024": 4.5,
+   "perda_dossel_pct": 0.16
+  },
+  "12": {
+   "manancial": "do Leão",
+   "chuva_mm_2025": 1949,
+   "perda_dossel_ha_2021_2024": 54.1,
+   "perda_dossel_pct": 2.29
+  },
+  "13": {
+   "manancial": "dos Patos",
+   "chuva_mm_2025": 1732,
+   "perda_dossel_ha_2021_2024": 307.3,
+   "perda_dossel_pct": 2.87
+  },
+  "14": {
+   "manancial": "Ema",
+   "chuva_mm_2025": 1606,
+   "perda_dossel_ha_2021_2024": 19.2,
+   "perda_dossel_pct": 0.82
+  },
+  "15": {
+   "manancial": "Imbituvão",
+   "chuva_mm_2025": 1368,
+   "perda_dossel_ha_2021_2024": 368.7,
+   "perda_dossel_pct": 1.64
+  },
+  "16": {
+   "manancial": "Jaú",
+   "chuva_mm_2025": 1619,
+   "perda_dossel_ha_2021_2024": 6.2,
+   "perda_dossel_pct": 0.26
+  },
+  "17": {
+   "manancial": "Lageado",
+   "chuva_mm_2025": 1629,
+   "perda_dossel_ha_2021_2024": 9.8,
+   "perda_dossel_pct": 0.21
+  },
+  "18": {
+   "manancial": "Lageado",
+   "chuva_mm_2025": 1248,
+   "perda_dossel_ha_2021_2024": 2.8,
+   "perda_dossel_pct": 0.14
+  },
+  "19": {
+   "manancial": "Lontra",
+   "chuva_mm_2025": 1951,
+   "perda_dossel_ha_2021_2024": 241.4,
+   "perda_dossel_pct": 2.07
+  },
+  "2": {
+   "manancial": "Água da Cabeceira",
+   "chuva_mm_2025": 1424,
+   "perda_dossel_ha_2021_2024": 0.9,
+   "perda_dossel_pct": 0.02
+  },
+  "20": {
+   "manancial": "Lopeí",
+   "chuva_mm_2025": 2036,
+   "perda_dossel_ha_2021_2024": 4.7,
+   "perda_dossel_pct": 0.08
+  },
+  "21": {
+   "manancial": "Marrecas",
+   "chuva_mm_2025": 1961,
+   "perda_dossel_ha_2021_2024": 226.5,
+   "perda_dossel_pct": 2.28
+  },
+  "22": {
+   "manancial": "Miringuava",
+   "chuva_mm_2025": 1672,
+   "perda_dossel_ha_2021_2024": 139.5,
+   "perda_dossel_pct": 1.21
+  },
+  "23": {
+   "manancial": "Monjolo Velho",
+   "chuva_mm_2025": 1727,
+   "perda_dossel_ha_2021_2024": 24.9,
+   "perda_dossel_pct": 0.68
+  },
+  "24": {
+   "manancial": "Mundo Novo do Saquarema",
+   "chuva_mm_2025": 1641,
+   "perda_dossel_ha_2021_2024": 2.5,
+   "perda_dossel_pct": 0.1
+  },
+  "25": {
+   "manancial": "Pato Branco",
+   "chuva_mm_2025": 1928,
+   "perda_dossel_ha_2021_2024": 221.9,
+   "perda_dossel_pct": 1.46
+  },
+  "26": {
+   "manancial": "Peroba",
+   "chuva_mm_2025": 1538,
+   "perda_dossel_ha_2021_2024": 72.6,
+   "perda_dossel_pct": 2.0
+  },
+  "27": {
+   "manancial": "Peroba",
+   "chuva_mm_2025": 1531,
+   "perda_dossel_ha_2021_2024": 10.5,
+   "perda_dossel_pct": 0.15
+  },
+  "28": {
+   "manancial": "Piava",
+   "chuva_mm_2025": 1808,
+   "perda_dossel_ha_2021_2024": 73.0,
+   "perda_dossel_pct": 1.8
+  },
+  "29": {
+   "manancial": "Ribeirão Araras",
+   "chuva_mm_2025": 1483,
+   "perda_dossel_ha_2021_2024": 55.2,
+   "perda_dossel_pct": 1.31
+  },
+  "3": {
+   "manancial": "Água das Abóboras",
+   "chuva_mm_2025": 1504,
+   "perda_dossel_ha_2021_2024": 6.3,
+   "perda_dossel_pct": 0.18
+  },
+  "30": {
+   "manancial": "Ribeirão Bolívar",
+   "chuva_mm_2025": 1563,
+   "perda_dossel_ha_2021_2024": 20.6,
+   "perda_dossel_pct": 0.85
+  },
+  "31": {
+   "manancial": "Ribeirão Bom Sucesso",
+   "chuva_mm_2025": 1956,
+   "perda_dossel_ha_2021_2024": 6.1,
+   "perda_dossel_pct": 0.28
+  },
+  "32": {
+   "manancial": "Ribeirão Cafezal",
+   "chuva_mm_2025": 1596,
+   "perda_dossel_ha_2021_2024": 32.5,
+   "perda_dossel_pct": 0.24
+  },
+  "33": {
+   "manancial": "Ribeirão Figueira",
+   "chuva_mm_2025": 1616,
+   "perda_dossel_ha_2021_2024": 30.6,
+   "perda_dossel_pct": 0.94
+  },
+  "34": {
+   "manancial": "Rio Vermelho",
+   "chuva_mm_2025": 1644,
+   "perda_dossel_ha_2021_2024": 277.3,
+   "perda_dossel_pct": 7.55
+  },
+  "35": {
+   "manancial": "São Cristóvão",
+   "chuva_mm_2025": 1289,
+   "perda_dossel_ha_2021_2024": 29.1,
+   "perda_dossel_pct": 1.01
+  },
+  "36": {
+   "manancial": "São José",
+   "chuva_mm_2025": 2065,
+   "perda_dossel_ha_2021_2024": 27.6,
+   "perda_dossel_pct": 0.53
+  },
+  "37": {
+   "manancial": "Sarandi",
+   "chuva_mm_2025": 1923,
+   "perda_dossel_ha_2021_2024": 119.1,
+   "perda_dossel_pct": 1.04
+  },
+  "38": {
+   "manancial": "Tamanduá",
+   "chuva_mm_2025": 2082,
+   "perda_dossel_ha_2021_2024": 15.8,
+   "perda_dossel_pct": 0.14
+  },
+  "39": {
+   "manancial": "Taquaral",
+   "chuva_mm_2025": 1341,
+   "perda_dossel_ha_2021_2024": 115.7,
+   "perda_dossel_pct": 1.01
+  },
+  "40": {
+   "manancial": "Toledo",
+   "chuva_mm_2025": 2036,
+   "perda_dossel_ha_2021_2024": 5.0,
+   "perda_dossel_pct": 0.08
+  },
+  "41": {
+   "manancial": "Pitangui",
+   "chuva_mm_2025": 1416,
+   "perda_dossel_ha_2021_2024": 100.7,
+   "perda_dossel_pct": 1.06
+  },
+  "42": {
+   "manancial": "Palotina",
+   "chuva_mm_2025": 1823,
+   "perda_dossel_ha_2021_2024": 5.4,
+   "perda_dossel_pct": 0.09
+  },
+  "44": {
+   "manancial": "Ribeirão dos Apertados",
+   "chuva_mm_2025": 1651,
+   "perda_dossel_ha_2021_2024": 52.9,
+   "perda_dossel_pct": 0.46
+  },
+  "45": {
+   "manancial": "Rio Ernesto",
+   "chuva_mm_2025": 1727,
+   "perda_dossel_ha_2021_2024": 5.0,
+   "perda_dossel_pct": 0.48
+  },
+  "46": {
+   "manancial": "Rio do Campo",
+   "chuva_mm_2025": 1483,
+   "perda_dossel_ha_2021_2024": 32.5,
+   "perda_dossel_pct": 0.42
+  },
+  "47": {
+   "manancial": "Maria Helena",
+   "chuva_mm_2025": 1797,
+   "perda_dossel_ha_2021_2024": 93.0,
+   "perda_dossel_pct": 0.93
+  },
+  "48": {
+   "manancial": "Rio Verde",
+   "chuva_mm_2025": 2219,
+   "perda_dossel_ha_2021_2024": 45.5,
+   "perda_dossel_pct": 0.59
+  },
+  "5": {
+   "manancial": "Caldeira",
+   "chuva_mm_2025": 1896,
+   "perda_dossel_ha_2021_2024": 93.8,
+   "perda_dossel_pct": 1.29
+  },
+  "6": {
+   "manancial": "Cambé",
+   "chuva_mm_2025": 1431,
+   "perda_dossel_ha_2021_2024": 0.7,
+   "perda_dossel_pct": 0.03
+  },
+  "7": {
+   "manancial": "Cascavel",
+   "chuva_mm_2025": 2101,
+   "perda_dossel_ha_2021_2024": 23.8,
+   "perda_dossel_pct": 0.47
+  },
+  "8": {
+   "manancial": "Congonhas",
+   "chuva_mm_2025": 1297,
+   "perda_dossel_ha_2021_2024": 37.1,
+   "perda_dossel_pct": 0.29
+  },
+  "9": {
+   "manancial": "Córrego Barbosa",
+   "chuva_mm_2025": 1663,
+   "perda_dossel_ha_2021_2024": 9.5,
+   "perda_dossel_pct": 2.86
+  }
+ }
+}
