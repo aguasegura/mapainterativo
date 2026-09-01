@@ -367,7 +367,9 @@ readGZ('conflitosdeuso__uso_solo_em_app.geojson_part-001.gz').forEach(f => {
   const cm = String(p.cod_man_1 || p.Cod_man || '').trim();
   const e = cm ? manMap.get(cm) : null;
   if (!e) return;
-  const area = safeNum(p.area_ha_final || p.area_ha);
+  // area_ha_final e a area DENTRO da APP; area_ha e o poligono de uso inteiro.
+  // || tratava 0 como falsy e puxava a area cheia nas lascas arredondadas a 0.
+  const area = safeNum(p.area_ha_final != null ? p.area_ha_final : p.area_ha);
   e.uso_app.area_ha = round2(e.uso_app.area_ha + area);
   const cls = p.nivel_ii || p.NIVEL_II || 'Desconhecido';
   e.uso_app.por_classe[cls] = round2((e.uso_app.por_classe[cls] || 0) + area);
