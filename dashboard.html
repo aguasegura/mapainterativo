@@ -747,7 +747,6 @@ function PageAgropecuaria({ mananciais }) {
 function PageAmbiental({ mananciais, summary }) {
   const totalCar = useMemo(() => mananciais.reduce((s, m) => s + m.car.count, 0), [mananciais]);
   const totalCarArea = useMemo(() => mananciais.reduce((s, m) => s + m.car.area_ha, 0), [mananciais]);
-  const totalConflitos = useMemo(() => mananciais.reduce((s, m) => s + m.conflitos.area_ha, 0), [mananciais]);
   const totalApp = useMemo(() => mananciais.reduce((s, m) => s + m.uso_app.area_ha, 0), [mananciais]);
   const chuvaMedia = useMemo(() => {
     const vals = mananciais.map(m => m.ambiental?.chuva_mm_2025).filter(v => v != null);
@@ -767,11 +766,6 @@ function PageAmbiental({ mananciais, summary }) {
       .map(m => ({ name: m.Manancial, value: m.car.count }))
       .sort((a, b) => b.value - a.value).slice(0, 15)
   , [mananciais]);
-  const conflitosMerged = useMemo(() => mergeObjs(mananciais.map(m => m.conflitos.por_classe)), [mananciais]);
-  const conflitosDonut = useMemo(() =>
-    objToSorted(conflitosMerged).filter(d => d.value > 0)
-      .map((d, i) => ({ ...d, value: Math.round(d.value), color: (summary.paletas.uso_solo || {})[d.name] || COLORS[i % COLORS.length] }))
-  , [conflitosMerged]);
   const appMerged = useMemo(() => mergeObjs(mananciais.map(m => m.uso_app.por_classe)), [mananciais]);
   const appDonut = useMemo(() =>
     objToSorted(appMerged).filter(d => d.value > 0)
@@ -781,7 +775,6 @@ function PageAmbiental({ mananciais, summary }) {
     mananciais.map(m => ({
       Manancial: m.Manancial, car_count: m.car.count,
       car_area: Math.round(m.car.area_ha),
-      conflitos_ha: Math.round(m.conflitos.area_ha),
       app_ha: Math.round(m.uso_app.area_ha),
       chuva_mm: m.ambiental?.chuva_mm_2025 ?? '--',
       perda_ha: m.ambiental?.perda_dossel_ha != null ? Math.round(m.ambiental.perda_dossel_ha) : '--',
@@ -793,8 +786,7 @@ function PageAmbiental({ mananciais, summary }) {
     <div class="dashboard-kpis">
       <${KPICard} number=${totalCar} label="Imoveis CAR" />
       <${KPICard} number=${fmtDec(totalCarArea, 0)} label="Area CAR (ha)" />
-      <${KPICard} number=${fmtDec(totalConflitos, 0)} label="Conflitos (ha)" />
-      <${KPICard} number=${fmtDec(totalApp, 0)} label="Uso em APP (ha)" />
+      <${KPICard} number=${fmtDec(totalApp, 0)} label="Conflito em APP (ha)" />
       <${KPICard} number=${chuvaMedia != null ? chuvaMedia : '--'} label="Chuva 2025 (mm, media)" />
       <${KPICard} number=${fmtDec(totalPerda, 0)} label="Perda de dossel 2021-2024 (ha)" />
     </div>
@@ -803,14 +795,10 @@ function PageAmbiental({ mananciais, summary }) {
         <h3>Imoveis CAR por Manancial</h3>
         <${D3HBar} data=${carBar} fill="#2bb24c" />
       </div>
-      <div class="dashboard-card">
-        <h3>Conflitos de Uso por Classe</h3>
-        <${D3Donut} data=${conflitosDonut} />
-      </div>
     </div>
     <div class="dashboard-grid">
       <div class="dashboard-card">
-        <h3>Uso do Solo em APP por Classe</h3>
+        <h3>Conflito de Uso em APP por Classe (30 m, buffers dissolvidos)</h3>
         <${D3Donut} data=${appDonut} />
       </div>
       <div class="dashboard-card">
@@ -824,8 +812,7 @@ function PageAmbiental({ mananciais, summary }) {
         { key: 'Manancial', label: 'Manancial' },
         { key: 'car_count', label: 'CAR (imoveis)' },
         { key: 'car_area', label: 'CAR area (ha)' },
-        { key: 'conflitos_ha', label: 'Conflitos (ha)' },
-        { key: 'app_ha', label: 'Uso APP (ha)' },
+        { key: 'app_ha', label: 'Conflito APP (ha)' },
         { key: 'chuva_mm', label: 'Chuva 2025 (mm)' },
         { key: 'perda_ha', label: 'Perda dossel (ha)' },
         { key: 'perda_pct', label: 'Perda dossel (%)' }
