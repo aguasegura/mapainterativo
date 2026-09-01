@@ -1654,9 +1654,6 @@
     // Adicionar tratamento de erro para toda a inicialização
     try {
       const baseLayers = {
-      'CARTO Light': L.tileLayer('https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap, &copy; CARTO'
-      }),
       'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap'
       }),
@@ -1678,7 +1675,7 @@
         center: [-24.5, -51],
         zoom: 7,
         preferCanvas: true,
-        layers: [baseLayers['CARTO Light']]
+        layers: [baseLayers['OpenStreetMap']]
       });
       
       console.log('Mapa criado com sucesso');
