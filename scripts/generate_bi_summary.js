@@ -142,7 +142,6 @@ bacias.features.forEach(f => {
       sigarh: { count: 0, por_uso: {} },
       educacao: 0,
       car: { count: 0, area_ha: 0 },
-      conflitos: { area_ha: 0, por_classe: {} },
       uso_app: { area_ha: 0, por_classe: {} }
     });
   }
@@ -347,31 +346,16 @@ readGZ('car.geojson_part-001.gz').forEach(f => {
   e.car.area_ha = round2(e.car.area_ha + safeNum(p.num_area || p.area_ha));
 });
 
-// 19. Conflitos de uso (otto)
-console.log('Processing conflitos de uso...');
-readGZ('conflitosdeuso__conflitodeuso_otto.geojson_part-001.gz').forEach(f => {
+// 20. Conflito de uso em APP (métrica unificada, buffers dissolvidos)
+console.log('Processing conflito de uso em APP (unificado)...');
+readGZ('conflito_app.geojson_part-001.gz').forEach(f => {
   const p = f.properties;
   const cm = String(p.Cod_man || '').trim();
   const e = cm ? manMap.get(cm) : null;
   if (!e) return;
-  const area = safeNum(p.Area_ha);
-  e.conflitos.area_ha = round2(e.conflitos.area_ha + area);
-  const cls = p.NIVEL_II || 'Desconhecido';
-  e.conflitos.por_classe[cls] = round2((e.conflitos.por_classe[cls] || 0) + area);
-});
-
-// 20. Uso do solo em APP
-console.log('Processing uso do solo em APP...');
-readGZ('conflitosdeuso__uso_solo_em_app.geojson_part-001.gz').forEach(f => {
-  const p = f.properties;
-  const cm = String(p.cod_man_1 || p.Cod_man || '').trim();
-  const e = cm ? manMap.get(cm) : null;
-  if (!e) return;
-  // area_ha_final e a area DENTRO da APP; area_ha e o poligono de uso inteiro.
-  // || tratava 0 como falsy e puxava a area cheia nas lascas arredondadas a 0.
-  const area = safeNum(p.area_ha_final != null ? p.area_ha_final : p.area_ha);
+  const area = safeNum(p.area_ha);
   e.uso_app.area_ha = round2(e.uso_app.area_ha + area);
-  const cls = p.nivel_ii || p.NIVEL_II || 'Desconhecido';
+  const cls = p.NIVEL_II || 'Desconhecido';
   e.uso_app.por_classe[cls] = round2((e.uso_app.por_classe[cls] || 0) + area);
 });
 
@@ -413,7 +397,6 @@ const allClasses = {
   uso_solo: new Set(),
   solos: new Set(),
   estradas: new Set(),
-  conflitos: new Set(),
   uso_app: new Set()
 };
 
@@ -433,7 +416,6 @@ for (const [cm, e] of manMap) {
   Object.keys(e.uso_solo).forEach(k => allClasses.uso_solo.add(k));
   Object.keys(e.solos).forEach(k => allClasses.solos.add(k));
   Object.keys(e.estradas_classe).forEach(k => allClasses.estradas.add(k));
-  Object.keys(e.conflitos.por_classe).forEach(k => allClasses.conflitos.add(k));
   Object.keys(e.uso_app.por_classe).forEach(k => allClasses.uso_app.add(k));
 
   // Accumulate totals
@@ -480,7 +462,6 @@ for (const [cm, e] of manMap) {
     sigarh: e.sigarh,
     educacao: e.educacao,
     car: e.car,
-    conflitos: e.conflitos,
     uso_app: e.uso_app,
     ambiental: (indAmb[cm]
       ? { chuva_mm_2025: indAmb[cm].chuva_mm_2025,
@@ -528,7 +509,6 @@ const summary = {
   classes_uso_solo: [...allClasses.uso_solo].sort(),
   classes_solos: [...allClasses.solos].sort(),
   classes_estradas: [...allClasses.estradas].sort(),
-  classes_conflitos: [...allClasses.conflitos].sort(),
   classes_uso_app: [...allClasses.uso_app].sort(),
   paletas: {
     altimetria: Object.fromEntries(ALTIMETRY_CLASSES.map((c, i) => [c, ALTIMETRY_COLORS[i]])),

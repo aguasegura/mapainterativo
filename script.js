@@ -493,10 +493,12 @@
     },
     {
       id: 'uso_app',
-      name: 'Conflito de Uso (APP 30m)',
-      files: ['conflitosdeuso__uso_solo_em_app.geojson_part-001.gz'],
+      name: 'Conflito de Uso em APP (30m)',
+      files: ['conflito_app.geojson_part-001.gz'],
       geom: 'polygon',
-      visualHints: 'Ative junto com "Nascentes" para identificar conflitos próximos às áreas protegidas.'
+      classField: 'NIVEL_II',
+      palette: USO_COLORS,
+      visualHints: 'Métrica unificada: uso incompatível dentro da APP de 30 m da hidrografia, com buffers dissolvidos (sem dupla contagem). Ative junto com "Nascentes" para identificar áreas críticas.'
     },
     {
       id: 'degradacao',
@@ -715,8 +717,9 @@
       return {
         ...style,
         color: '#641919',
-        weight: 1.1,
-        fillColor: '#b91c1c',
+        weight: 0.8,
+        // mantém a cor da classe de uso; vermelho só como reserva sem classe
+        fillColor: style.fillColor === '#1f78b4' ? '#b91c1c' : style.fillColor,
         fillOpacity: baseFillOpacity * state.opacity,
         opacity: 0.85 * state.opacity
       };
