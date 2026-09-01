@@ -37,6 +37,8 @@ aguasegura/
 - **Linhas de Energia** (LTs em operação EPE + alimentadores 34,5 kV e estruturas LDAT COPEL) — `data/energia__linhas.geojson_part-001.gz`, `data/energia__estruturas.geojson_part-001.gz`
 - **Transectos de Campo** (levantamento por transectos nas microbacias) — `data/transectos__pontos.geojson_part-001.gz`
 - **Rede de Distribuição completa (BDGD/ANEEL 2025, COPEL-DIS)** — rede BT (`energia__rede_bt`), rede MT (`energia__rede_mt`), postes (`energia__postes`, 2 partes) e transformadores (`energia__transformadores`)
+- **Camadas temáticas (curadoria 2026-09)** — degradação do solo e aptidão agrícola (IAT), plantios florestais (APRE), UCs estaduais, perímetros urbanos, densidade demográfica (setores IBGE 2022), talhões de soja e armazéns (CONAB), assentamentos (INCRA), terras indígenas (FUNAI), unidades IDR, empresas do agro (CNPJ/Receita)
+- **Indicadores ambientais do BI** — `data/indicadores_ambientais.json`: chuva anual CHIRPS v3.0 e perda de dossel Hansen GFC por manancial
 
 > **Observação:** alguns arquivos podem ser grandes e versionados via **Git LFS**.
 
