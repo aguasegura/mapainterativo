@@ -57,7 +57,9 @@
     suinos: { fill: '#ef4444', stroke: '#991b1b', label: 'Su', fontSize: 10, legendFontSize: 9 },
     urs: { fill: '#ef5555', stroke: '#881b1b', label: 'UR', fontSize: 10, legendFontSize: 9 },
     transectos: { fill: '#f97316', stroke: '#9a3412', label: 'T', fontSize: 11, legendFontSize: 10 },
-    energia_estruturas: { fill: '#eab308', stroke: '#713f12', label: 'E', fontSize: 10, legendFontSize: 9 }
+    energia_estruturas: { fill: '#eab308', stroke: '#713f12', label: 'E', fontSize: 10, legendFontSize: 9 },
+    postes: { fill: '#a16207', stroke: '#57330a', label: '', fontSize: 8, legendFontSize: 7 },
+    transformadores: { fill: '#dc2626', stroke: '#7f1d1d', label: 'Tr', fontSize: 9, legendFontSize: 8 }
   };
 
   const pointIconCache = new Map();
@@ -543,6 +545,24 @@
       palette: ENERGIA_COLORS,
       visualHints: 'Linhas de transmissão em operação (EPE) e alimentadores troncais 34,5 kV (COPEL). Combine com "Estruturas de Energia" para ver torres e postes.'
     },
+    {
+      id: 'rede_mt',
+      name: 'Rede de Distribuição MT (BDGD/ANEEL)',
+      files: ['energia__rede_mt.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      minZoom: 12,
+      visualHints: 'Rede de média tensão completa da COPEL (BDGD/ANEEL 2025). Densa: aproxime (zoom ≥ 12).'
+    },
+    {
+      id: 'rede_bt',
+      name: 'Rede de Distribuição BT (BDGD/ANEEL)',
+      files: ['energia__rede_bt.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      minZoom: 13,
+      visualHints: 'Rede de baixa tensão completa da COPEL (BDGD/ANEEL 2025). Densa: aproxime (zoom ≥ 13).'
+    },
 
     { id: 'nascentes', name: 'Nascentes', files: ['nascentes__nascentes_otto.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'aves', name: 'Aves', files: ['aves__aves.geojson_part-001.gz'], geom: 'point', metric: 'count' },
@@ -554,7 +574,9 @@
     { id: 'suinos', name: 'Suínos', files: ['suinos__suinos.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'urs', name: 'URs', files: ['urs__urs.geojson_part-001.gz'], geom: 'point', metric: 'count' },
     { id: 'transectos', name: 'Transectos de Campo', files: ['transectos__pontos.geojson_part-001.gz'], geom: 'point', metric: 'count', visualHints: 'Pontos do levantamento de campo por transectos nas microbacias do programa.' },
-    { id: 'energia_estruturas', name: 'Estruturas de Energia (torres/postes LDAT)', files: ['energia__estruturas.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 12, visualHints: 'Estruturas das linhas de distribuição de alta tensão da COPEL. Aproxime (zoom ≥ 12) para visualizar.' }
+    { id: 'energia_estruturas', name: 'Estruturas de Energia (torres/postes LDAT)', files: ['energia__estruturas.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 12, visualHints: 'Estruturas das linhas de distribuição de alta tensão da COPEL. Aproxime (zoom ≥ 12) para visualizar.' },
+    { id: 'transformadores', name: 'Transformadores de Distribuição (BDGD)', files: ['energia__transformadores.geojson_part-001.gz'], geom: 'point', metric: 'count', minZoom: 13, canvasPoints: true, visualHints: 'Transformadores MT/BT da COPEL (BDGD/ANEEL 2025). Aproxime (zoom ≥ 13).' },
+    { id: 'postes', name: 'Postes (BDGD/ANEEL)', files: ['energia__postes.geojson_part-001.gz', 'energia__postes.geojson_part-002.gz'], geom: 'point', metric: 'count', minZoom: 14, canvasPoints: true, visualHints: 'Todos os postes/pontos notáveis da rede COPEL nas microbacias (BDGD/ANEEL 2025). Muito denso: aproxime (zoom ≥ 14).' }
   ];
 
   const state = {
@@ -616,6 +638,24 @@
         weight: 1.6,
         opacity: 0.85 * state.opacity
       };
+    },
+    rede_mt(style) {
+      return { ...style, color: '#d97706', weight: 1.4, opacity: 0.85 * state.opacity };
+    },
+    rede_bt(style) {
+      return { ...style, color: '#0891b2', weight: 1.1, opacity: 0.85 * state.opacity };
+    },
+    postes(style, entry) {
+      if (entry.geom === 'point') {
+        return { ...style, radius: 2.5, weight: 1, color: '#57330a', fillColor: '#a16207', fillOpacity: state.opacity, opacity: state.opacity };
+      }
+      return style;
+    },
+    transformadores(style, entry) {
+      if (entry.geom === 'point') {
+        return { ...style, radius: 4.5, weight: 1.4, color: '#7f1d1d', fillColor: '#dc2626', fillOpacity: state.opacity, opacity: state.opacity };
+      }
+      return style;
     },
     energia(style, entry, properties) {
       const tipo = `${(properties || {}).Tipo || ''}`.trim();
@@ -860,7 +900,7 @@
   function refreshLayerStyles() {
     state.orderedEntries.forEach(entry => {
       if (!entry.layer || !entry.loaded) return;
-      if (entry.geom === 'point') {
+      if (entry.geom === 'point' && !entry.canvasPoints) {
         const icon = getPointIcon(entry);
         entry.layer.eachLayer(featureLayer => {
           if (!featureLayer) return;
@@ -1521,6 +1561,7 @@
       autoPalette: config.autoPalette,
       visualHints: config.visualHints || '',
       minZoom: Number.isFinite(config.minZoom) ? Number(config.minZoom) : undefined,
+      canvasPoints: !!config.canvasPoints,
       filterable: false,
       originalFeatures: [],
       currentFeatures: [],
@@ -1535,7 +1576,7 @@
     const layer = L.geoJSON(null, {
       style: feature => styleForEntry(entry, feature.properties || {}),
       pointToLayer: (feature, latlng) => {
-        if (entry.geom === 'point') {
+        if (entry.geom === 'point' && !entry.canvasPoints) {
           return L.marker(latlng, { icon: getPointIcon(entry) });
         }
         return L.circleMarker(latlng, styleForEntry(entry, feature.properties || {}));
