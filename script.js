@@ -632,6 +632,34 @@
       metric: 'length'
     },
     {
+      id: 'escoamento_fluxo',
+      name: 'Escoamento: caminhos da enxurrada (calculados pelo relevo)',
+      files: ['escoamento__fluxo.geojson_part-001.gz'],
+      geom: 'line',
+      metric: 'length',
+      visualHints: 'Linha mais grossa onde drena mais área; as partículas mostram para onde a água corre (zoom ≥ 12). Em áreas planas o traçado pode virar linhas retas paralelas, limite do modelo. Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.',
+      popup: p => `<b>Caminho da enxurrada</b><br>Área drenada a montante: ${fmtNum(p.area_contrib_ha)} ha<br>Ordem de Strahler: ${fmtNum(p.strahler)}<br><small>Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.</small>`
+    },
+    {
+      id: 'escoamento_cruzamentos',
+      name: 'Escoamento: estrada cortando enxurrada',
+      files: ['escoamento__cruzamentos_estrada.geojson_part-001.gz'],
+      geom: 'point',
+      metric: 'count',
+      canvasPoints: true,
+      visualHints: 'Onde um caminho de enxurrada com mais de 5 ha a montante cruza uma estrada: candidatos a ponto crítico de erosão. Conferir em campo.',
+      popup: p => `<b>Estrada cortando enxurrada</b><br>Área drenada a montante: ${fmtNum(p.area_montante_ha)} ha<br>Declividade: ${fmtNum(p.declividade_pct)}%<br><small>Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.</small>`
+    },
+    {
+      id: 'escoamento_depressoes',
+      name: 'Escoamento: depressões (onde a água pode parar)',
+      files: ['escoamento__depressoes.geojson_part-001.gz'],
+      geom: 'polygon',
+      metric: 'area',
+      visualHints: 'Baixadas do terreno que enchem antes de transbordar (mais de 0,3 m e 0,1 ha). Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.',
+      popup: p => `<b>Depressão</b><br>Área: ${fmtNum(p.area_ha)} ha<br>Profundidade máxima: ${fmtNum(p.prof_max_m)} m`
+    },
+    {
       id: 'energia',
       name: 'Linhas de Energia (Transmissão/Distribuição)',
       files: ['energia__linhas.geojson_part-001.gz'],
@@ -739,6 +767,17 @@
         weight: 1.6,
         opacity: 0.85 * state.opacity
       };
+    },
+    escoamento_fluxo(style, entry, properties) {
+      const area = Number((properties || {}).area_contrib_ha) || 1;
+      const peso = Math.min(Math.max(0.4 + 1.1 * Math.log10(area), 0.4), 5);
+      return { ...style, color: '#0e7fa6', weight: peso, opacity: 0.85 * state.opacity };
+    },
+    escoamento_cruzamentos(style) {
+      return { ...style, radius: 5, weight: 1.5, color: '#7c2d12', fillColor: '#f97316', fillOpacity: state.opacity, opacity: state.opacity };
+    },
+    escoamento_depressoes(style) {
+      return { ...style, color: '#1e40af', weight: 0.8, fillColor: '#60a5fa', fillOpacity: 0.45 * state.opacity, opacity: 0.8 * state.opacity };
     },
     perimetros(style) {
       return { ...style, color: '#7a3a24', weight: 1.2, fillColor: '#b3593a', fillOpacity: 0.45 * state.opacity, opacity: 0.9 * state.opacity };
@@ -1471,6 +1510,7 @@
     });
     refreshLayerStyles();
     updateLegend();
+    if (state.animEscoamento) state.animEscoamento.refresh();  // partículas seguem o filtro novo
     if (is3DMode && cesiumViewer) {
       setTimeout(() => syncLayersToCesium(), 100);
     }
@@ -1657,6 +1697,12 @@
     update();
   }
 
+  function fmtNum(v) {
+    if (v === null || v === undefined || v === '') return '-';
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '-';
+  }
+
   function onEachFeature(feature, layer) {
     const properties = feature.properties || {};
     const html = Object.entries(properties)
@@ -1700,7 +1746,9 @@
         }
         return L.circleMarker(latlng, styleForEntry(entry, feature.properties || {}));
       },
-      onEachFeature
+      onEachFeature: config.popup
+        ? (feature, lyr) => lyr.bindPopup(config.popup(feature.properties || {}))
+        : onEachFeature
     });
 
     entry.layer = layer;
@@ -1858,10 +1906,21 @@
 
     L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(state.map);
 
+    const fluxoEntry = state.layerStore.get('escoamento_fluxo');
+    const animEscoamento = (fluxoEntry && window.criarAnimacaoEscoamento)
+      ? window.criarAnimacaoEscoamento(state.map, () => fluxoEntry.currentFeatures)
+      : null;
+    state.animEscoamento = animEscoamento;
+    state.map.on('overlayremove', event => {
+      if (animEscoamento && fluxoEntry && event.layer === fluxoEntry.layer) animEscoamento.stop();
+    });
+
     state.map.on('overlayadd', event => {
       const entry = state.orderedEntries.find(candidate => candidate.layer === event.layer);
       if (!entry) return;
-      ensureLayerLoaded(entry).catch(error => console.error(error));
+      ensureLayerLoaded(entry).then(() => {
+        if (animEscoamento && entry === fluxoEntry && state.map.hasLayer(entry.layer)) animEscoamento.start();
+      }).catch(error => console.error(error));
       if (is3DMode && cesiumViewer) {
         setTimeout(() => syncLayersToCesium(), 100);
       }
@@ -2011,6 +2070,19 @@
     }
   }
 
+  // Padrão de 16 bits rotacionado com o tempo: o traço "anda" ao longo da linha.
+  // As linhas vêm orientadas de montante para jusante (scripts/escoamento.py).
+  let escoamentoDash = null;
+  function escoamentoDashPattern() {
+    if (escoamentoDash) return escoamentoDash;
+    const base = 0b0000000011111111;
+    escoamentoDash = new window.Cesium.CallbackProperty(() => {
+      const k = Math.floor(performance.now() / 60) % 16;
+      return ((base << k) | (base >>> (16 - k))) & 0xffff;
+    }, false);
+    return escoamentoDash;
+  }
+
   function convertLeafletLayerToCesium(entry) {
     if (!cesiumViewer) return;
     if (!entry.loaded) return;
@@ -2095,10 +2167,31 @@
             const lineColor = window.Cesium.Color.fromCssColorString(leafletStyle.color || '#1f78b4');
             const lineOpacity = leafletStyle.opacity || 0.8;
 
-            entity.polyline.material = lineColor.withAlpha(lineOpacity);
-            entity.polyline.width = leafletStyle.weight || 1.5;
+            entity.polyline.material = entry.id === 'escoamento_fluxo'
+              ? new window.Cesium.PolylineDashMaterialProperty({
+                  // ciano claro: o azul do 2D some sobre o satélite
+                  color: window.Cesium.Color.fromCssColorString('#67e8f9'),
+                  gapColor: window.Cesium.Color.fromCssColorString('#0e7fa6').withAlpha(0.6),
+                  dashLength: 24,
+                  dashPattern: escoamentoDashPattern()
+                })
+              : lineColor.withAlpha(lineOpacity);
+            entity.polyline.width = entry.id === 'escoamento_fluxo'
+              ? 2 + 1.5 * (leafletStyle.weight || 1.5)
+              : (leafletStyle.weight || 1.5);
             entity.polyline.clampToGround = true;
             entity.polyline.arcType = window.Cesium.ArcType.GEODESIC;
+          } else if (entry.id === 'escoamento_cruzamentos') {
+            // o GeoJsonDataSource cria um pino (billboard); aqui um ponto laranja como no 2D
+            entity.billboard = undefined;
+            entity.point = new window.Cesium.PointGraphics({
+              pixelSize: 11,
+              color: window.Cesium.Color.fromCssColorString('#f97316'),
+              outlineColor: window.Cesium.Color.fromCssColorString('#7c2d12'),
+              outlineWidth: 2,
+              heightReference: window.Cesium.HeightReference.CLAMP_TO_GROUND,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY
+            });
           } else if (entity.point) {
             const billboard = getPointBillboard(entry, { size: 28 });
             entity.point.show = false;
@@ -2157,6 +2250,7 @@
       toggleButton.innerHTML = '<span class="toggle-icon">🗺️</span> Visão 2D';
 
       document.body.classList.add('mode-3d');
+      if (state.animEscoamento) state.animEscoamento.refresh();  // pausa as partículas 2D
       moveControlsToHost();
 
       const terrainControl = document.getElementById('terrainExaggerationControl');
@@ -2216,6 +2310,7 @@
 
       moveControlsToMap();
       document.body.classList.remove('mode-3d');
+      if (state.animEscoamento) state.animEscoamento.refresh();
 
       const terrainControl = document.getElementById('terrainExaggerationControl');
       if (terrainControl) {
