@@ -3,7 +3,7 @@
 // Uso: const anim = criarAnimacaoEscoamento(map, () => featuresVisiveis); anim.start(); anim.stop();
 (function () {
   const MAX_PARTICULAS = 1200;
-  const MIN_ZOOM = 12;           // abaixo disso a rede vira ruído e custa CPU à toa
+  const MIN_ZOOM = 13;           // abaixo disso a rede vira ruído e custa CPU à toa
   const RASTRO = 0.12;           // quanto o quadro anterior apaga (maior = rastro mais curto)
   const COR = 'rgba(0, 150, 200, 0.95)';
 

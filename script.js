@@ -220,10 +220,34 @@
     if (!entry) return [];
     const features = Array.isArray(entry.currentFeatures) ? entry.currentFeatures : [];
     if (!features.length) return [];
-    if (!entry.isProjected) return features;
-    return features
-      .map(reprojectFeatureToWgs84)
-      .filter(Boolean);
+    const wgs = entry.isProjected ? features.map(reprojectFeatureToWgs84).filter(Boolean) : features;
+    if (!entry.viewportClip || !state.map) return wgs;
+    // Camadas com centenas de milhares de linhas: o Leaflet reprojeta tudo a cada zoom e trava.
+    // Só entra no mapa o que cruza a tela (com folga); moveend refaz o recorte.
+    const b = state.map.getBounds().pad(0.5);
+    const w = b.getWest(), e = b.getEast(), s = b.getSouth(), n = b.getNorth();
+    entry.displayFeatures = wgs.filter(f => {
+      const bb = featureBBox(f);
+      return bb && bb[0] <= e && bb[2] >= w && bb[1] <= n && bb[3] >= s;
+    });
+    return entry.displayFeatures;
+  }
+
+  const bboxCache = new WeakMap();
+  function featureBBox(feature) {
+    if (bboxCache.has(feature)) return bboxCache.get(feature);
+    const bb = [Infinity, Infinity, -Infinity, -Infinity];
+    (function walk(c) {
+      if (typeof c[0] === 'number') {
+        if (c[0] < bb[0]) bb[0] = c[0];
+        if (c[1] < bb[1]) bb[1] = c[1];
+        if (c[0] > bb[2]) bb[2] = c[0];
+        if (c[1] > bb[3]) bb[3] = c[1];
+      } else c.forEach(walk);
+    })((feature.geometry && feature.geometry.coordinates) || []);
+    const out = bb[0] === Infinity ? null : bb;
+    bboxCache.set(feature, out);
+    return out;
   }
 
   function planarRingArea(ring) {
@@ -637,7 +661,9 @@
       files: ['escoamento__fluxo.geojson_part-001.gz'],
       geom: 'line',
       metric: 'length',
-      visualHints: 'Linha mais grossa onde drena mais área; as partículas mostram para onde a água corre (zoom ≥ 12). Em áreas planas o traçado pode virar linhas retas paralelas, limite do modelo. Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.',
+      minZoom: 13,
+      viewportClip: true,
+      visualHints: 'Linha mais grossa onde drena mais área; as partículas mostram para onde a água corre. Em áreas planas o traçado pode virar linhas retas paralelas, limite do modelo. Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.',
       popup: p => `<b>Caminho da enxurrada</b><br>Área drenada a montante: ${fmtNum(p.area_contrib_ha)} ha<br>Ordem de Strahler: ${fmtNum(p.strahler)}<br><small>Calculado só pelo relevo (MDT ANADEM 30 m); não considera bueiros, terraços existentes nem drenagem de estrada. É um modelo, não um laudo.</small>`
     },
     {
@@ -1119,7 +1145,7 @@
 
   function enforceZoomVisibility() {
     state.orderedEntries.forEach(entry => {
-      if (!entry.loaded || entry.minZoom === undefined) return;
+      if (!entry.loaded || entry.minZoom === undefined || entry.viewportClip) return;
       syncEntryLayer(entry);
     });
     refreshLayerStyles();
@@ -1727,6 +1753,7 @@
       visualHints: config.visualHints || '',
       minZoom: Number.isFinite(config.minZoom) ? Number(config.minZoom) : undefined,
       canvasPoints: !!config.canvasPoints,
+      viewportClip: !!config.viewportClip,
       filterable: false,
       originalFeatures: [],
       currentFeatures: [],
@@ -1908,7 +1935,7 @@
 
     const fluxoEntry = state.layerStore.get('escoamento_fluxo');
     const animEscoamento = (fluxoEntry && window.criarAnimacaoEscoamento)
-      ? window.criarAnimacaoEscoamento(state.map, () => fluxoEntry.currentFeatures)
+      ? window.criarAnimacaoEscoamento(state.map, () => fluxoEntry.displayFeatures || [])
       : null;
     state.animEscoamento = animEscoamento;
     state.map.on('overlayremove', event => {
@@ -1929,6 +1956,14 @@
     state.map.on('zoomend', () => {
       enforceZoomVisibility();
       updateLegend();
+    });
+
+    // Recorte por tela (viewportClip): refaz no fim de cada pan/zoom.
+    state.map.on('moveend', () => {
+      const clipped = state.orderedEntries.filter(entry => entry.loaded && entry.viewportClip);
+      if (!clipped.length) return;
+      clipped.forEach(entry => syncEntryLayer(entry, { force: shouldRenderEntry(entry) }));
+      refreshLayerStyles();
     });
 
     state.map.on('overlayremove', event => {
@@ -2031,14 +2066,66 @@
     if (cesiumViewer) return cesiumViewer;
 
     try {
-      window.Cesium.Ion.defaultAccessToken = 'REMOVIDO_TOKEN_CESIUM_REVOGADO';
+      const Cesium = window.Cesium;
 
-      cesiumViewer = new window.Cesium.Viewer('cesiumContainer', {
-        terrain: window.Cesium.Terrain.fromWorldTerrain({
-          requestWaterMask: true,
-          requestVertexNormals: true
+      // Basemaps 3D keyless: Esri (ArcGIS Online) + OpenStreetMap.
+      // Nada aqui usa Cesium Ion, portanto nenhum token/API key é necessário.
+      const imageryViewModels = [
+        new Cesium.ProviderViewModel({
+          name: 'ESRI Satélite',
+          iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/ArcGisMapServiceWorldImagery.png'),
+          tooltip: 'Esri World Imagery',
+          // creationFunction deve devolver um ImageryProvider (ou uma Promise dele);
+          // o BaseLayerPicker é quem chama ImageryLayer.fromProviderAsync por dentro.
+          creationFunction: () => Cesium.ArcGisMapServerImageryProvider.fromUrl(
+            'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+          )
         }),
+        new Cesium.ProviderViewModel({
+          name: 'ESRI Topográfico',
+          iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/ArcGisMapServiceWorldOcean.png'),
+          tooltip: 'Esri World Topographic Map',
+          creationFunction: () => Cesium.ArcGisMapServerImageryProvider.fromUrl(
+            'https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer'
+          )
+        }),
+        new Cesium.ProviderViewModel({
+          name: 'OpenStreetMap',
+          iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
+          tooltip: 'OpenStreetMap',
+          creationFunction: () => new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://tile.openstreetmap.org/',
+            credit: '© OpenStreetMap colaboradores'
+          })
+        })
+      ];
+
+      // Terreno global keyless (Re:Earth Terrain / Mapterhorn, CC BY 4.0),
+      // no lugar do Cesium World Terrain que exige conta no Ion.
+      const terrainViewModels = [
+        new Cesium.ProviderViewModel({
+          name: 'Relevo global',
+          iconUrl: Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/CesiumWorldTerrain.png'),
+          tooltip: 'Re:Earth Terrain (quantized-mesh, sem API key)',
+          creationFunction: () => Cesium.CesiumTerrainProvider.fromUrl(
+            'https://terrain.reearth.land/cesium-mesh/ellipsoid',
+            { requestVertexNormals: true }
+          )
+        }),
+        new Cesium.ProviderViewModel({
+          name: 'Sem relevo (elipsoide)',
+          iconUrl: Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/Ellipsoid.png'),
+          tooltip: 'Elipsoide WGS84',
+          creationFunction: () => new Cesium.EllipsoidTerrainProvider()
+        })
+      ];
+
+      cesiumViewer = new Cesium.Viewer('cesiumContainer', {
         baseLayerPicker: true,
+        imageryProviderViewModels: imageryViewModels,
+        selectedImageryProviderViewModel: imageryViewModels[0],
+        terrainProviderViewModels: terrainViewModels,
+        selectedTerrainProviderViewModel: terrainViewModels[0],
         geocoder: false,
         homeButton: true,
         sceneModePicker: true,
